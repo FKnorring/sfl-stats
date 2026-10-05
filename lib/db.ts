@@ -516,3 +516,40 @@ export function getRecentResults(teamId: number, limit = 5): RecentResult[] {
     }
   })
 }
+
+export type MatchDetail = {
+  matchId: string
+  scheduledAt: string | null
+  roundLabel: string | null
+  status: "pending" | "running" | "completed"
+  teamAName: string
+  teamBName: string
+  teamAId: number | null
+  teamBId: number | null
+  teamAScore: number | null
+  teamBScore: number | null
+}
+
+/** A single Toornament match by its toornament_match_id, for the match detail page. */
+export function getMatchById(matchId: string): MatchDetail | null {
+  const row = db
+    .prepare(
+      `
+      SELECT
+        toornament_match_id AS matchId,
+        scheduled_at AS scheduledAt,
+        round_label AS roundLabel,
+        status,
+        team_a_name_raw AS teamAName,
+        team_b_name_raw AS teamBName,
+        team_a_id AS teamAId,
+        team_b_id AS teamBId,
+        team_a_score AS teamAScore,
+        team_b_score AS teamBScore
+      FROM toornament_matches
+      WHERE toornament_match_id = @matchId
+      `
+    )
+    .get({ matchId }) as MatchDetail | undefined
+  return row ?? null
+}
