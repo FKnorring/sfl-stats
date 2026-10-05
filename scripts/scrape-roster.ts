@@ -1,8 +1,9 @@
-import { openWritableDb } from "./db-writable"
+import { sql } from "drizzle-orm"
+
+import { openWritableDb, type AppDb } from "@/lib/db/client"
 import { extractRootComponentJson } from "@/lib/root-component-json"
 import { pageJsonSchema } from "@/lib/roster-types"
 import { extractCs2Rosters } from "@/lib/roster-extract"
-import type Database from "better-sqlite3"
 import type { ScrapedTeam } from "@/lib/roster-types"
 
 const DEFAULT_URL = "https://publiclir.se/svenska-foeretagsligan/"
@@ -22,43 +23,27 @@ async function fetchPage(url: string): Promise<string> {
   return res.text()
 }
 
-function upsertTeamsAndRoster(db: Database.Database, teams: ScrapedTeam[]) {
+async function upsertTeamsAndRoster(
+  db: AppDb,
+  teams: ScrapedTeam[]
+) {
   const now = new Date().toISOString()
-
-  const upsertTeam = db.prepare(`
-    INSERT INTO teams (name, season, division)
-    VALUES (@name, @season, @division)
-    ON CONFLICT(name, season, division) DO NOTHING
-  `)
-  const getTeamId = db.prepare(`
-    SELECT id FROM teams WHERE name = ? AND season = ? AND division = ?
-  `)
-  const insertRosterEntry = db.prepare(`
-    INSERT INTO roster_entries (team_id, nickname, real_name, match_status, scraped_at)
-    VALUES (@teamId, @nickname, @realName, 'unmatched', @scrapedAt)
-  `)
-  // roster_entries has no unique constraint by design (a nickname can
-  // repeat across seasons/teams), so dedupe by hand against the exact
-  // same (team, nickname, real_name) row to keep repeated scrape runs
-  // idempotent instead of piling up duplicate rows.
-  const existingEntry = db.prepare(`
-    SELECT id FROM roster_entries
-    WHERE team_id = ? AND nickname = ? AND IFNULL(real_name, '') = IFNULL(?, '')
-  `)
 
   let teamCount = 0
   let newRosterEntries = 0
   let skippedExisting = 0
 
-  const tx = db.transaction((scrapedTeams: ScrapedTeam[]) => {
-    for (const team of scrapedTeams) {
-      upsertTeam.run({
-        name: team.teamName,
-        season: team.season,
-        division: team.division,
-      })
-      const row = getTeamId.get(team.teamName, team.season, team.division) as
-        { id: number } | undefined
+  await db.transaction(async (tx) => {
+    for (const team of teams) {
+      await tx.run(sql`
+        INSERT INTO teams (name, season, division)
+        VALUES (${team.teamName}, ${team.season}, ${team.division})
+        ON CONFLICT(name, season, division) DO NOTHING
+      `)
+      const rows = (await tx.all(
+        sql`SELECT id FROM teams WHERE name = ${team.teamName} AND season = ${team.season} AND division = ${team.division}`
+      )) as { id: number }[]
+      const row = rows[0]
       if (!row) {
         console.warn(
           `[scrape-roster] could not resolve team id for "${team.teamName}" (${team.season}/${team.division})`
@@ -68,27 +53,26 @@ function upsertTeamsAndRoster(db: Database.Database, teams: ScrapedTeam[]) {
       teamCount++
 
       for (const player of team.players) {
-        const existing = existingEntry.get(
-          row.id,
-          player.nickname,
-          player.realName
-        )
-        if (existing) {
+        const existing = (await tx.all(
+          sql`
+            SELECT id FROM roster_entries
+            WHERE team_id = ${row.id} AND nickname = ${player.nickname}
+              AND IFNULL(real_name, '') = IFNULL(${player.realName}, '')
+          `
+        )) as { id: number }[]
+        if (existing.length > 0) {
           skippedExisting++
           continue
         }
-        insertRosterEntry.run({
-          teamId: row.id,
-          nickname: player.nickname,
-          realName: player.realName,
-          scrapedAt: now,
-        })
+        await tx.run(sql`
+          INSERT INTO roster_entries (team_id, nickname, real_name, match_status, scraped_at)
+          VALUES (${row.id}, ${player.nickname}, ${player.realName}, 'unmatched', ${now})
+        `)
         newRosterEntries++
       }
     }
   })
 
-  tx(teams)
   return { teamCount, newRosterEntries, skippedExisting }
 }
 
@@ -106,16 +90,12 @@ async function main() {
   console.log(`[scrape-roster] found ${teams.length} CS2 team lineups`)
 
   const db = openWritableDb()
-  try {
-    const { teamCount, newRosterEntries, skippedExisting } =
-      upsertTeamsAndRoster(db, teams)
-    console.log(
-      `[scrape-roster] upserted ${teamCount} teams, ${newRosterEntries} new roster entries` +
-        (skippedExisting ? ` (${skippedExisting} already present)` : "")
-    )
-  } finally {
-    db.close()
-  }
+  const { teamCount, newRosterEntries, skippedExisting } =
+    await upsertTeamsAndRoster(db, teams)
+  console.log(
+    `[scrape-roster] upserted ${teamCount} teams, ${newRosterEntries} new roster entries` +
+      (skippedExisting ? ` (${skippedExisting} already present)` : "")
+  )
 }
 
 main().catch((err) => {

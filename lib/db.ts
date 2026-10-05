@@ -1,16 +1,19 @@
-import Database from "better-sqlite3"
-import { DB_PATH } from "@/lib/db-path"
+import { sql } from "drizzle-orm"
+import { db } from "@/lib/db/client"
 
-// Read-only connection used by the app. All writes happen exclusively in
-// the CLI scripts (scrape-roster, ingest-demos) via scripts/db-writable.ts,
-// so the web server never mutates data/sfl.db.
-const db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
+// Read-only Drizzle instance used by the app. All writes happen exclusively
+// in the CLI scripts (scrape-roster, ingest-demos) via
+// scripts/write-db.ts / lib/db/client.ts's openWritableDb, so the web
+// server never mutates the database — see
+// docs/adr/0002-public-app-is-read-only.md.
 
 // Seasons before 9 are excluded everywhere in the app — the roster scrape/
 // matching pipeline wasn't reliable before then, so that data is treated as
 // not present at all (not just hidden behind the default filter).
 const MIN_SEASON = 9
-const SEASON_CUTOFF_SQL = `CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) >= ${MIN_SEASON}`
+const SEASON_CUTOFF_SQL = sql.raw(
+  `CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) >= ${MIN_SEASON}`
+)
 
 export type LeaderboardStat =
   "kills" | "deaths" | "adr" | "hs_pct" | "mvps" | "assists"
@@ -55,12 +58,12 @@ export type LeaderboardFilters = {
  * matched to one roster_entries row per season and shows up once per
  * season in aggregates — scoping to one season at a time avoids that.
  */
-export function getCurrentSeason(): string | null {
-  const rows = db
-    .prepare(
-      `SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
+export async function getCurrentSeason(): Promise<string | null> {
+  const rows = (
+    await db.all(
+      sql`SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
     )
-    .all() as { season: string }[]
+  ) as { season: string }[]
   if (rows.length === 0) return null
   return rows
     .map((r) => r.season)
@@ -71,14 +74,11 @@ export function getCurrentSeason(): string | null {
     })[0]
 }
 
-export function getSeasons(): string[] {
-  return (
-    db
-      .prepare(
-        `SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
-      )
-      .all() as { season: string }[]
-  )
+export async function getSeasons(): Promise<string[]> {
+  const rows = (await db.all(
+    sql`SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
+  )) as { season: string }[]
+  return rows
     .map((r) => r.season)
     .sort((a, b) => {
       const na = parseInt(a.match(/(\d+)/)?.[1] ?? "0", 10)
@@ -93,31 +93,26 @@ export function getSeasons(): string[] {
  * with no roster match still show up (keyed by in-game name) so unmatched
  * players aren't silently dropped from the board.
  */
-export function getLeaderboard(filters: LeaderboardFilters): LeaderboardRow[] {
-  const statExpr = STAT_COLUMNS[filters.stat]
+export async function getLeaderboard(
+  filters: LeaderboardFilters
+): Promise<LeaderboardRow[]> {
+  const statExpr = sql.raw(STAT_COLUMNS[filters.stat])
 
   // Unmatched players (no roster_entries row, so t.season is NULL via the
   // LEFT JOIN) still belong on the board — only exclude rows that are
   // explicitly tied to a pre-season-9 team.
-  const conditions: string[] = [`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`]
-  const params: Record<string, string> = {}
-  if (filters.season) {
-    conditions.push("t.season = @season")
-    params.season = filters.season
-  }
-  if (filters.division) {
-    conditions.push("t.division = @division")
-    params.division = filters.division
-  }
-  if (filters.team) {
-    conditions.push("t.name = @team")
-    params.team = filters.team
-  }
-  const where = `WHERE ${conditions.join(" AND ")}`
+  const conditions = [sql`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`]
+  if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
+  if (filters.division)
+    conditions.push(sql`t.division = ${filters.division}`)
+  if (filters.team) conditions.push(sql`t.name = ${filters.team}`)
+  const where = sql.join(
+    [sql`WHERE `, sql.join(conditions, sql` AND `)],
+    sql``
+  )
 
-  const rows = db
-    .prepare(
-      `
+  return (await db.all(
+    sql`
       SELECT
         p.steamid64 AS steamid64,
         p.latest_ingame_name AS inGameName,
@@ -141,10 +136,7 @@ export function getLeaderboard(filters: LeaderboardFilters): LeaderboardRow[] {
       GROUP BY p.steamid64, t.id
       ORDER BY statValue DESC
       `
-    )
-    .all(params) as LeaderboardRow[]
-
-  return rows
+  )) as LeaderboardRow[]
 }
 
 export type TeamStandingRow = {
@@ -164,27 +156,23 @@ export type TeamStandingRow = {
  * Team-level standings derived from matched roster players' demo stats
  * (no Toornament W/D/L scrape in this first pass — see plan notes).
  */
-export function getTeamStandings(
+export async function getTeamStandings(
   filters: {
     season?: string
     division?: string
   } = {}
-): TeamStandingRow[] {
-  const conditions: string[] = [SEASON_CUTOFF_SQL]
-  const params: Record<string, string> = {}
-  if (filters.season) {
-    conditions.push("t.season = @season")
-    params.season = filters.season
-  }
-  if (filters.division) {
-    conditions.push("t.division = @division")
-    params.division = filters.division
-  }
-  const where = `WHERE ${conditions.join(" AND ")}`
+): Promise<TeamStandingRow[]> {
+  const conditions = [SEASON_CUTOFF_SQL]
+  if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
+  if (filters.division)
+    conditions.push(sql`t.division = ${filters.division}`)
+  const where = sql.join(
+    [sql`WHERE `, sql.join(conditions, sql` AND `)],
+    sql``
+  )
 
-  return db
-    .prepare(
-      `
+  return (await db.all(
+    sql`
       SELECT
         t.id AS teamId,
         t.name AS teamName,
@@ -203,8 +191,7 @@ export function getTeamStandings(
       GROUP BY t.id
       ORDER BY totalKills DESC
       `
-    )
-    .all(params) as TeamStandingRow[]
+  )) as TeamStandingRow[]
 }
 
 export type UnmatchedRosterEntry = {
@@ -219,10 +206,11 @@ export type UnmatchedRosterEntry = {
 }
 
 /** Roster entries still needing manual review (feeds data/player-overrides.json). */
-export function getUnmatchedRosterEntries(): UnmatchedRosterEntry[] {
-  return db
-    .prepare(
-      `
+export async function getUnmatchedRosterEntries(): Promise<
+  UnmatchedRosterEntry[]
+> {
+  return (await db.all(
+    sql`
       SELECT
         re.id AS id,
         re.nickname AS nickname,
@@ -238,32 +226,21 @@ export function getUnmatchedRosterEntries(): UnmatchedRosterEntry[] {
         AND ${SEASON_CUTOFF_SQL}
       ORDER BY re.match_status, t.season DESC, t.division, t.name
       `
-    )
-    .all() as UnmatchedRosterEntry[]
+  )) as UnmatchedRosterEntry[]
 }
 
-export function getDivisions(): string[] {
-  return (
-    db
-      .prepare(
-        `SELECT DISTINCT division FROM teams t WHERE ${SEASON_CUTOFF_SQL} ORDER BY division`
-      )
-      .all() as {
-      division: string
-    }[]
-  ).map((r) => r.division)
+export async function getDivisions(): Promise<string[]> {
+  const rows = (await db.all(
+    sql`SELECT DISTINCT division FROM teams t WHERE ${SEASON_CUTOFF_SQL} ORDER BY division`
+  )) as { division: string }[]
+  return rows.map((r) => r.division)
 }
 
-export function getTeams(): string[] {
-  return (
-    db
-      .prepare(
-        `SELECT DISTINCT name FROM teams t WHERE ${SEASON_CUTOFF_SQL} ORDER BY name`
-      )
-      .all() as {
-      name: string
-    }[]
-  ).map((r) => r.name)
+export async function getTeams(): Promise<string[]> {
+  const rows = (await db.all(
+    sql`SELECT DISTINCT name FROM teams t WHERE ${SEASON_CUTOFF_SQL} ORDER BY name`
+  )) as { name: string }[]
+  return rows.map((r) => r.name)
 }
 
 export type TeamMeta = {
@@ -274,13 +251,11 @@ export type TeamMeta = {
 }
 
 /** Looks up a single team-season row by id, for the compare page's headers. */
-export function getTeamMeta(teamId: number): TeamMeta | null {
-  const row = db
-    .prepare(
-      `SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE id = @teamId`
-    )
-    .get({ teamId }) as TeamMeta | undefined
-  return row ?? null
+export async function getTeamMeta(teamId: number): Promise<TeamMeta | null> {
+  const rows = (await db.all(
+    sql`SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE id = ${teamId}`
+  )) as TeamMeta[]
+  return rows[0] ?? null
 }
 
 /**
@@ -290,12 +265,13 @@ export function getTeamMeta(teamId: number): TeamMeta | null {
  * falls back to whichever of that team's seasons sorts highest — same
  * "most recent season" convention as getCurrentSeason/getTeamStandings.
  */
-export function getTeamByName(name: string, season?: string): TeamMeta | null {
-  const rows = db
-    .prepare(
-      `SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE name = @name`
-    )
-    .all({ name }) as TeamMeta[]
+export async function getTeamByName(
+  name: string,
+  season?: string
+): Promise<TeamMeta | null> {
+  const rows = (await db.all(
+    sql`SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE name = ${name}`
+  )) as TeamMeta[]
   if (rows.length === 0) return null
   if (season) return rows.find((r) => r.season === season) ?? null
   return rows.sort((a, b) => {
@@ -326,10 +302,11 @@ export type TeamRosterPlayerRow = {
  * getTeamStandings' rosterSize/matchedPlayers split, but per-player instead
  * of aggregated, for the team-compare view.
  */
-export function getTeamRoster(teamId: number): TeamRosterPlayerRow[] {
-  return db
-    .prepare(
-      `
+export async function getTeamRoster(
+  teamId: number
+): Promise<TeamRosterPlayerRow[]> {
+  return (await db.all(
+    sql`
       SELECT
         re.id AS rosterEntryId,
         re.matched_steamid64 AS steamid64,
@@ -346,12 +323,11 @@ export function getTeamRoster(teamId: number): TeamRosterPlayerRow[] {
       FROM roster_entries re
       LEFT JOIN players p ON p.steamid64 = re.matched_steamid64
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
-      WHERE re.team_id = @teamId
+      WHERE re.team_id = ${teamId}
       GROUP BY re.id
       ORDER BY kills DESC
       `
-    )
-    .all({ teamId }) as TeamRosterPlayerRow[]
+  )) as TeamRosterPlayerRow[]
 }
 
 export type FutureOpponent = {
@@ -368,10 +344,11 @@ export type FutureOpponent = {
  * side isn't `teamId` as the opponent — picked in JS since team_a/team_b
  * are just "side 1"/"side 2" from the scrape, not home/away.
  */
-export function getFutureOpponents(teamId: number): FutureOpponent[] {
-  const rows = db
-    .prepare(
-      `
+export async function getFutureOpponents(
+  teamId: number
+): Promise<FutureOpponent[]> {
+  const rows = (await db.all(
+    sql`
       SELECT
         toornament_match_id AS matchId,
         scheduled_at AS scheduledAt,
@@ -381,11 +358,10 @@ export function getFutureOpponents(teamId: number): FutureOpponent[] {
         team_a_name_raw AS teamAName,
         team_b_name_raw AS teamBName
       FROM toornament_matches
-      WHERE status = 'pending' AND (team_a_id = @teamId OR team_b_id = @teamId)
+      WHERE status = 'pending' AND (team_a_id = ${teamId} OR team_b_id = ${teamId})
       ORDER BY scheduled_at ASC
       `
-    )
-    .all({ teamId }) as {
+  )) as {
     matchId: string
     scheduledAt: string | null
     roundLabel: string | null
@@ -422,21 +398,22 @@ export type TeamMapStat = {
  * unresolved ones (same "count everything, win/loss stays 0 if unknown"
  * convention as getTeamStandings' rosterSize/matchedPlayers split).
  */
-export function getTeamMapStats(teamId: number): TeamMapStat[] {
-  const rows = db
-    .prepare(
-      `
+export async function getTeamMapStats(
+  teamId: number
+): Promise<TeamMapStat[]> {
+  const rows = (await db.all(
+    sql`
       SELECT
         map_name AS mapName,
         COUNT(*) AS matchesPlayed,
         COALESCE(SUM(CASE
-          WHEN team_a_id = @teamId AND team_a_score > team_b_score THEN 1
-          WHEN team_b_id = @teamId AND team_b_score > team_a_score THEN 1
+          WHEN team_a_id = ${teamId} AND team_a_score > team_b_score THEN 1
+          WHEN team_b_id = ${teamId} AND team_b_score > team_a_score THEN 1
           ELSE 0
         END), 0) AS wins,
         COALESCE(SUM(CASE
-          WHEN team_a_id = @teamId AND team_a_score < team_b_score THEN 1
-          WHEN team_b_id = @teamId AND team_b_score < team_a_score THEN 1
+          WHEN team_a_id = ${teamId} AND team_a_score < team_b_score THEN 1
+          WHEN team_b_id = ${teamId} AND team_b_score < team_a_score THEN 1
           ELSE 0
         END), 0) AS losses
       FROM (
@@ -444,13 +421,12 @@ export function getTeamMapStats(teamId: number): TeamMapStat[] {
         FROM roster_entries re
         JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
         JOIN matches m ON m.id = pms.match_id
-        WHERE re.team_id = @teamId AND m.map_name IS NOT NULL
+        WHERE re.team_id = ${teamId} AND m.map_name IS NOT NULL
       )
       GROUP BY map_name
       ORDER BY matchesPlayed DESC
       `
-    )
-    .all({ teamId }) as Omit<TeamMapStat, "winRate">[]
+  )) as Omit<TeamMapStat, "winRate">[]
 
   return rows.map((r) => ({
     ...r,
@@ -469,10 +445,12 @@ export type RecentResult = {
 }
 
 /** Most recent completed Toornament matches for one team, newest first. */
-export function getRecentResults(teamId: number, limit = 5): RecentResult[] {
-  const rows = db
-    .prepare(
-      `
+export async function getRecentResults(
+  teamId: number,
+  limit = 5
+): Promise<RecentResult[]> {
+  const rows = (await db.all(
+    sql`
       SELECT
         toornament_match_id AS matchId,
         scheduled_at AS scheduledAt,
@@ -484,13 +462,12 @@ export function getRecentResults(teamId: number, limit = 5): RecentResult[] {
         team_b_score AS teamBScore
       FROM toornament_matches
       WHERE status = 'completed'
-        AND (team_a_id = @teamId OR team_b_id = @teamId)
+        AND (team_a_id = ${teamId} OR team_b_id = ${teamId})
         AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
       ORDER BY scheduled_at DESC
-      LIMIT @limit
+      LIMIT ${limit}
       `
-    )
-    .all({ teamId, limit }) as {
+  )) as {
     matchId: string
     scheduledAt: string | null
     teamAId: number | null

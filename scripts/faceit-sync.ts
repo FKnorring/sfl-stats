@@ -1,4 +1,6 @@
-import { openWritableDb } from "./db-writable"
+import { sql } from "drizzle-orm"
+
+import { openWritableDb, type AppDb } from "@/lib/db/client"
 import {
   getPlayerBySteamId,
   getPlayerHistory,
@@ -7,7 +9,6 @@ import {
   parseNumericStat,
   type FaceitMatchStats,
 } from "@/lib/faceit-client"
-import type Database from "better-sqlite3"
 
 const DEFAULT_DAYS = 7
 const DEFAULT_MAX_AGE_HOURS = 12
@@ -76,62 +77,60 @@ type ConfirmedPlayer = { steamid64: string }
  * "Confirmed" steamid reuses the existing resolution convention from
  * lib/db.ts / app/leaderboard: match_status manual or auto_high.
  */
-function getConfirmedPlayers(db: Database.Database): ConfirmedPlayer[] {
-  return db
-    .prepare(
-      `SELECT DISTINCT p.steamid64 AS steamid64
-       FROM players p
-       JOIN roster_entries re ON re.matched_steamid64 = p.steamid64
-       WHERE re.match_status IN ('manual', 'auto_high')`
-    )
-    .all() as ConfirmedPlayer[]
+async function getConfirmedPlayers(
+  db: AppDb
+): Promise<ConfirmedPlayer[]> {
+  return (await db.all(
+    sql`SELECT DISTINCT p.steamid64 AS steamid64
+        FROM players p
+        JOIN roster_entries re ON re.matched_steamid64 = p.steamid64
+        WHERE re.match_status IN ('manual', 'auto_high')`
+  )) as ConfirmedPlayer[]
 }
 
-function getFreshSteamids(
-  db: Database.Database,
+async function getFreshSteamids(
+  db: AppDb,
   maxAgeHours: number
-): Set<string> {
-  const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000).toISOString()
-  const rows = db
-    .prepare(
-      `SELECT steamid64 FROM faceit_players WHERE last_synced_at >= ?`
-    )
-    .all(cutoff) as { steamid64: string }[]
+): Promise<Set<string>> {
+  const cutoff = new Date(
+    Date.now() - maxAgeHours * 60 * 60 * 1000
+  ).toISOString()
+  const rows = (await db.all(
+    sql`SELECT steamid64 FROM faceit_players WHERE last_synced_at >= ${cutoff}`
+  )) as { steamid64: string }[]
   return new Set(rows.map((r) => r.steamid64))
 }
 
-function upsertFaceitPlayer(
-  db: Database.Database,
+async function upsertFaceitPlayer(
+  db: AppDb,
   steamid64: string,
-  player: { playerId: string; nickname: string; elo: number | null; skillLevel: number | null },
+  player: {
+    playerId: string
+    nickname: string
+    elo: number | null
+    skillLevel: number | null
+  },
   now: string
 ) {
-  db.prepare(
-    `INSERT INTO faceit_players (steamid64, faceit_player_id, nickname, elo, skill_level, last_synced_at)
-     VALUES (@steamid64, @faceitPlayerId, @nickname, @elo, @skillLevel, @lastSyncedAt)
-     ON CONFLICT(steamid64) DO UPDATE SET
-       faceit_player_id = excluded.faceit_player_id,
-       nickname = excluded.nickname,
-       elo = excluded.elo,
-       skill_level = excluded.skill_level,
-       last_synced_at = excluded.last_synced_at`
-  ).run({
-    steamid64,
-    faceitPlayerId: player.playerId,
-    nickname: player.nickname,
-    elo: player.elo,
-    skillLevel: player.skillLevel,
-    lastSyncedAt: now,
-  })
+  await db.run(sql`
+    INSERT INTO faceit_players (steamid64, faceit_player_id, nickname, elo, skill_level, last_synced_at)
+    VALUES (${steamid64}, ${player.playerId}, ${player.nickname}, ${player.elo}, ${player.skillLevel}, ${now})
+    ON CONFLICT(steamid64) DO UPDATE SET
+      faceit_player_id = excluded.faceit_player_id,
+      nickname = excluded.nickname,
+      elo = excluded.elo,
+      skill_level = excluded.skill_level,
+      last_synced_at = excluded.last_synced_at
+  `)
 }
 
-function getExistingMatchIds(
-  db: Database.Database,
+async function getExistingMatchIds(
+  db: AppDb,
   steamid64: string
-): Set<string> {
-  const rows = db
-    .prepare(`SELECT faceit_match_id FROM faceit_match_stats WHERE steamid64 = ?`)
-    .all(steamid64) as { faceit_match_id: string }[]
+): Promise<Set<string>> {
+  const rows = (await db.all(
+    sql`SELECT faceit_match_id FROM faceit_match_stats WHERE steamid64 = ${steamid64}`
+  )) as { faceit_match_id: string }[]
   return new Set(rows.map((r) => r.faceit_match_id))
 }
 
@@ -153,8 +152,8 @@ function findPlayerStats(
   return null
 }
 
-function insertMatchStats(
-  db: Database.Database,
+async function insertMatchStats(
+  db: AppDb,
   steamid64: string,
   faceitMatchId: string,
   playedAt: string,
@@ -168,24 +167,13 @@ function insertMatchStats(
   const adr = parseNumericStat(stats["ADR"])
   const hsPct = parseNumericStat(stats["Headshots %"])
 
-  db.prepare(
-    `INSERT INTO faceit_match_stats
-       (steamid64, faceit_match_id, played_at, kills, deaths, assists, kd_ratio, adr, hs_pct, elo_at_match, fetched_at)
-     VALUES
-       (@steamid64, @faceitMatchId, @playedAt, @kills, @deaths, @assists, @kdRatio, @adr, @hsPct, NULL, @fetchedAt)
-     ON CONFLICT(steamid64, faceit_match_id) DO NOTHING`
-  ).run({
-    steamid64,
-    faceitMatchId,
-    playedAt,
-    kills,
-    deaths,
-    assists,
-    kdRatio,
-    adr,
-    hsPct,
-    fetchedAt: now,
-  })
+  await db.run(sql`
+    INSERT INTO faceit_match_stats
+      (steamid64, faceit_match_id, played_at, kills, deaths, assists, kd_ratio, adr, hs_pct, elo_at_match, fetched_at)
+    VALUES
+      (${steamid64}, ${faceitMatchId}, ${playedAt}, ${kills}, ${deaths}, ${assists}, ${kdRatio}, ${adr}, ${hsPct}, NULL, ${now})
+    ON CONFLICT(steamid64, faceit_match_id) DO NOTHING
+  `)
 }
 
 type Summary = {
@@ -201,7 +189,7 @@ async function sleep(ms: number) {
 }
 
 async function syncPlayer(
-  db: Database.Database,
+  db: AppDb,
   steamid64: string,
   days: number,
   summary: Summary
@@ -215,7 +203,7 @@ async function syncPlayer(
     return
   }
 
-  upsertFaceitPlayer(db, steamid64, player, now)
+  await upsertFaceitPlayer(db, steamid64, player, now)
 
   const nowSec = Math.floor(Date.now() / 1000)
   const history = await getPlayerHistory(player.playerId, {
@@ -223,7 +211,7 @@ async function syncPlayer(
     to: nowSec,
   })
 
-  const existing = getExistingMatchIds(db, steamid64)
+  const existing = await getExistingMatchIds(db, steamid64)
   const newItems = history.filter((item) => !existing.has(item.match_id))
 
   for (const item of newItems) {
@@ -240,7 +228,14 @@ async function syncPlayer(
     const playedAt = playedAtMs
       ? new Date(playedAtMs * 1000).toISOString()
       : now
-    insertMatchStats(db, steamid64, item.match_id, playedAt, playerStats, now)
+    await insertMatchStats(
+      db,
+      steamid64,
+      item.match_id,
+      playedAt,
+      playerStats,
+      now
+    )
     summary.newMatchRows++
     await sleep(200)
   }
@@ -257,45 +252,41 @@ async function main() {
   }
 
   const db = openWritableDb()
-  try {
-    let targets = args.steamid
-      ? [{ steamid64: args.steamid }]
-      : getConfirmedPlayers(db)
-    console.log(`[faceit-sync] ${targets.length} confirmed player(s) found`)
+  let targets = args.steamid
+    ? [{ steamid64: args.steamid }]
+    : await getConfirmedPlayers(db)
+  console.log(`[faceit-sync] ${targets.length} confirmed player(s) found`)
 
-    const summary: Summary = {
-      synced: 0,
-      skippedFresh: 0,
-      notFound: 0,
-      failed: 0,
-      newMatchRows: 0,
-    }
-
-    if (!args.force && !args.steamid) {
-      const fresh = getFreshSteamids(db, args.maxAgeHours)
-      const before = targets.length
-      targets = targets.filter((t) => !fresh.has(t.steamid64))
-      summary.skippedFresh = before - targets.length
-    }
-
-    for (const { steamid64 } of targets) {
-      console.log(`[faceit-sync] syncing ${steamid64}`)
-      try {
-        await syncPlayer(db, steamid64, args.days, summary)
-      } catch (err) {
-        console.error(`[faceit-sync] failed to sync ${steamid64}:`, err)
-        summary.failed++
-      }
-      await sleep(200)
-    }
-
-    console.log(
-      `[faceit-sync] done: synced ${summary.synced}, skipped (fresh) ${summary.skippedFresh}, ` +
-        `not found ${summary.notFound}, failed ${summary.failed}, new match rows ${summary.newMatchRows}`
-    )
-  } finally {
-    db.close()
+  const summary: Summary = {
+    synced: 0,
+    skippedFresh: 0,
+    notFound: 0,
+    failed: 0,
+    newMatchRows: 0,
   }
+
+  if (!args.force && !args.steamid) {
+    const fresh = await getFreshSteamids(db, args.maxAgeHours)
+    const before = targets.length
+    targets = targets.filter((t) => !fresh.has(t.steamid64))
+    summary.skippedFresh = before - targets.length
+  }
+
+  for (const { steamid64 } of targets) {
+    console.log(`[faceit-sync] syncing ${steamid64}`)
+    try {
+      await syncPlayer(db, steamid64, args.days, summary)
+    } catch (err) {
+      console.error(`[faceit-sync] failed to sync ${steamid64}:`, err)
+      summary.failed++
+    }
+    await sleep(200)
+  }
+
+  console.log(
+    `[faceit-sync] done: synced ${summary.synced}, skipped (fresh) ${summary.skippedFresh}, ` +
+      `not found ${summary.notFound}, failed ${summary.failed}, new match rows ${summary.newMatchRows}`
+  )
 }
 
 main().catch((err) => {

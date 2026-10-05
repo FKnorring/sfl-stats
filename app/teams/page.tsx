@@ -39,14 +39,14 @@ export default async function TeamsPage({
     ? params.division[0]
     : params.division
 
-  const season = seasonParam ?? getCurrentSeason() ?? undefined
+  const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
 
-  const [rows, seasons, divisions, faceitStats] = [
+  const [rows, seasons, divisions, faceitStats] = await Promise.all([
     getTeamStandings({ season, division: divisionParam }),
     getSeasons(),
     getDivisions(),
     getFaceitTeamStats(),
-  ]
+  ])
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
