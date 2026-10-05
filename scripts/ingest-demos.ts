@@ -1,0 +1,294 @@
+import fs from "node:fs"
+import path from "node:path"
+import { openWritableDb } from "./db-writable"
+import { STAT_FIELDS, tickRowSchema, deriveStats } from "@/lib/demo-stats"
+import { resolvePlayerMatch, type MatchCandidate } from "@/lib/matching"
+import { z } from "zod"
+import type Database from "better-sqlite3"
+import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
+
+const DEFAULT_DIR = path.join(process.cwd(), "demos")
+const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
+
+function parseArgs(argv: string[]): { dir: string } {
+  const idx = argv.indexOf("--dir")
+  const dir =
+    idx !== -1 ? argv[idx + 1] : (process.env.DEMOS_DIR ?? DEFAULT_DIR)
+  if (!dir) throw new Error("--dir requires a value")
+  return { dir }
+}
+
+function walkDemosFolder(dir: string): string[] {
+  if (!fs.existsSync(dir)) return []
+  const out: string[] = []
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name)
+    // Resolve symlinks (common for demo folders synced/linked from elsewhere)
+    // rather than relying on Dirent's own type, which reports symlinks as
+    // neither a file nor a directory.
+    const stat = fs.statSync(full)
+    if (stat.isDirectory()) {
+      out.push(...walkDemosFolder(full))
+    } else if (stat.isFile() && entry.name.toLowerCase().endsWith(".dem")) {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+const overridesFileSchema = z.record(
+  z.string(), // steamid64
+  z.object({
+    rosterEntryId: z.number(),
+    note: z.string().optional(),
+  })
+)
+
+function loadOverrides(): Map<
+  string,
+  { rosterEntryId: number; note?: string }
+> {
+  if (!fs.existsSync(OVERRIDES_PATH)) return new Map()
+  const raw = JSON.parse(fs.readFileSync(OVERRIDES_PATH, "utf-8"))
+  const parsed = overridesFileSchema.parse(raw)
+  return new Map(Object.entries(parsed))
+}
+
+function applyOverrides(
+  db: Database.Database,
+  overrides: Map<string, { rosterEntryId: number; note?: string }>
+) {
+  const now = new Date().toISOString()
+  const upsert = db.prepare(`
+    INSERT INTO player_name_overrides (steamid64, roster_entry_id, note, created_at)
+    VALUES (@steamid64, @rosterEntryId, @note, @createdAt)
+    ON CONFLICT(steamid64) DO UPDATE SET
+      roster_entry_id = excluded.roster_entry_id,
+      note = excluded.note
+  `)
+  const markManual = db.prepare(`
+    UPDATE roster_entries
+    SET matched_steamid64 = ?, match_confidence = 1, match_status = 'manual'
+    WHERE id = ?
+  `)
+  for (const [steamid64, { rosterEntryId, note }] of overrides) {
+    upsert.run({ steamid64, rosterEntryId, note: note ?? null, createdAt: now })
+    markManual.run(steamid64, rosterEntryId)
+  }
+}
+
+type RosterRow = {
+  id: number
+  nickname: string
+  matched_steamid64: string | null
+  match_status: string
+}
+
+function getUnresolvedCandidates(db: Database.Database): MatchCandidate[] {
+  // Candidates still open for (re-)matching: never matched, or matched only
+  // at low confidence. Manual and ambiguous entries are left alone —
+  // manual always wins via the override table, and ambiguous needs a human.
+  const rows = db
+    .prepare(
+      `SELECT id, nickname, matched_steamid64, match_status FROM roster_entries
+       WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')`
+    )
+    .all() as RosterRow[]
+  return rows.map((r) => ({ rosterEntryId: r.id, nickname: r.nickname }))
+}
+
+function upsertPlayer(
+  db: Database.Database,
+  steamid64: string,
+  inGameName: string,
+  now: string
+) {
+  db.prepare(
+    `INSERT INTO players (steamid64, latest_ingame_name, first_seen_at, last_seen_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(steamid64) DO UPDATE SET
+       latest_ingame_name = excluded.latest_ingame_name,
+       last_seen_at = excluded.last_seen_at`
+  ).run(steamid64, inGameName, now, now)
+}
+
+function updateRosterMatch(
+  db: Database.Database,
+  rosterEntryId: number,
+  steamid64: string,
+  confidence: number | null,
+  status: string
+) {
+  db.prepare(
+    `UPDATE roster_entries
+     SET matched_steamid64 = ?, match_confidence = ?, match_status = ?
+     WHERE id = ?`
+  ).run(steamid64, confidence, status, rosterEntryId)
+}
+
+type Summary = {
+  manual: number
+  autoHigh: number
+  autoLow: number
+  ambiguous: number
+  unmatched: number
+}
+
+function ingestDemo(
+  db: Database.Database,
+  filePath: string,
+  overrides: Map<string, { rosterEntryId: number }>,
+  summary: Summary
+) {
+  const now = new Date().toISOString()
+
+  const header = parseHeader(filePath) as Record<string, string>
+  const roundEndsRaw = parseEvent(filePath, "round_end") as unknown[]
+  const roundEnds = z.array(z.object({ tick: z.number() })).parse(roundEndsRaw)
+  if (roundEnds.length === 0) {
+    console.warn(`[ingest-demos] no rounds found, skipping: ${filePath}`)
+    return
+  }
+  const gameEndTick = Math.max(...roundEnds.map((r) => r.tick))
+  const totalRounds = roundEnds.length
+
+  const rawTicks = parseTicks(
+    filePath,
+    [...STAT_FIELDS],
+    [gameEndTick]
+  ) as unknown[]
+  const tickRows = z.array(tickRowSchema).parse(rawTicks)
+
+  const matchId = db
+    .prepare(
+      `INSERT INTO matches (file_path, map_name, server_name, demo_date, total_rounds, parsed_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    .run(
+      filePath,
+      header.map_name ?? null,
+      header.server_name ?? null,
+      now,
+      totalRounds,
+      now
+    ).lastInsertRowid as number
+
+  const insertStats = db.prepare(`
+    INSERT INTO player_match_stats (
+      match_id, steamid64, team_name, kills, deaths, assists, headshot_kills,
+      damage_total, utility_damage_total, enemies_flashed_total, mvps,
+      ace_rounds, rounds_3k, rounds_4k, equipment_value_total, adr, hs_pct
+    ) VALUES (
+      @matchId, @steamid64, @teamName, @kills, @deaths, @assists, @headshotKills,
+      @damageTotal, @utilityDamageTotal, @enemiesFlashedTotal, @mvps,
+      @aceRounds, @rounds3k, @rounds4k, @equipmentValueTotal, @adr, @hsPct
+    )
+  `)
+
+  let candidates = getUnresolvedCandidates(db)
+
+  for (const row of tickRows) {
+    const stats = deriveStats(row, totalRounds)
+    if (!stats) {
+      console.warn(
+        `[ingest-demos] dropping player row with no steamid/name in ${path.basename(filePath)} (bot or upstream null-field bug)`
+      )
+      continue
+    }
+
+    upsertPlayer(db, stats.steamid64, stats.inGameName, now)
+    insertStats.run({ matchId, ...stats })
+
+    const override = overrides.get(stats.steamid64) ?? null
+    const result = resolvePlayerMatch(stats.inGameName, candidates, override)
+
+    if (result.status === "manual") {
+      summary.manual++
+    } else if (result.rosterEntryIds.length > 0) {
+      for (const rosterEntryId of result.rosterEntryIds) {
+        updateRosterMatch(
+          db,
+          rosterEntryId,
+          stats.steamid64,
+          result.confidence,
+          result.status
+        )
+      }
+      // Remove the now-claimed roster entries from the pool so a later demo
+      // row (or a different player in the same demo) can't also claim them.
+      const claimed = new Set(result.rosterEntryIds)
+      candidates = candidates.filter((c) => !claimed.has(c.rosterEntryId))
+      if (result.status === "auto_high") summary.autoHigh++
+      else summary.autoLow++
+    } else if (result.status === "ambiguous") {
+      summary.ambiguous++
+    } else {
+      summary.unmatched++
+    }
+  }
+}
+
+async function main() {
+  const { dir } = parseArgs(process.argv.slice(2))
+  const files = walkDemosFolder(dir)
+  console.log(`[ingest-demos] found ${files.length} .dem files under ${dir}`)
+
+  const db = openWritableDb()
+  const overrides = loadOverrides()
+  console.log(`[ingest-demos] loaded ${overrides.size} manual overrides`)
+
+  try {
+    applyOverrides(db, overrides)
+
+    const alreadyIngested = new Set(
+      (
+        db.prepare("SELECT file_path FROM matches").all() as {
+          file_path: string
+        }[]
+      ).map((r) => r.file_path)
+    )
+
+    const summary: Summary = {
+      manual: 0,
+      autoHigh: 0,
+      autoLow: 0,
+      ambiguous: 0,
+      unmatched: 0,
+    }
+    let ingested = 0
+    let skipped = 0
+
+    for (const file of files) {
+      if (alreadyIngested.has(file)) {
+        skipped++
+        continue
+      }
+      console.log(`[ingest-demos] parsing ${path.basename(file)}`)
+      try {
+        ingestDemo(db, file, overrides, summary)
+        ingested++
+      } catch (err) {
+        console.error(`[ingest-demos] failed to parse ${file}:`, err)
+      }
+    }
+
+    console.log(
+      `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested`
+    )
+    console.log(
+      `[ingest-demos] player-match resolution — manual: ${summary.manual}, auto_high: ${summary.autoHigh}, auto_low (review): ${summary.autoLow}, ambiguous (review): ${summary.ambiguous}, unmatched (review): ${summary.unmatched}`
+    )
+    if (summary.autoLow + summary.ambiguous + summary.unmatched > 0) {
+      console.log(
+        `[ingest-demos] run \`sqlite3 data/sfl.db "select id, nickname, team_id from roster_entries where match_status != 'manual' and match_status != 'auto_high'"\` to review, then edit data/player-overrides.json and re-run.`
+      )
+    }
+  } finally {
+    db.close()
+  }
+}
+
+main().catch((err) => {
+  console.error("[ingest-demos] failed:", err)
+  process.exit(1)
+})

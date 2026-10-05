@@ -37,3 +37,7 @@ pnpm-debug.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+data/sfl.db
+data/sfl.db-shm
+data/sfl.db-wal
+demos/
