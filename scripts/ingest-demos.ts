@@ -254,9 +254,10 @@ async function ingestDemo(
   ) as unknown[]
   const tickRows = z.array(tickRowSchema).parse(rawTicks)
 
+  const fileName = path.basename(filePath)
   const matchRows = (await db.all(
-    sql`INSERT INTO matches (file_path, map_name, server_name, demo_date, total_rounds, parsed_at)
-        VALUES (${filePath}, ${header.map_name ?? null}, ${header.server_name ?? null}, ${now}, ${totalRounds}, ${now})
+    sql`INSERT INTO matches (file_name, map_name, server_name, demo_date, total_rounds, parsed_at)
+        VALUES (${fileName}, ${header.map_name ?? null}, ${header.server_name ?? null}, ${now}, ${totalRounds}, ${now})
         RETURNING id`
   )) as { id: number }[]
   const matchId = matchRows[0].id
@@ -344,10 +345,10 @@ async function main() {
 
   const alreadyIngested = new Set(
     (
-      (await db.all(sql`SELECT file_path FROM matches`)) as {
-        file_path: string
+      (await db.all(sql`SELECT file_name FROM matches`)) as {
+        file_name: string
       }[]
-    ).map((r) => r.file_path)
+    ).map((r) => r.file_name)
   )
 
   const summary: Summary = {
@@ -361,7 +362,7 @@ async function main() {
   let skipped = 0
 
   for (const file of files) {
-    if (alreadyIngested.has(file)) {
+    if (alreadyIngested.has(path.basename(file))) {
       skipped++
       continue
     }
