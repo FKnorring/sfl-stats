@@ -1,5 +1,6 @@
 import Database from "better-sqlite3"
 import { DB_PATH } from "@/lib/db-path"
+import { MATCHED_TEAM_PLAYERS_CTE, ROSTER_WITH_TEAM_CTE } from "@/lib/roster-sql"
 
 // Read-only connection, same convention as lib/db.ts — all writes happen
 // exclusively in scripts/faceit-sync.ts via scripts/db-writable.ts.
@@ -71,21 +72,32 @@ export function getFaceitTeamStats(
   const rows = db
     .prepare(
       `
+      WITH
+        ${ROSTER_WITH_TEAM_CTE},
+        ${MATCHED_TEAM_PLAYERS_CTE},
+        matched_faceit_players AS (
+          SELECT DISTINCT
+            matched_team_players.teamId AS teamId,
+            matched_team_players.steamid64 AS steamid64
+          FROM matched_team_players
+          JOIN roster_with_team
+            ON roster_with_team.teamId = matched_team_players.teamId
+            AND roster_with_team.steamid64 = matched_team_players.steamid64
+            AND roster_with_team.matchStatus IN ('manual', 'auto_high')
+        )
       SELECT
-        t.id AS teamId,
+        mfp.teamId AS teamId,
         COUNT(DISTINCT fp.steamid64) AS playersWithFaceit,
         AVG(fp.elo) AS avgElo,
         AVG(fms.kd_ratio) AS avgKd,
         AVG(fms.adr) AS avgAdr,
         COUNT(fms.id) AS matchesRecent
-      FROM teams t
-      JOIN roster_entries re ON re.team_id = t.id
-        AND re.match_status IN ('manual', 'auto_high')
-      JOIN faceit_players fp ON fp.steamid64 = re.matched_steamid64
+      FROM matched_faceit_players mfp
+      JOIN faceit_players fp ON fp.steamid64 = mfp.steamid64
       LEFT JOIN faceit_match_stats fms
         ON fms.steamid64 = fp.steamid64
         AND datetime(fms.played_at) >= datetime('now', @daysOffset)
-      GROUP BY t.id
+      GROUP BY mfp.teamId
       `
     )
     .all({ daysOffset: `-${days} days` }) as (FaceitTeamSummary & {
