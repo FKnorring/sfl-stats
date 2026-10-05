@@ -283,6 +283,28 @@ export function getTeamMeta(teamId: number): TeamMeta | null {
   return row ?? null
 }
 
+/**
+ * Looks up a team-season row by name, for the single-team roster page.
+ * A team name alone doesn't uniquely identify a row (unique key is
+ * name+season+division), so this defaults to `season` when given, otherwise
+ * falls back to whichever of that team's seasons sorts highest — same
+ * "most recent season" convention as getCurrentSeason/getTeamStandings.
+ */
+export function getTeamByName(name: string, season?: string): TeamMeta | null {
+  const rows = db
+    .prepare(
+      `SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE name = @name`
+    )
+    .all({ name }) as TeamMeta[]
+  if (rows.length === 0) return null
+  if (season) return rows.find((r) => r.season === season) ?? null
+  return rows.sort((a, b) => {
+    const na = parseInt(a.season.match(/(\d+)/)?.[1] ?? "0", 10)
+    const nb = parseInt(b.season.match(/(\d+)/)?.[1] ?? "0", 10)
+    return nb - na
+  })[0]
+}
+
 export type TeamRosterPlayerRow = {
   rosterEntryId: number
   steamid64: string | null
@@ -330,4 +352,167 @@ export function getTeamRoster(teamId: number): TeamRosterPlayerRow[] {
       `
     )
     .all({ teamId }) as TeamRosterPlayerRow[]
+}
+
+export type FutureOpponent = {
+  matchId: string
+  opponentName: string
+  opponentTeamId: number | null
+  scheduledAt: string | null
+  roundLabel: string | null
+}
+
+/**
+ * Upcoming (not-yet-played) matches for one team, scraped from Toornament's
+ * schedule widget by scripts/scrape-schedule.ts. Each row names whichever
+ * side isn't `teamId` as the opponent — picked in JS since team_a/team_b
+ * are just "side 1"/"side 2" from the scrape, not home/away.
+ */
+export function getFutureOpponents(teamId: number): FutureOpponent[] {
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        toornament_match_id AS matchId,
+        scheduled_at AS scheduledAt,
+        round_label AS roundLabel,
+        team_a_id AS teamAId,
+        team_b_id AS teamBId,
+        team_a_name_raw AS teamAName,
+        team_b_name_raw AS teamBName
+      FROM toornament_matches
+      WHERE status = 'pending' AND (team_a_id = @teamId OR team_b_id = @teamId)
+      ORDER BY scheduled_at ASC
+      `
+    )
+    .all({ teamId }) as {
+    matchId: string
+    scheduledAt: string | null
+    roundLabel: string | null
+    teamAId: number | null
+    teamBId: number | null
+    teamAName: string
+    teamBName: string
+  }[]
+
+  return rows.map((r) => {
+    const isTeamA = r.teamAId === teamId
+    return {
+      matchId: r.matchId,
+      opponentName: isTeamA ? r.teamBName : r.teamAName,
+      opponentTeamId: isTeamA ? r.teamBId : r.teamAId,
+      scheduledAt: r.scheduledAt,
+      roundLabel: r.roundLabel,
+    }
+  })
+}
+
+export type TeamMapStat = {
+  mapName: string
+  matchesPlayed: number
+  wins: number
+  losses: number
+  winRate: number | null
+}
+
+/**
+ * Map pick counts + win/loss across this team's ingested demos. Win/loss
+ * only counts matches where ingest-demos.ts resolved both sides to a known
+ * team (matches.team_a_id/team_b_id) — matchesPlayed still includes
+ * unresolved ones (same "count everything, win/loss stays 0 if unknown"
+ * convention as getTeamStandings' rosterSize/matchedPlayers split).
+ */
+export function getTeamMapStats(teamId: number): TeamMapStat[] {
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        map_name AS mapName,
+        COUNT(*) AS matchesPlayed,
+        COALESCE(SUM(CASE
+          WHEN team_a_id = @teamId AND team_a_score > team_b_score THEN 1
+          WHEN team_b_id = @teamId AND team_b_score > team_a_score THEN 1
+          ELSE 0
+        END), 0) AS wins,
+        COALESCE(SUM(CASE
+          WHEN team_a_id = @teamId AND team_a_score < team_b_score THEN 1
+          WHEN team_b_id = @teamId AND team_b_score < team_a_score THEN 1
+          ELSE 0
+        END), 0) AS losses
+      FROM (
+        SELECT DISTINCT m.id, m.map_name, m.team_a_id, m.team_a_score, m.team_b_id, m.team_b_score
+        FROM roster_entries re
+        JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
+        JOIN matches m ON m.id = pms.match_id
+        WHERE re.team_id = @teamId AND m.map_name IS NOT NULL
+      )
+      GROUP BY map_name
+      ORDER BY matchesPlayed DESC
+      `
+    )
+    .all({ teamId }) as Omit<TeamMapStat, "winRate">[]
+
+  return rows.map((r) => ({
+    ...r,
+    winRate: r.wins + r.losses > 0 ? r.wins / (r.wins + r.losses) : null,
+  }))
+}
+
+export type RecentResult = {
+  matchId: string
+  opponentName: string
+  opponentTeamId: number | null
+  scheduledAt: string | null
+  teamScore: number
+  opponentScore: number
+  result: "win" | "loss"
+}
+
+/** Most recent completed Toornament matches for one team, newest first. */
+export function getRecentResults(teamId: number, limit = 5): RecentResult[] {
+  const rows = db
+    .prepare(
+      `
+      SELECT
+        toornament_match_id AS matchId,
+        scheduled_at AS scheduledAt,
+        team_a_id AS teamAId,
+        team_b_id AS teamBId,
+        team_a_name_raw AS teamAName,
+        team_b_name_raw AS teamBName,
+        team_a_score AS teamAScore,
+        team_b_score AS teamBScore
+      FROM toornament_matches
+      WHERE status = 'completed'
+        AND (team_a_id = @teamId OR team_b_id = @teamId)
+        AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
+      ORDER BY scheduled_at DESC
+      LIMIT @limit
+      `
+    )
+    .all({ teamId, limit }) as {
+    matchId: string
+    scheduledAt: string | null
+    teamAId: number | null
+    teamBId: number | null
+    teamAName: string
+    teamBName: string
+    teamAScore: number
+    teamBScore: number
+  }[]
+
+  return rows.map((r) => {
+    const isTeamA = r.teamAId === teamId
+    const teamScore = isTeamA ? r.teamAScore : r.teamBScore
+    const opponentScore = isTeamA ? r.teamBScore : r.teamAScore
+    return {
+      matchId: r.matchId,
+      opponentName: isTeamA ? r.teamBName : r.teamAName,
+      opponentTeamId: isTeamA ? r.teamBId : r.teamAId,
+      scheduledAt: r.scheduledAt,
+      teamScore,
+      opponentScore,
+      result: teamScore > opponentScore ? "win" : "loss",
+    }
+  })
 }

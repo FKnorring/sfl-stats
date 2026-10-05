@@ -48,6 +48,8 @@ export const roundEndRowSchema = z.object({
   winner: z.string().nullable(),
 })
 
+export type RoundEndRow = z.infer<typeof roundEndRowSchema>
+
 export type DerivedPlayerStats = {
   steamid64: string
   inGameName: string

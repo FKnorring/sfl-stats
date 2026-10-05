@@ -1,7 +1,13 @@
 import fs from "node:fs"
 import path from "node:path"
 import { openWritableDb } from "./db-writable"
-import { STAT_FIELDS, tickRowSchema, deriveStats } from "@/lib/demo-stats"
+import {
+  STAT_FIELDS,
+  tickRowSchema,
+  deriveStats,
+  roundEndRowSchema,
+  type RoundEndRow,
+} from "@/lib/demo-stats"
 import { resolvePlayerMatch, type MatchCandidate } from "@/lib/matching"
 import { z } from "zod"
 import type Database from "better-sqlite3"
@@ -134,6 +140,96 @@ type Summary = {
   unmatched: number
 }
 
+const sideTickSchema = z.object({
+  tick: z.number(),
+  player_steamid: z.string().nullish(),
+  team_name: z.string().nullish(),
+})
+
+/**
+ * Normalizes CS2 side labels to a single letter. round_end's `winner` field
+ * uses "CT"/"T" (confirmed by probing a real demo), while parseTicks'
+ * `team_name` prop uses "CT"/"TERRORIST" — different vocabularies for the
+ * same two sides ("CT"->"C", "T"->"T", "TERRORIST"->"T"), so round-winner
+ * and player-side lookups don't compare equal unless both are normalized
+ * to their first letter first.
+ */
+function normalizeSide(side: string): string {
+  return side[0]
+}
+
+/**
+ * Tallies a round score between exactly two roster teams, by majority-voting
+ * each team's CT/TERRORIST side at every round's end tick (sides swap at
+ * halftime, so this has to be looked up per round, not once at the end of
+ * the demo) and crediting whichever team held the round_end event's
+ * winning side. Returns null if the demo's matched players don't resolve to
+ * exactly two distinct teams (scrim against a non-roster opponent, or too
+ * few matched players to trust) — matches.team_a/b stays unset in that case.
+ */
+function computeTeamScore(
+  filePath: string,
+  rounds: RoundEndRow[],
+  steamidToTeam: Map<string, number>
+): { teamAId: number; teamAScore: number; teamBId: number; teamBScore: number } | null {
+  const teamIds = [...new Set(steamidToTeam.values())]
+  if (teamIds.length !== 2) return null
+  const [teamAId, teamBId] = teamIds
+
+  const decidedRounds = rounds.filter((r) => r.winner)
+  if (decidedRounds.length === 0) return null
+
+  const rawTicks = parseTicks(
+    filePath,
+    ["player_steamid", "team_name"],
+    decidedRounds.map((r) => r.tick)
+  ) as unknown[]
+  const sideTicks = z.array(sideTickSchema).parse(rawTicks)
+
+  const bySideTick = new Map<number, { steamid64: string; side: string }[]>()
+  for (const row of sideTicks) {
+    if (!row.player_steamid || !row.team_name) continue
+    if (!bySideTick.has(row.tick)) bySideTick.set(row.tick, [])
+    bySideTick
+      .get(row.tick)!
+      .push({ steamid64: row.player_steamid, side: normalizeSide(row.team_name) })
+  }
+
+  let teamAScore = 0
+  let teamBScore = 0
+
+  for (const round of decidedRounds) {
+    const players = bySideTick.get(round.tick) ?? []
+    const sideCounts = new Map<number, Record<string, number>>([
+      [teamAId, {}],
+      [teamBId, {}],
+    ])
+    for (const { steamid64, side } of players) {
+      const teamId = steamidToTeam.get(steamid64)
+      if (teamId == null) continue
+      const counts = sideCounts.get(teamId)!
+      counts[side] = (counts[side] ?? 0) + 1
+    }
+
+    const sideOf = (teamId: number): string | null => {
+      const counts = sideCounts.get(teamId)!
+      const entries = Object.entries(counts)
+      if (entries.length === 0) return null
+      return entries.sort((a, b) => b[1] - a[1])[0][0]
+    }
+
+    const winnerSide = round.winner ? normalizeSide(round.winner) : null
+    const teamASide = sideOf(teamAId)
+    const teamBSide = sideOf(teamBId)
+    if (teamASide && teamASide === winnerSide) teamAScore++
+    else if (teamBSide && teamBSide === winnerSide) teamBScore++
+    // Neither side resolvable for this round (no matched players alive/
+    // present at that tick) — round isn't attributed to either team.
+  }
+
+  return { teamAId, teamAScore, teamBId, teamBScore }
+}
+
 function ingestDemo(
   db: Database.Database,
   filePath: string,
@@ -144,7 +240,7 @@ function ingestDemo(
 
   const header = parseHeader(filePath) as Record<string, string>
   const roundEndsRaw = parseEvent(filePath, "round_end") as unknown[]
-  const roundEnds = z.array(z.object({ tick: z.number() })).parse(roundEndsRaw)
+  const roundEnds = z.array(roundEndRowSchema).parse(roundEndsRaw)
   if (roundEnds.length === 0) {
     console.warn(`[ingest-demos] no rounds found, skipping: ${filePath}`)
     return
@@ -186,6 +282,7 @@ function ingestDemo(
   `)
 
   let candidates = getUnresolvedCandidates(db)
+  const steamidToTeam = new Map<string, number>()
 
   for (const row of tickRows) {
     const stats = deriveStats(row, totalRounds)
@@ -225,6 +322,21 @@ function ingestDemo(
     } else {
       summary.unmatched++
     }
+
+    if (result.status === "manual" || result.rosterEntryIds.length > 0) {
+      const rosterEntryId = result.rosterEntryIds[0]
+      const teamRow = db
+        .prepare(`SELECT team_id FROM roster_entries WHERE id = ?`)
+        .get(rosterEntryId) as { team_id: number } | undefined
+      if (teamRow) steamidToTeam.set(stats.steamid64, teamRow.team_id)
+    }
+  }
+
+  const score = computeTeamScore(filePath, roundEnds, steamidToTeam)
+  if (score) {
+    db.prepare(
+      `UPDATE matches SET team_a_id = ?, team_a_score = ?, team_b_id = ?, team_b_score = ? WHERE id = ?`
+    ).run(score.teamAId, score.teamAScore, score.teamBId, score.teamBScore, matchId)
   }
 }
 

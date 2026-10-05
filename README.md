@@ -88,6 +88,25 @@ pnpm scrape:roster -- --url https://publiclir.se/svenska-foeretagsligan/
 - `--url` — defaults to the current SFL roster page
   ([`scripts/scrape-roster.ts`](scripts/scrape-roster.ts)).
 
+### `pnpm scrape:schedule`
+
+Scrapes upcoming/completed match data from the Toornament schedule widget
+publiclir.se embeds (`widget.toornament.com`, server-rendered, no API key
+needed) and upserts `toornament_matches`. Opponent team names are
+fuzzy-matched against the current season's `teams` rows (same similarity
+scoring as roster matching); unresolved sides are kept as raw names with no
+team link.
+
+```bash
+pnpm scrape:schedule
+pnpm scrape:schedule -- --tournament-id 2560854090247290879
+```
+
+- `--tournament-id` — defaults to the current SFL CS2 tournament
+  ([`scripts/scrape-schedule.ts`](scripts/scrape-schedule.ts)).
+- `--locale` — widget locale, defaults to `en_US`.
+- Powers the "Upcoming opponents" bar on `/teams/[name]`.
+
 ### `pnpm ingest:demos`
 
 Parses `.dem` files, writes `matches` + `player_match_stats`, and attempts
