@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS matches (
   server_name TEXT,
   demo_date TEXT,
   total_rounds INTEGER,
+  -- Resolved only when exactly two distinct roster teams are matched among
+  -- this demo's players (see scripts/ingest-demos.ts) — round wins tallied
+  -- from round_end events' winning side, attributed to a team via each
+  -- matched player's side at that round's tick (sides swap at halftime).
+  team_a_id INTEGER REFERENCES teams(id),
+  team_a_score INTEGER,
+  team_b_id INTEGER REFERENCES teams(id),
+  team_b_score INTEGER,
   parsed_at TEXT NOT NULL
 );
 
@@ -103,3 +111,26 @@ CREATE TABLE IF NOT EXISTS faceit_match_stats (
 );
 
 CREATE INDEX IF NOT EXISTS idx_faceit_match_stats_steamid ON faceit_match_stats(steamid64);
+
+-- Scraped from the Toornament schedule widget (publiclir.se's embedded
+-- SFL bracket). One row per match, each side resolved to a known teams row
+-- when the scraped name matches confidently (see lib/matching.ts) — left
+-- NULL otherwise, same "store the raw fact, resolve identity separately"
+-- convention as roster_entries.matched_steamid64.
+CREATE TABLE IF NOT EXISTS toornament_matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  toornament_match_id TEXT NOT NULL UNIQUE,
+  scheduled_at TEXT,
+  round_label TEXT,
+  team_a_name_raw TEXT NOT NULL,
+  team_b_name_raw TEXT NOT NULL,
+  team_a_id INTEGER REFERENCES teams(id),
+  team_b_id INTEGER REFERENCES teams(id),
+  team_a_score INTEGER,     -- set once status = 'completed', from the widget's .result text
+  team_b_score INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'completed')),
+  scraped_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_toornament_matches_team_a ON toornament_matches(team_a_id);
+CREATE INDEX IF NOT EXISTS idx_toornament_matches_team_b ON toornament_matches(team_b_id);

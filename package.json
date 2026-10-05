@@ -11,6 +11,7 @@
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "scrape:roster": "tsx scripts/scrape-roster.ts",
+    "scrape:schedule": "tsx scripts/scrape-schedule.ts",
     "ingest:demos": "tsx scripts/ingest-demos.ts",
     "faceit:sync": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/faceit-sync.ts"
   },

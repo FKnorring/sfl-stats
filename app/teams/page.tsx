@@ -97,7 +97,14 @@ export default async function TeamsPage({
                 />
               </TableCell>
               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-              <TableCell className="font-medium">{row.teamName}</TableCell>
+              <TableCell className="font-medium">
+                <Link
+                  href={`/teams/${encodeURIComponent(row.teamName)}`}
+                  className="underline-offset-4 hover:underline"
+                >
+                  {row.teamName}
+                </Link>
+              </TableCell>
               <TableCell>{row.division}</TableCell>
               <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2">
