@@ -1,7 +1,11 @@
-import { openWritableDb } from "./db-writable"
-import { parseScheduleWidget, type ScheduledMatch } from "@/lib/toornament-schedule"
+import { sql } from "drizzle-orm"
+
+import { openWritableDb, type AppDb } from "@/lib/db/client"
+import {
+  parseScheduleWidget,
+  type ScheduledMatch,
+} from "@/lib/toornament-schedule"
 import { scoreSimilarity, MATCH_THRESHOLD_LOW } from "@/lib/matching"
-import type Database from "better-sqlite3"
 
 const DEFAULT_TOURNAMENT_ID = "2560854090247290879"
 const DEFAULT_LOCALE = "en_US"
@@ -36,12 +40,10 @@ async function fetchScheduleWidget(
 
 type TeamRow = { id: number; name: string }
 
-function getCurrentSeasonTeams(db: Database.Database): TeamRow[] {
-  const seasons = db
-    .prepare(
-      `SELECT DISTINCT season FROM teams WHERE CAST(TRIM(REPLACE(season, 'SFL Säsong', '')) AS INTEGER) >= ${MIN_SEASON}`
-    )
-    .all() as { season: string }[]
+async function getCurrentSeasonTeams(db: AppDb): Promise<TeamRow[]> {
+  const seasons = (await db.all(
+    sql`SELECT DISTINCT season FROM teams WHERE CAST(TRIM(REPLACE(season, 'SFL Säsong', '')) AS INTEGER) >= ${MIN_SEASON}`
+  )) as { season: string }[]
   if (seasons.length === 0) return []
   const currentSeason = seasons
     .map((r) => r.season)
@@ -50,9 +52,9 @@ function getCurrentSeasonTeams(db: Database.Database): TeamRow[] {
       const nb = parseInt(b.match(/(\d+)/)?.[1] ?? "0", 10)
       return nb - na
     })[0]
-  return db
-    .prepare(`SELECT id, name FROM teams WHERE season = ?`)
-    .all(currentSeason) as TeamRow[]
+  return (await db.all(
+    sql`SELECT id, name FROM teams WHERE season = ${currentSeason}`
+  )) as TeamRow[]
 }
 
 function resolveTeam(name: string, teams: TeamRow[]): number | null {
@@ -68,29 +70,12 @@ function resolveTeam(name: string, teams: TeamRow[]): number | null {
   return best >= MATCH_THRESHOLD_LOW ? bestId : null
 }
 
-function upsertMatches(
-  db: Database.Database,
+async function upsertMatches(
+  db: AppDb,
   matches: ScheduledMatch[],
   teams: TeamRow[]
 ) {
   const now = new Date().toISOString()
-  const upsert = db.prepare(`
-    INSERT INTO toornament_matches
-      (toornament_match_id, scheduled_at, round_label, team_a_name_raw, team_b_name_raw, team_a_id, team_b_id, team_a_score, team_b_score, status, scraped_at)
-    VALUES
-      (@toornamentMatchId, @scheduledAt, @roundLabel, @teamAName, @teamBName, @teamAId, @teamBId, @teamAScore, @teamBScore, @status, @scrapedAt)
-    ON CONFLICT(toornament_match_id) DO UPDATE SET
-      scheduled_at = excluded.scheduled_at,
-      round_label = excluded.round_label,
-      team_a_name_raw = excluded.team_a_name_raw,
-      team_b_name_raw = excluded.team_b_name_raw,
-      team_a_id = excluded.team_a_id,
-      team_b_id = excluded.team_b_id,
-      team_a_score = excluded.team_a_score,
-      team_b_score = excluded.team_b_score,
-      status = excluded.status,
-      scraped_at = excluded.scraped_at
-  `)
 
   let resolvedBoth = 0
   let resolvedOne = 0
@@ -98,8 +83,8 @@ function upsertMatches(
   let pending = 0
   let completed = 0
 
-  const tx = db.transaction((rows: ScheduledMatch[]) => {
-    for (const m of rows) {
+  await db.transaction(async (tx) => {
+    for (const m of matches) {
       const teamAId = resolveTeam(m.teamAName, teams)
       const teamBId = resolveTeam(m.teamBName, teams)
 
@@ -109,23 +94,26 @@ function upsertMatches(
       if (m.status === "pending") pending++
       else completed++
 
-      upsert.run({
-        toornamentMatchId: m.toornamentMatchId,
-        scheduledAt: m.scheduledAt,
-        roundLabel: null,
-        teamAName: m.teamAName,
-        teamBName: m.teamBName,
-        teamAId,
-        teamBId,
-        teamAScore: m.teamAScore,
-        teamBScore: m.teamBScore,
-        status: m.status,
-        scrapedAt: now,
-      })
+      await tx.run(sql`
+        INSERT INTO toornament_matches
+          (toornament_match_id, scheduled_at, round_label, team_a_name_raw, team_b_name_raw, team_a_id, team_b_id, team_a_score, team_b_score, status, scraped_at)
+        VALUES
+          (${m.toornamentMatchId}, ${m.scheduledAt}, ${null}, ${m.teamAName}, ${m.teamBName}, ${teamAId}, ${teamBId}, ${m.teamAScore}, ${m.teamBScore}, ${m.status}, ${now})
+        ON CONFLICT(toornament_match_id) DO UPDATE SET
+          scheduled_at = excluded.scheduled_at,
+          round_label = excluded.round_label,
+          team_a_name_raw = excluded.team_a_name_raw,
+          team_b_name_raw = excluded.team_b_name_raw,
+          team_a_id = excluded.team_a_id,
+          team_b_id = excluded.team_b_id,
+          team_a_score = excluded.team_a_score,
+          team_b_score = excluded.team_b_score,
+          status = excluded.status,
+          scraped_at = excluded.scraped_at
+      `)
     }
   })
 
-  tx(matches)
   return { resolvedBoth, resolvedOne, resolvedNone, pending, completed }
 }
 
@@ -141,20 +129,16 @@ async function main() {
   console.log(`[scrape-schedule] parsed ${matches.length} matches`)
 
   const db = openWritableDb()
-  try {
-    const teams = getCurrentSeasonTeams(db)
-    console.log(
-      `[scrape-schedule] resolving opponents against ${teams.length} current-season team(s)`
-    )
-    const summary = upsertMatches(db, matches, teams)
-    console.log(
-      `[scrape-schedule] upserted ${matches.length} matches ` +
-        `(${summary.pending} pending, ${summary.completed} completed); ` +
-        `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}`
-    )
-  } finally {
-    db.close()
-  }
+  const teams = await getCurrentSeasonTeams(db)
+  console.log(
+    `[scrape-schedule] resolving opponents against ${teams.length} current-season team(s)`
+  )
+  const summary = await upsertMatches(db, matches, teams)
+  console.log(
+    `[scrape-schedule] upserted ${matches.length} matches ` +
+      `(${summary.pending} pending, ${summary.completed} completed); ` +
+      `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}`
+  )
 }
 
 main().catch((err) => {

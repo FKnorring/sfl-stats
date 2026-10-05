@@ -1,6 +1,8 @@
 import fs from "node:fs"
 import path from "node:path"
-import { openWritableDb } from "./db-writable"
+import { sql } from "drizzle-orm"
+
+import { openWritableDb, type AppDb } from "@/lib/db/client"
 import {
   STAT_FIELDS,
   tickRowSchema,
@@ -10,7 +12,6 @@ import {
 } from "@/lib/demo-stats"
 import { resolvePlayerMatch, type MatchCandidate } from "@/lib/matching"
 import { z } from "zod"
-import type Database from "better-sqlite3"
 import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
 
 const DEFAULT_DIR = path.join(process.cwd(), "demos")
@@ -60,26 +61,24 @@ function loadOverrides(): Map<
   return new Map(Object.entries(parsed))
 }
 
-function applyOverrides(
-  db: Database.Database,
+async function applyOverrides(
+  db: AppDb,
   overrides: Map<string, { rosterEntryId: number; note?: string }>
 ) {
   const now = new Date().toISOString()
-  const upsert = db.prepare(`
-    INSERT INTO player_name_overrides (steamid64, roster_entry_id, note, created_at)
-    VALUES (@steamid64, @rosterEntryId, @note, @createdAt)
-    ON CONFLICT(steamid64) DO UPDATE SET
-      roster_entry_id = excluded.roster_entry_id,
-      note = excluded.note
-  `)
-  const markManual = db.prepare(`
-    UPDATE roster_entries
-    SET matched_steamid64 = ?, match_confidence = 1, match_status = 'manual'
-    WHERE id = ?
-  `)
   for (const [steamid64, { rosterEntryId, note }] of overrides) {
-    upsert.run({ steamid64, rosterEntryId, note: note ?? null, createdAt: now })
-    markManual.run(steamid64, rosterEntryId)
+    await db.run(sql`
+      INSERT INTO player_name_overrides (steamid64, roster_entry_id, note, created_at)
+      VALUES (${steamid64}, ${rosterEntryId}, ${note ?? null}, ${now})
+      ON CONFLICT(steamid64) DO UPDATE SET
+        roster_entry_id = excluded.roster_entry_id,
+        note = excluded.note
+    `)
+    await db.run(sql`
+      UPDATE roster_entries
+      SET matched_steamid64 = ${steamid64}, match_confidence = 1, match_status = 'manual'
+      WHERE id = ${rosterEntryId}
+    `)
   }
 }
 
@@ -90,46 +89,46 @@ type RosterRow = {
   match_status: string
 }
 
-function getUnresolvedCandidates(db: Database.Database): MatchCandidate[] {
+async function getUnresolvedCandidates(
+  db: AppDb
+): Promise<MatchCandidate[]> {
   // Candidates still open for (re-)matching: never matched, or matched only
   // at low confidence. Manual and ambiguous entries are left alone —
   // manual always wins via the override table, and ambiguous needs a human.
-  const rows = db
-    .prepare(
-      `SELECT id, nickname, matched_steamid64, match_status FROM roster_entries
-       WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')`
-    )
-    .all() as RosterRow[]
+  const rows = (await db.all(
+    sql`SELECT id, nickname, matched_steamid64, match_status FROM roster_entries
+        WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')`
+  )) as RosterRow[]
   return rows.map((r) => ({ rosterEntryId: r.id, nickname: r.nickname }))
 }
 
-function upsertPlayer(
-  db: Database.Database,
+async function upsertPlayer(
+  db: AppDb,
   steamid64: string,
   inGameName: string,
   now: string
 ) {
-  db.prepare(
-    `INSERT INTO players (steamid64, latest_ingame_name, first_seen_at, last_seen_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(steamid64) DO UPDATE SET
-       latest_ingame_name = excluded.latest_ingame_name,
-       last_seen_at = excluded.last_seen_at`
-  ).run(steamid64, inGameName, now, now)
+  await db.run(sql`
+    INSERT INTO players (steamid64, latest_ingame_name, first_seen_at, last_seen_at)
+    VALUES (${steamid64}, ${inGameName}, ${now}, ${now})
+    ON CONFLICT(steamid64) DO UPDATE SET
+      latest_ingame_name = excluded.latest_ingame_name,
+      last_seen_at = excluded.last_seen_at
+  `)
 }
 
-function updateRosterMatch(
-  db: Database.Database,
+async function updateRosterMatch(
+  db: AppDb,
   rosterEntryId: number,
   steamid64: string,
   confidence: number | null,
   status: string
 ) {
-  db.prepare(
-    `UPDATE roster_entries
-     SET matched_steamid64 = ?, match_confidence = ?, match_status = ?
-     WHERE id = ?`
-  ).run(steamid64, confidence, status, rosterEntryId)
+  await db.run(sql`
+    UPDATE roster_entries
+    SET matched_steamid64 = ${steamid64}, match_confidence = ${confidence}, match_status = ${status}
+    WHERE id = ${rosterEntryId}
+  `)
 }
 
 type Summary = {
@@ -230,8 +229,8 @@ function computeTeamScore(
   return { teamAId, teamAScore, teamBId, teamBScore }
 }
 
-function ingestDemo(
-  db: Database.Database,
+async function ingestDemo(
+  db: AppDb,
   filePath: string,
   overrides: Map<string, { rosterEntryId: number }>,
   summary: Summary
@@ -255,33 +254,14 @@ function ingestDemo(
   ) as unknown[]
   const tickRows = z.array(tickRowSchema).parse(rawTicks)
 
-  const matchId = db
-    .prepare(
-      `INSERT INTO matches (file_path, map_name, server_name, demo_date, total_rounds, parsed_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-    .run(
-      filePath,
-      header.map_name ?? null,
-      header.server_name ?? null,
-      now,
-      totalRounds,
-      now
-    ).lastInsertRowid as number
+  const matchRows = (await db.all(
+    sql`INSERT INTO matches (file_path, map_name, server_name, demo_date, total_rounds, parsed_at)
+        VALUES (${filePath}, ${header.map_name ?? null}, ${header.server_name ?? null}, ${now}, ${totalRounds}, ${now})
+        RETURNING id`
+  )) as { id: number }[]
+  const matchId = matchRows[0].id
 
-  const insertStats = db.prepare(`
-    INSERT INTO player_match_stats (
-      match_id, steamid64, team_name, kills, deaths, assists, headshot_kills,
-      damage_total, utility_damage_total, enemies_flashed_total, mvps,
-      ace_rounds, rounds_3k, rounds_4k, equipment_value_total, adr, hs_pct
-    ) VALUES (
-      @matchId, @steamid64, @teamName, @kills, @deaths, @assists, @headshotKills,
-      @damageTotal, @utilityDamageTotal, @enemiesFlashedTotal, @mvps,
-      @aceRounds, @rounds3k, @rounds4k, @equipmentValueTotal, @adr, @hsPct
-    )
-  `)
-
-  let candidates = getUnresolvedCandidates(db)
+  let candidates = await getUnresolvedCandidates(db)
   const steamidToTeam = new Map<string, number>()
 
   for (const row of tickRows) {
@@ -293,8 +273,18 @@ function ingestDemo(
       continue
     }
 
-    upsertPlayer(db, stats.steamid64, stats.inGameName, now)
-    insertStats.run({ matchId, ...stats })
+    await upsertPlayer(db, stats.steamid64, stats.inGameName, now)
+    await db.run(sql`
+      INSERT INTO player_match_stats (
+        match_id, steamid64, team_name, kills, deaths, assists, headshot_kills,
+        damage_total, utility_damage_total, enemies_flashed_total, mvps,
+        ace_rounds, rounds_3k, rounds_4k, equipment_value_total, adr, hs_pct
+      ) VALUES (
+        ${matchId}, ${stats.steamid64}, ${stats.teamName}, ${stats.kills}, ${stats.deaths}, ${stats.assists}, ${stats.headshotKills},
+        ${stats.damageTotal}, ${stats.utilityDamageTotal}, ${stats.enemiesFlashedTotal}, ${stats.mvps},
+        ${stats.aceRounds}, ${stats.rounds3k}, ${stats.rounds4k}, ${stats.equipmentValueTotal}, ${stats.adr}, ${stats.hsPct}
+      )
+    `)
 
     const override = overrides.get(stats.steamid64) ?? null
     const result = resolvePlayerMatch(stats.inGameName, candidates, override)
@@ -303,7 +293,7 @@ function ingestDemo(
       summary.manual++
     } else if (result.rosterEntryIds.length > 0) {
       for (const rosterEntryId of result.rosterEntryIds) {
-        updateRosterMatch(
+        await updateRosterMatch(
           db,
           rosterEntryId,
           stats.steamid64,
@@ -325,18 +315,19 @@ function ingestDemo(
 
     if (result.status === "manual" || result.rosterEntryIds.length > 0) {
       const rosterEntryId = result.rosterEntryIds[0]
-      const teamRow = db
-        .prepare(`SELECT team_id FROM roster_entries WHERE id = ?`)
-        .get(rosterEntryId) as { team_id: number } | undefined
+      const teamRows = (await db.all(
+        sql`SELECT team_id FROM roster_entries WHERE id = ${rosterEntryId}`
+      )) as { team_id: number }[]
+      const teamRow = teamRows[0]
       if (teamRow) steamidToTeam.set(stats.steamid64, teamRow.team_id)
     }
   }
 
   const score = computeTeamScore(filePath, roundEnds, steamidToTeam)
   if (score) {
-    db.prepare(
-      `UPDATE matches SET team_a_id = ?, team_a_score = ?, team_b_id = ?, team_b_score = ? WHERE id = ?`
-    ).run(score.teamAId, score.teamAScore, score.teamBId, score.teamBScore, matchId)
+    await db.run(sql`
+      UPDATE matches SET team_a_id = ${score.teamAId}, team_a_score = ${score.teamAScore}, team_b_id = ${score.teamBId}, team_b_score = ${score.teamBScore} WHERE id = ${matchId}
+    `)
   }
 }
 
@@ -349,54 +340,50 @@ async function main() {
   const overrides = loadOverrides()
   console.log(`[ingest-demos] loaded ${overrides.size} manual overrides`)
 
-  try {
-    applyOverrides(db, overrides)
+  await applyOverrides(db, overrides)
 
-    const alreadyIngested = new Set(
-      (
-        db.prepare("SELECT file_path FROM matches").all() as {
-          file_path: string
-        }[]
-      ).map((r) => r.file_path)
-    )
+  const alreadyIngested = new Set(
+    (
+      (await db.all(sql`SELECT file_path FROM matches`)) as {
+        file_path: string
+      }[]
+    ).map((r) => r.file_path)
+  )
 
-    const summary: Summary = {
-      manual: 0,
-      autoHigh: 0,
-      autoLow: 0,
-      ambiguous: 0,
-      unmatched: 0,
+  const summary: Summary = {
+    manual: 0,
+    autoHigh: 0,
+    autoLow: 0,
+    ambiguous: 0,
+    unmatched: 0,
+  }
+  let ingested = 0
+  let skipped = 0
+
+  for (const file of files) {
+    if (alreadyIngested.has(file)) {
+      skipped++
+      continue
     }
-    let ingested = 0
-    let skipped = 0
-
-    for (const file of files) {
-      if (alreadyIngested.has(file)) {
-        skipped++
-        continue
-      }
-      console.log(`[ingest-demos] parsing ${path.basename(file)}`)
-      try {
-        ingestDemo(db, file, overrides, summary)
-        ingested++
-      } catch (err) {
-        console.error(`[ingest-demos] failed to parse ${file}:`, err)
-      }
+    console.log(`[ingest-demos] parsing ${path.basename(file)}`)
+    try {
+      await ingestDemo(db, file, overrides, summary)
+      ingested++
+    } catch (err) {
+      console.error(`[ingest-demos] failed to parse ${file}:`, err)
     }
+  }
 
+  console.log(
+    `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested`
+  )
+  console.log(
+    `[ingest-demos] player-match resolution — manual: ${summary.manual}, auto_high: ${summary.autoHigh}, auto_low (review): ${summary.autoLow}, ambiguous (review): ${summary.ambiguous}, unmatched (review): ${summary.unmatched}`
+  )
+  if (summary.autoLow + summary.ambiguous + summary.unmatched > 0) {
     console.log(
-      `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested`
+      `[ingest-demos] run \`sqlite3 data/sfl.db "select id, nickname, team_id from roster_entries where match_status != 'manual' and match_status != 'auto_high'"\` to review, then edit data/player-overrides.json and re-run.`
     )
-    console.log(
-      `[ingest-demos] player-match resolution — manual: ${summary.manual}, auto_high: ${summary.autoHigh}, auto_low (review): ${summary.autoLow}, ambiguous (review): ${summary.ambiguous}, unmatched (review): ${summary.unmatched}`
-    )
-    if (summary.autoLow + summary.ambiguous + summary.unmatched > 0) {
-      console.log(
-        `[ingest-demos] run \`sqlite3 data/sfl.db "select id, nickname, team_id from roster_entries where match_status != 'manual' and match_status != 'auto_high'"\` to review, then edit data/player-overrides.json and re-run.`
-      )
-    }
-  } finally {
-    db.close()
   }
 }
 

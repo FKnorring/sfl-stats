@@ -6,15 +6,21 @@ surfaces leaderboards and team comparisons through a Next.js app.
 
 ## How it fits together
 
-- **Data lives in SQLite** at `data/sfl.db` (gitignored, generated locally —
-  see [`lib/schema.sql`](lib/schema.sql) for the schema). This is local-only
-  for now; see [#10](https://github.com/FKnorring/sfl-stats/issues/10) for
-  migrating to a hosted database.
+- **Data lives in SQLite/libSQL**, via Drizzle ORM
+  ([`lib/db/schema.ts`](lib/db/schema.ts), [`lib/db/client.ts`](lib/db/client.ts)).
+  By default that's a local file at `data/sfl.db` (gitignored, generated
+  locally) — set `DATABASE_URL`/`DATABASE_AUTH_TOKEN` to point at a hosted
+  [Turso](https://turso.tech/) database instead (see
+  [`.env.example`](.env.example) and
+  [docs/adr/0003-hosted-db-turso-libsql-drizzle.md](docs/adr/0003-hosted-db-turso-libsql-drizzle.md)).
 - **CLI scripts** (`scripts/`) populate the database: scrape rosters, ingest
-  demo files, sync Faceit stats.
+  demo files, sync Faceit stats. Each run writes to whichever database
+  `DATABASE_URL` points at for that invocation.
 - **The Next.js app** (`app/`) only ever reads from the database
-  ([`lib/db.ts`](lib/db.ts)) — it never writes to it. All writes go through
-  the CLI scripts via [`scripts/db-writable.ts`](scripts/db-writable.ts).
+  ([`lib/db.ts`](lib/db.ts)) — it never writes to it, by design (see
+  [docs/adr/0002-public-app-is-read-only.md](docs/adr/0002-public-app-is-read-only.md)).
+  All writes go through the CLI scripts via `openWritableDb()`
+  ([`lib/db/client.ts`](lib/db/client.ts)).
 
 ```
 scrape-roster.ts  →  teams + roster_entries
@@ -38,9 +44,6 @@ faceit-sync.ts    →  faceit_match_stats, for players already matched to a stea
 
 - Node.js 22+
 - [pnpm](https://pnpm.io/) 10+
-- `better-sqlite3` ships a native binary — if `pnpm install` complains about
-  build scripts, approve it (`pnpm.allowBuilds` is already set in
-  `pnpm-workspace.yaml` for the packages this project needs).
 
 ## Setup
 
@@ -59,6 +62,22 @@ cp .env.example .env
 This is only required to run `faceit:sync`. The app and the other scripts
 work without it.
 
+### Pointing at a hosted database (optional)
+
+By default everything (app + scripts) talks to the local file at
+`data/sfl.db`. To use a hosted [Turso](https://turso.tech/) database
+instead, set in `.env`:
+
+```bash
+DATABASE_URL=libsql://<db-name>-<org>.turso.io
+DATABASE_AUTH_TOKEN=<token from `turso db tokens create <db-name>`>
+```
+
+See [docs/adr/0003-hosted-db-turso-libsql-drizzle.md](docs/adr/0003-hosted-db-turso-libsql-drizzle.md)
+for the reasoning. Schema changes are applied with `pnpm db:migrate` against
+whichever database `DATABASE_URL` points at — run it explicitly, it's never
+automatic.
+
 ## Running the app
 
 ```bash
@@ -67,13 +86,26 @@ pnpm build      # production build
 pnpm start      # run the production build
 ```
 
-The app reads `data/sfl.db` directly. If that file doesn't exist yet, run
-the ingestion scripts below first — the app has nothing to show otherwise.
+The app reads the database configured by `DATABASE_URL` (local file by
+default). If no data exists yet, run the ingestion scripts below first —
+the app has nothing to show otherwise.
+
+## Database schema & migrations
+
+The schema is defined in TypeScript at
+[`lib/db/schema.ts`](lib/db/schema.ts) — that's the source of truth, not a
+hand-written `.sql` file.
+
+```bash
+pnpm db:generate   # after editing lib/db/schema.ts, generates a migration under drizzle/
+pnpm db:migrate    # applies pending migrations to whichever DB DATABASE_URL points at
+```
 
 ## Scripts
 
-All scripts are run with `pnpm <script>` and write to `data/sfl.db`,
-creating it (and the schema) on first run if needed.
+All scripts are run with `pnpm <script>` and write to whichever database
+`DATABASE_URL` points at (the local file by default), creating it (once
+migrated) on first run if needed.
 
 ### `pnpm scrape:roster`
 

@@ -26,8 +26,9 @@ git checkout -b <issue-number>-short-description
 - Run `pnpm lint`, `pnpm typecheck`, and `pnpm format` before committing.
 - Keep commits focused; write commit messages that explain *why*, not just
   *what*.
-- If your change affects the schema (`lib/schema.sql`) or a script's
-  CLI flags, update the [README](README.md) in the same PR.
+- If your change affects the schema (`lib/db/schema.ts`, via
+  `pnpm db:generate`) or a script's CLI flags, update the
+  [README](README.md) in the same PR.
 
 ## 4. Open a PR
 

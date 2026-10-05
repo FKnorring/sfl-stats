@@ -26,17 +26,18 @@ export default async function TeamPage({
   const { name } = await params
   const teamName = decodeURIComponent(name)
 
-  const season = getCurrentSeason() ?? undefined
-  const meta = getTeamByName(teamName, season)
+  const season = (await getCurrentSeason()) ?? undefined
+  const meta = await getTeamByName(teamName, season)
   if (!meta) notFound()
 
-  const [roster, faceitStats, futureOpponents, mapStats, recentResults] = [
-    getTeamRoster(meta.teamId),
-    getFaceitPlayerStats(),
-    getFutureOpponents(meta.teamId),
-    getTeamMapStats(meta.teamId),
-    getRecentResults(meta.teamId),
-  ]
+  const [roster, faceitStats, futureOpponents, mapStats, recentResults] =
+    await Promise.all([
+      getTeamRoster(meta.teamId),
+      getFaceitPlayerStats(),
+      getFutureOpponents(meta.teamId),
+      getTeamMapStats(meta.teamId),
+      getRecentResults(meta.teamId),
+    ])
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">

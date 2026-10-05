@@ -71,9 +71,9 @@ export default async function LeaderboardPage({
     : params.division
   const teamParam = Array.isArray(params.team) ? params.team[0] : params.team
 
-  const season = seasonParam ?? getCurrentSeason() ?? undefined
+  const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
 
-  const [rows, seasons, divisions, teams, faceitStats] = [
+  const [rows, seasons, divisions, teams, faceitStats] = await Promise.all([
     getLeaderboard({
       stat,
       season,
@@ -84,7 +84,7 @@ export default async function LeaderboardPage({
     getDivisions(),
     getTeams(),
     getFaceitPlayerStats(),
-  ]
+  ])
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
