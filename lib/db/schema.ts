@@ -81,7 +81,14 @@ export const playerNameOverrides = sqliteTable("player_name_overrides", {
 
 export const matches = sqliteTable("matches", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  filePath: text("file_path").notNull().unique(),
+  // Just the demo's basename (e.g. "2026-10-01_19-05-47_22_de_nuke_....dem"),
+  // not an absolute path — demos are always downloaded fresh from the same
+  // SharePoint source, so the local --dir a maintainer ingests from varies
+  // between machines/runs while the filename itself is stable and unique
+  // (SFL's naming scheme embeds a timestamp + sequence number). Storing the
+  // full local path would make the uniqueness check (and re-ingestion
+  // dedup) depend on where the demo happens to live on disk.
+  fileName: text("file_name").notNull().unique(),
   mapName: text("map_name"),
   serverName: text("server_name"),
   demoDate: text("demo_date"),
