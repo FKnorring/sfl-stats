@@ -7,7 +7,9 @@ surfaces leaderboards and team comparisons through a Next.js app.
 ## How it fits together
 
 - **Data lives in SQLite** at `data/sfl.db` (gitignored, generated locally —
-  see [`lib/schema.sql`](lib/schema.sql) for the schema).
+  see [`lib/schema.sql`](lib/schema.sql) for the schema). This is local-only
+  for now; see [#10](https://github.com/FKnorring/sfl-stats/issues/10) for
+  migrating to a hosted database.
 - **CLI scripts** (`scripts/`) populate the database: scrape rosters, ingest
   demo files, sync Faceit stats.
 - **The Next.js app** (`app/`) only ever reads from the database
