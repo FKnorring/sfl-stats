@@ -22,6 +22,16 @@ faceit-sync.ts    →  faceit_match_stats, for players already matched to a stea
                      Next.js app (read-only) → leaderboard, team pages
 ```
 
+### Sources
+
+- [SFL roster page](https://publiclir.se/svenska-foeretagsligan/) — scraped
+  by `pnpm scrape:roster` (default `--url`).
+- [SFL S09 demos folder](https://djsesport.sharepoint.com/sites/Publiclir/Delade%20dokument/Forms/AllItems.aspx?id=%2Fsites%2FPubliclir%2FDelade%20dokument%2FSvenska%20F%C3%B6retagsligan%2FSFL%20S09%20-%20ALL%2FSFL09_DEMOS&p=true&ga=1) —
+  SharePoint folder where match `.dem` files are published. Download into
+  the folder passed to `pnpm ingest:demos -- --dir` (see below). Requires
+  org access; see [#3](https://github.com/FKnorring/sfl-stats/issues/3) for
+  automating this.
+
 ## Prerequisites
 
 - Node.js 22+
