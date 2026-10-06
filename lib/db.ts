@@ -30,6 +30,7 @@ const STAT_COLUMNS: Record<LeaderboardStat, string> = {
 export type LeaderboardRow = {
   steamid64: string
   inGameName: string
+  realName: string | null
   teamName: string | null
   season: string | null
   division: string | null
@@ -59,11 +60,9 @@ export type LeaderboardFilters = {
  * season in aggregates — scoping to one season at a time avoids that.
  */
 export async function getCurrentSeason(): Promise<string | null> {
-  const rows = (
-    await db.all(
-      sql`SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
-    )
-  ) as { season: string }[]
+  const rows = (await db.all(
+    sql`SELECT DISTINCT t.season AS season FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
+  )) as { season: string }[]
   if (rows.length === 0) return null
   return rows
     .map((r) => r.season)
@@ -103,19 +102,16 @@ export async function getLeaderboard(
   // explicitly tied to a pre-season-9 team.
   const conditions = [sql`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
-  if (filters.division)
-    conditions.push(sql`t.division = ${filters.division}`)
+  if (filters.division) conditions.push(sql`t.division = ${filters.division}`)
   if (filters.team) conditions.push(sql`t.name = ${filters.team}`)
-  const where = sql.join(
-    [sql`WHERE `, sql.join(conditions, sql` AND `)],
-    sql``
-  )
+  const where = sql.join([sql`WHERE `, sql.join(conditions, sql` AND `)], sql``)
 
   return (await db.all(
     sql`
       SELECT
         p.steamid64 AS steamid64,
         p.latest_ingame_name AS inGameName,
+        re.real_name AS realName,
         t.name AS teamName,
         t.season AS season,
         t.division AS division,
@@ -171,10 +167,7 @@ export async function getTeamStandings(
 ): Promise<TeamStandingRow[]> {
   const conditions = [SEASON_CUTOFF_SQL]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
-  const where = sql.join(
-    [sql`WHERE `, sql.join(conditions, sql` AND `)],
-    sql``
-  )
+  const where = sql.join([sql`WHERE `, sql.join(conditions, sql` AND `)], sql``)
 
   return (await db.all(
     sql`
@@ -364,6 +357,7 @@ export async function getTeamRoster(
 export type PlayerSummaryRow = {
   steamid64: string
   inGameName: string
+  realName: string | null
   matchesPlayed: number
   kills: number
   deaths: number
@@ -386,6 +380,13 @@ export async function getPlayerBySteamId64(
       SELECT
         p.steamid64 AS steamid64,
         p.latest_ingame_name AS inGameName,
+        (
+          SELECT re.real_name
+          FROM roster_entries re
+          WHERE re.matched_steamid64 = p.steamid64 AND re.real_name IS NOT NULL
+          ORDER BY re.scraped_at DESC
+          LIMIT 1
+        ) AS realName,
         COUNT(DISTINCT pms.match_id) AS matchesPlayed,
         COALESCE(SUM(pms.kills), 0) AS kills,
         COALESCE(SUM(pms.deaths), 0) AS deaths,
@@ -540,9 +541,7 @@ export type TeamMapStat = {
  * unresolved ones (same "count everything, win/loss stays 0 if unknown"
  * convention as getTeamStandings' rosterSize/matchedPlayers split).
  */
-export async function getTeamMapStats(
-  teamId: number
-): Promise<TeamMapStat[]> {
+export async function getTeamMapStats(teamId: number): Promise<TeamMapStat[]> {
   const rows = (await db.all(
     sql`
       SELECT
@@ -650,7 +649,9 @@ export type MatchDetail = {
 }
 
 /** A single Toornament match by its toornament_match_id, for the match detail page. */
-export async function getMatchById(matchId: string): Promise<MatchDetail | null> {
+export async function getMatchById(
+  matchId: string
+): Promise<MatchDetail | null> {
   const rows = (await db.all(
     sql`
       SELECT

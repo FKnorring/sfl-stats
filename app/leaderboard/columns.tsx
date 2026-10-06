@@ -54,12 +54,17 @@ export function buildLeaderboardColumns(
           ) : (
             <div className="size-6 rounded border border-border bg-muted" />
           )}
-          <Link
-            href={`/players/${encodeURIComponent(row.original.steamid64)}`}
-            className="underline-offset-4 hover:underline"
-          >
-            {row.original.inGameName}
-          </Link>
+          <div className="flex flex-col">
+            <Link
+              href={`/players/${encodeURIComponent(row.original.steamid64)}`}
+              className="underline-offset-4 hover:underline"
+            >
+              {row.original.inGameName}
+            </Link>
+            <span className="text-xs text-muted-foreground">
+              {row.original.realName ?? "😂"}
+            </span>
+          </div>
           <ProfileLinks
             steamid64={row.original.steamid64}
             faceitNickname={row.original.faceitNickname}
