@@ -8,6 +8,7 @@ import {
   tickRowSchema,
   deriveStats,
   roundEndRowSchema,
+  isMatchComplete,
   type RoundEndRow,
 } from "@/lib/demo-stats"
 import { resolvePlayerMatch, type MatchCandidate } from "@/lib/matching"
@@ -246,6 +247,12 @@ async function ingestDemo(
   const roundEnds = z.array(roundEndRowSchema).parse(roundEndsRaw)
   if (roundEnds.length === 0) {
     console.warn(`[ingest-demos] no rounds found, skipping: ${filePath}`)
+    return
+  }
+  if (!isMatchComplete(roundEnds)) {
+    console.warn(
+      `[ingest-demos] match never reached a final score (dead artifact), skipping: ${filePath}`
+    )
     return
   }
   const gameEndTick = Math.max(...roundEnds.map((r) => r.tick))
