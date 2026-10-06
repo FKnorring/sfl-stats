@@ -37,26 +37,45 @@ export type SteamPlayerSummary = {
 export async function getPlayerSummary(
   steamid64: string
 ): Promise<SteamPlayerSummary | null> {
+  const map = await getPlayerSummaries([steamid64])
+  return map.get(steamid64) ?? null
+}
+
+/**
+ * Batched GetPlayerSummaries lookup - Steam accepts up to 100 steamids per
+ * request (comma-separated), so a page listing many players (e.g. the
+ * leaderboard) should use this instead of one request per row. Returns an
+ * empty map on any failure, same fail-open behavior as getPlayerSummary.
+ */
+export async function getPlayerSummaries(
+  steamid64s: string[]
+): Promise<Map<string, SteamPlayerSummary>> {
+  const result = new Map<string, SteamPlayerSummary>()
   const key = getApiKey()
-  if (!key) return null
+  if (!key || steamid64s.length === 0) return result
+
+  const uniqueIds = Array.from(new Set(steamid64s))
 
   try {
-    const url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v0002/?key=${key}&steamids=${encodeURIComponent(steamid64)}`
-    const res = await fetch(url)
-    if (!res.ok) return null
+    for (let i = 0; i < uniqueIds.length; i += 100) {
+      const batch = uniqueIds.slice(i, i + 100)
+      const url = `${STEAM_API_BASE}/ISteamUser/GetPlayerSummaries/v0002/?key=${key}&steamids=${encodeURIComponent(batch.join(","))}`
+      const res = await fetch(url)
+      if (!res.ok) continue
 
-    const json = await res.json()
-    const parsed = playerSummariesResponseSchema.parse(json)
-    const player = parsed.response.players[0]
-    if (!player) return null
-
-    return {
-      steamid64: player.steamid,
-      personaName: player.personaname ?? null,
-      avatarUrl: player.avatarfull ?? null,
+      const json = await res.json()
+      const parsed = playerSummariesResponseSchema.parse(json)
+      for (const player of parsed.response.players) {
+        result.set(player.steamid, {
+          steamid64: player.steamid,
+          personaName: player.personaname ?? null,
+          avatarUrl: player.avatarfull ?? null,
+        })
+      }
     }
   } catch (err) {
-    console.warn(`[steam-client] failed to fetch summary for ${steamid64}:`, err)
-    return null
+    console.warn(`[steam-client] failed to fetch player summaries:`, err)
   }
+
+  return result
 }
