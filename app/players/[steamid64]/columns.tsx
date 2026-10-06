@@ -2,10 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
-import type {
-  PlayerRosterHistoryRow,
-  PlayerMatchHistoryRow,
-} from "@/lib/db"
+import type { PlayerRosterHistoryRow, PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 
 function formatDate(iso: string | null): string {
@@ -74,23 +71,17 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
   },
   {
     accessorKey: "kills",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="K" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="K" />,
     meta: rightAlign,
   },
   {
     accessorKey: "deaths",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="D" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="D" />,
     meta: rightAlign,
   },
   {
     accessorKey: "assists",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="A" />
-    ),
+    header: ({ column }) => <DataTableColumnHeader column={column} title="A" />,
     meta: rightAlign,
   },
   {
