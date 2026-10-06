@@ -7,30 +7,13 @@ import {
 } from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { getPlayerSummary } from "@/lib/steam-client"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { DataTable } from "@/components/data-table/data-table"
+import { teamHistoryColumns, matchHistoryColumns } from "./columns"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
 export const dynamic = "force-dynamic"
-
-function formatDate(iso: string | null): string {
-  if (!iso) return "—"
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return "—"
-  return date.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
 
 export default async function PlayerPage({
   params,
@@ -144,89 +127,22 @@ export default async function PlayerPage({
         <h2 className="text-sm font-medium text-muted-foreground">
           Team history
         </h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Team</TableHead>
-              <TableHead>Season</TableHead>
-              <TableHead>Division</TableHead>
-              <TableHead>Match status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rosterHistory.map((entry) => (
-              <TableRow key={entry.rosterEntryId}>
-                <TableCell className="font-medium">
-                  <Link
-                    href={`/teams/${encodeURIComponent(entry.teamName)}`}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    {entry.teamName}
-                  </Link>
-                </TableCell>
-                <TableCell>{entry.season}</TableCell>
-                <TableCell>{entry.division}</TableCell>
-                <TableCell>{entry.matchStatus}</TableCell>
-              </TableRow>
-            ))}
-            {rosterHistory.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-center text-muted-foreground"
-                >
-                  No roster history found.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={teamHistoryColumns}
+          data={rosterHistory}
+          emptyMessage="No roster history found."
+        />
       </div>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-muted-foreground">
           Match history
         </h2>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Map</TableHead>
-              <TableHead className="text-right">K</TableHead>
-              <TableHead className="text-right">D</TableHead>
-              <TableHead className="text-right">A</TableHead>
-              <TableHead className="text-right">ADR</TableHead>
-              <TableHead className="text-right">HS%</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {matchHistory.map((m) => (
-              <TableRow key={m.matchId}>
-                <TableCell>{formatDate(m.demoDate)}</TableCell>
-                <TableCell>{m.mapName ?? "—"}</TableCell>
-                <TableCell className="text-right">{m.kills}</TableCell>
-                <TableCell className="text-right">{m.deaths}</TableCell>
-                <TableCell className="text-right">{m.assists}</TableCell>
-                <TableCell className="text-right">
-                  {m.adr != null ? m.adr.toFixed(1) : "—"}
-                </TableCell>
-                <TableCell className="text-right">
-                  {m.hsPct != null ? `${(m.hsPct * 100).toFixed(1)}%` : "—"}
-                </TableCell>
-              </TableRow>
-            ))}
-            {matchHistory.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-center text-muted-foreground"
-                >
-                  No match history found.
-                </TableCell>
-              </TableRow>
-            ) : null}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={matchHistoryColumns}
+          data={matchHistory}
+          emptyMessage="No match history found."
+        />
       </div>
     </div>
   )
