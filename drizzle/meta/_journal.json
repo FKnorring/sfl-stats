@@ -15,6 +15,13 @@
       "when": 1791218274849,
       "tag": "0001_rename_file_path_to_file_name",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791273024854,
+      "tag": "0002_add_teams_logo_url",
+      "breakpoints": true
     }
   ]
 }

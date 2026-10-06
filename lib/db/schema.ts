@@ -28,6 +28,9 @@ export const teams = sqliteTable(
     name: text("name").notNull(),
     season: text("season").notNull(), // e.g. "SFL Säsong 9"
     division: text("division").notNull(), // e.g. "Division 1", "2A"
+    // Captured from Toornament's schedule widget (see scrape-schedule.ts) —
+    // an absolute widget.toornament.com media URL, or null if never scraped.
+    logoUrl: text("logo_url"),
   },
   (t) => [
     uniqueIndex("teams_name_season_division_unique").on(

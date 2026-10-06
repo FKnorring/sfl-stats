@@ -48,11 +48,22 @@ export default async function TeamPage({
         ← Back to standings
       </Link>
 
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">{meta.teamName}</h1>
-        <p className="text-sm text-muted-foreground">
-          {meta.division} — {meta.season}
-        </p>
+      <div className="flex items-center gap-4">
+        {meta.logoUrl ? (
+          <img
+            src={meta.logoUrl}
+            alt={meta.teamName}
+            className="size-16 rounded-md border border-border object-cover"
+          />
+        ) : (
+          <div className="size-16 rounded-md border border-border bg-muted" />
+        )}
+        <div className="flex flex-col gap-1">
+          <h1 className="text-lg font-medium">{meta.teamName}</h1>
+          <p className="text-sm text-muted-foreground">
+            {meta.division} — {meta.season}
+          </p>
+        </div>
       </div>
 
       <TeamRecentForm results={recentResults} />

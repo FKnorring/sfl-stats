@@ -144,28 +144,33 @@ export type TeamStandingRow = {
   teamName: string
   season: string
   division: string
+  logoUrl: string | null
   rosterSize: number
   matchedPlayers: number
   totalKills: number
   totalDeaths: number
   avgAdr: number | null
   matchesPlayed: number
+  wins: number
+  losses: number
+  scoreFor: number
+  scoreAgainst: number
 }
 
 /**
- * Team-level standings derived from matched roster players' demo stats
- * (no Toornament W/D/L scrape in this first pass — see plan notes).
+ * Team-level standings, ranked by official Toornament match results
+ * (wins/losses, round-diff tiebreak), with demo-derived stats (kills,
+ * deaths, ADR) as supplementary columns. Matches with an unresolved
+ * team_a_id/team_b_id are excluded — points can't be attributed to a
+ * team we couldn't identify.
  */
 export async function getTeamStandings(
   filters: {
     season?: string
-    division?: string
   } = {}
 ): Promise<TeamStandingRow[]> {
   const conditions = [SEASON_CUTOFF_SQL]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
-  if (filters.division)
-    conditions.push(sql`t.division = ${filters.division}`)
   const where = sql.join(
     [sql`WHERE `, sql.join(conditions, sql` AND `)],
     sql``
@@ -178,18 +183,43 @@ export async function getTeamStandings(
         t.name AS teamName,
         t.season AS season,
         t.division AS division,
+        t.logo_url AS logoUrl,
         COUNT(DISTINCT re.id) AS rosterSize,
         COUNT(DISTINCT re.matched_steamid64) AS matchedPlayers,
         COALESCE(SUM(pms.kills), 0) AS totalKills,
         COALESCE(SUM(pms.deaths), 0) AS totalDeaths,
         AVG(pms.adr) AS avgAdr,
-        COUNT(DISTINCT pms.match_id) AS matchesPlayed
+        COUNT(DISTINCT pms.match_id) AS matchesPlayed,
+        COALESCE(MAX(m.wins), 0) AS wins,
+        COALESCE(MAX(m.losses), 0) AS losses,
+        COALESCE(MAX(m.scoreFor), 0) AS scoreFor,
+        COALESCE(MAX(m.scoreAgainst), 0) AS scoreAgainst
       FROM teams t
       LEFT JOIN roster_entries re ON re.team_id = t.id
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
+      LEFT JOIN (
+        SELECT
+          teamId,
+          SUM(CASE WHEN ownScore > oppScore THEN 1 ELSE 0 END) AS wins,
+          SUM(CASE WHEN ownScore < oppScore THEN 1 ELSE 0 END) AS losses,
+          SUM(ownScore) AS scoreFor,
+          SUM(oppScore) AS scoreAgainst
+        FROM (
+          SELECT team_a_id AS teamId, team_a_score AS ownScore, team_b_score AS oppScore
+          FROM toornament_matches
+          WHERE status = 'completed' AND team_a_id IS NOT NULL
+            AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
+          UNION ALL
+          SELECT team_b_id AS teamId, team_b_score AS ownScore, team_a_score AS oppScore
+          FROM toornament_matches
+          WHERE status = 'completed' AND team_b_id IS NOT NULL
+            AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
+        )
+        GROUP BY teamId
+      ) m ON m.teamId = t.id
       ${where}
       GROUP BY t.id
-      ORDER BY totalKills DESC
+      ORDER BY wins DESC, losses ASC, (scoreFor - scoreAgainst) DESC, totalKills DESC
       `
   )) as TeamStandingRow[]
 }
@@ -248,12 +278,13 @@ export type TeamMeta = {
   teamName: string
   season: string
   division: string
+  logoUrl: string | null
 }
 
 /** Looks up a single team-season row by id, for the compare page's headers. */
 export async function getTeamMeta(teamId: number): Promise<TeamMeta | null> {
   const rows = (await db.all(
-    sql`SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE id = ${teamId}`
+    sql`SELECT id AS teamId, name AS teamName, season, division, logo_url AS logoUrl FROM teams WHERE id = ${teamId}`
   )) as TeamMeta[]
   return rows[0] ?? null
 }
@@ -270,7 +301,7 @@ export async function getTeamByName(
   season?: string
 ): Promise<TeamMeta | null> {
   const rows = (await db.all(
-    sql`SELECT id AS teamId, name AS teamName, season, division FROM teams WHERE name = ${name}`
+    sql`SELECT id AS teamId, name AS teamName, season, division, logo_url AS logoUrl FROM teams WHERE name = ${name}`
   )) as TeamMeta[]
   if (rows.length === 0) return null
   if (season) return rows.find((r) => r.season === season) ?? null
@@ -328,6 +359,117 @@ export async function getTeamRoster(
       ORDER BY kills DESC
       `
   )) as TeamRosterPlayerRow[]
+}
+
+export type PlayerSummaryRow = {
+  steamid64: string
+  inGameName: string
+  matchesPlayed: number
+  kills: number
+  deaths: number
+  assists: number
+  adr: number | null
+  hsPct: number | null
+  mvps: number
+}
+
+/**
+ * Career-wide aggregate for one player, summed across every team/season
+ * they've appeared in (unlike getLeaderboard, which fragments one row per
+ * team-season via its `GROUP BY p.steamid64, t.id`).
+ */
+export async function getPlayerBySteamId64(
+  steamid64: string
+): Promise<PlayerSummaryRow | null> {
+  const rows = (await db.all(
+    sql`
+      SELECT
+        p.steamid64 AS steamid64,
+        p.latest_ingame_name AS inGameName,
+        COUNT(DISTINCT pms.match_id) AS matchesPlayed,
+        COALESCE(SUM(pms.kills), 0) AS kills,
+        COALESCE(SUM(pms.deaths), 0) AS deaths,
+        COALESCE(SUM(pms.assists), 0) AS assists,
+        AVG(pms.adr) AS adr,
+        AVG(pms.hs_pct) AS hsPct,
+        COALESCE(SUM(pms.mvps), 0) AS mvps
+      FROM players p
+      LEFT JOIN player_match_stats pms ON pms.steamid64 = p.steamid64
+      WHERE p.steamid64 = ${steamid64}
+      GROUP BY p.steamid64
+      `
+  )) as PlayerSummaryRow[]
+  return rows[0] ?? null
+}
+
+export type PlayerRosterHistoryRow = {
+  rosterEntryId: number
+  teamId: number
+  teamName: string
+  season: string
+  division: string
+  matchStatus: string
+}
+
+/**
+ * All roster entries this player has been matched to, across every
+ * team/season — a player can appear more than once (same team across
+ * seasons, or different teams), so this is a list, not a single row.
+ */
+export async function getPlayerRosterHistory(
+  steamid64: string
+): Promise<PlayerRosterHistoryRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        re.id AS rosterEntryId,
+        t.id AS teamId,
+        t.name AS teamName,
+        t.season AS season,
+        t.division AS division,
+        re.match_status AS matchStatus
+      FROM roster_entries re
+      JOIN teams t ON t.id = re.team_id
+      WHERE re.matched_steamid64 = ${steamid64}
+      ORDER BY t.season DESC, t.division
+      `
+  )) as PlayerRosterHistoryRow[]
+}
+
+export type PlayerMatchHistoryRow = {
+  matchId: number
+  mapName: string | null
+  demoDate: string | null
+  kills: number
+  deaths: number
+  assists: number
+  adr: number | null
+  hsPct: number | null
+  mvps: number | null
+}
+
+/** Per-match stat lines for one player, most recent demo first. */
+export async function getPlayerMatchHistory(
+  steamid64: string
+): Promise<PlayerMatchHistoryRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        m.id AS matchId,
+        m.map_name AS mapName,
+        m.demo_date AS demoDate,
+        pms.kills AS kills,
+        pms.deaths AS deaths,
+        pms.assists AS assists,
+        pms.adr AS adr,
+        pms.hs_pct AS hsPct,
+        pms.mvps AS mvps
+      FROM player_match_stats pms
+      JOIN matches m ON m.id = pms.match_id
+      WHERE pms.steamid64 = ${steamid64}
+      ORDER BY m.demo_date DESC
+      `
+  )) as PlayerMatchHistoryRow[]
 }
 
 export type FutureOpponent = {

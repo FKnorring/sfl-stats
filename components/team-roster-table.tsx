@@ -1,3 +1,4 @@
+import Link from "next/link"
 import type { TeamRosterPlayerRow } from "@/lib/db"
 import {
   Table,
@@ -50,7 +51,16 @@ export function TeamRosterTable({
             <TableRow key={row.rosterEntryId}>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
-                  {row.inGameName ?? row.nickname}
+                  {row.steamid64 ? (
+                    <Link
+                      href={`/players/${encodeURIComponent(row.steamid64)}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {row.inGameName ?? row.nickname}
+                    </Link>
+                  ) : (
+                    row.inGameName ?? row.nickname
+                  )}
                   {row.matchStatus !== "manual" &&
                   row.matchStatus !== "auto_high" ? (
                     <Badge variant="outline" className="text-amber-600">
