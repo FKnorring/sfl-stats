@@ -365,6 +365,7 @@ export type PlayerSummaryRow = {
   adr: number | null
   hsPct: number | null
   mvps: number
+  kda: number | null
 }
 
 /**
@@ -393,7 +394,9 @@ export async function getPlayerBySteamId64(
         COALESCE(SUM(pms.assists), 0) AS assists,
         AVG(pms.adr) AS adr,
         AVG(pms.hs_pct) AS hsPct,
-        COALESCE(SUM(pms.mvps), 0) AS mvps
+        COALESCE(SUM(pms.mvps), 0) AS mvps,
+        (COALESCE(SUM(pms.kills), 0) + COALESCE(SUM(pms.assists), 0)) * 1.0
+          / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kda
       FROM players p
       LEFT JOIN player_match_stats pms ON pms.steamid64 = p.steamid64
       WHERE p.steamid64 = ${steamid64}
@@ -401,6 +404,54 @@ export async function getPlayerBySteamId64(
       `
   )) as PlayerSummaryRow[]
   return rows[0] ?? null
+}
+
+export type LeagueAverageStats = {
+  avgKillsPerMatch: number
+  avgDeathsPerMatch: number
+  avgAssistsPerMatch: number
+  avgMvpsPerMatch: number
+  avgAdr: number
+  avgHsPct: number
+  avgKda: number
+}
+
+/**
+ * League-wide baseline used to color a player's stats green/red (Faceit-
+ * style) on the profile page. Averaged per-player-per-match rather than
+ * weighted by raw totals, so a player with many matches doesn't skew the
+ * baseline more than one with few — mirrors "the average player", not
+ * "the average match row".
+ */
+export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
+  const rows = (await db.all(
+    sql`
+      WITH player_rates AS (
+        SELECT
+          pms.steamid64,
+          COUNT(DISTINCT pms.match_id) AS matches,
+          SUM(pms.kills) AS kills,
+          SUM(pms.deaths) AS deaths,
+          SUM(pms.assists) AS assists,
+          SUM(pms.mvps) AS mvps,
+          AVG(pms.adr) AS adr,
+          AVG(pms.hs_pct) AS hsPct
+        FROM player_match_stats pms
+        GROUP BY pms.steamid64
+        HAVING COUNT(DISTINCT pms.match_id) > 0
+      )
+      SELECT
+        AVG(kills * 1.0 / matches) AS avgKillsPerMatch,
+        AVG(deaths * 1.0 / matches) AS avgDeathsPerMatch,
+        AVG(assists * 1.0 / matches) AS avgAssistsPerMatch,
+        AVG(COALESCE(mvps, 0) * 1.0 / matches) AS avgMvpsPerMatch,
+        AVG(adr) AS avgAdr,
+        AVG(hsPct) AS avgHsPct,
+        AVG((kills + assists) * 1.0 / MAX(deaths, 1)) AS avgKda
+      FROM player_rates
+      `
+  )) as LeagueAverageStats[]
+  return rows[0]
 }
 
 export type PlayerMatchHistoryRow = {
