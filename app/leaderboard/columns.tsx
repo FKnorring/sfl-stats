@@ -110,23 +110,35 @@ export function buildLeaderboardColumns(
     {
       accessorKey: "kills",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="K" />
+        <DataTableColumnHeader column={column} title="Avg K" />
       ),
       meta: rightAlign,
+      cell: ({ row }) =>
+        row.original.matchesPlayed > 0
+          ? (row.original.kills / row.original.matchesPlayed).toFixed(1)
+          : "—",
     },
     {
       accessorKey: "deaths",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="D" />
+        <DataTableColumnHeader column={column} title="Avg D" />
       ),
       meta: rightAlign,
+      cell: ({ row }) =>
+        row.original.matchesPlayed > 0
+          ? (row.original.deaths / row.original.matchesPlayed).toFixed(1)
+          : "—",
     },
     {
       accessorKey: "assists",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="A" />
+        <DataTableColumnHeader column={column} title="Avg A" />
       ),
       meta: rightAlign,
+      cell: ({ row }) =>
+        row.original.matchesPlayed > 0
+          ? (row.original.assists / row.original.matchesPlayed).toFixed(1)
+          : "—",
     },
     {
       accessorKey: "adr",

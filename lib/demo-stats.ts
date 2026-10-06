@@ -50,6 +50,63 @@ export const roundEndRowSchema = z.object({
 
 export type RoundEndRow = z.infer<typeof roundEndRowSchema>
 
+/**
+ * Reconstructs the final score from round_end winners alone (no player/team
+ * data needed), by tracking two side-agnostic buckets ("A"/"B") through
+ * CS2's half-swap schedule — regulation is MR12 (halves swap after round 12,
+ * i.e. index 11), overtime is MR3 (sides swap every 3 rounds, alternating
+ * which bucket starts CT each OT period). Used to decide whether a demo
+ * represents a genuinely finished match, independent of whether its players
+ * could be resolved to roster teams (see computeTeamScore in
+ * scripts/ingest-demos.ts, which needs that resolution and can legitimately
+ * return null for a complete match played against a non-roster opponent).
+ */
+export function reconstructFinalScore(
+  rounds: RoundEndRow[]
+): { scoreA: number; scoreB: number } | null {
+  const decided = rounds.filter((r) => r.winner)
+  if (decided.length === 0) return null
+
+  let scoreA = 0
+  let scoreB = 0
+  for (let i = 0; i < decided.length; i++) {
+    const winnerSide = decided[i].winner![0]
+    let bucketIsCT: boolean
+    if (i < 12) {
+      bucketIsCT = true
+    } else if (i < 24) {
+      bucketIsCT = false
+    } else {
+      const ot = i - 24
+      const period = Math.floor(ot / 6)
+      const firstHalfOfPeriod = ot % 6 < 3
+      bucketIsCT = period % 2 === 0 ? !firstHalfOfPeriod : firstHalfOfPeriod
+    }
+    const bucketAWon =
+      (winnerSide === "C" && bucketIsCT) || (winnerSide === "T" && !bucketIsCT)
+    if (bucketAWon) scoreA++
+    else scoreB++
+  }
+
+  return { scoreA, scoreB }
+}
+
+/**
+ * A match is "finished" once a side has reached 13+ rounds with a 2+ round
+ * margin (regulation win, or an overtime win-by-2 after the periods have
+ * been played out). Anything short of that — a scrim cut off early, a demo
+ * that stops recording mid-game — is treated as a dead artifact, not a real
+ * result, and should not be ingested.
+ */
+export function isMatchComplete(rounds: RoundEndRow[]): boolean {
+  const score = reconstructFinalScore(rounds)
+  if (!score) return false
+  const { scoreA, scoreB } = score
+  const max = Math.max(scoreA, scoreB)
+  const margin = Math.abs(scoreA - scoreB)
+  return max >= 13 && margin >= 2
+}
+
 export type DerivedPlayerStats = {
   steamid64: string
   inGameName: string
