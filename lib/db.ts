@@ -16,16 +16,22 @@ const SEASON_CUTOFF_SQL = sql.raw(
 )
 
 export type LeaderboardStat =
-  "kills" | "deaths" | "adr" | "hs_pct" | "mvps" | "assists"
+  "matches" | "kills" | "deaths" | "adr" | "hs_pct" | "mvps" | "assists"
 
+// kills/deaths/assists sort by their per-match average (matching how they're
+// displayed), not by career total, so clicking the "Avg K"/"Avg D"/"Avg A"
+// column headers sorts by what the column actually shows.
 const STAT_COLUMNS: Record<LeaderboardStat, string> = {
-  kills: "SUM(pms.kills)",
-  deaths: "SUM(pms.deaths)",
+  matches: "COUNT(DISTINCT pms.match_id)",
+  kills: "SUM(pms.kills) * 1.0 / COUNT(DISTINCT pms.match_id)",
+  deaths: "SUM(pms.deaths) * 1.0 / COUNT(DISTINCT pms.match_id)",
   adr: "AVG(pms.adr)",
   hs_pct: "AVG(pms.hs_pct)",
   mvps: "SUM(pms.mvps)",
-  assists: "SUM(pms.assists)",
+  assists: "SUM(pms.assists) * 1.0 / COUNT(DISTINCT pms.match_id)",
 }
+
+export type SortDirection = "asc" | "desc"
 
 export type LeaderboardRow = {
   steamid64: string
@@ -42,11 +48,11 @@ export type LeaderboardRow = {
   adr: number | null
   hsPct: number | null
   mvps: number
-  statValue: number
 }
 
 export type LeaderboardFilters = {
   stat: LeaderboardStat
+  direction?: SortDirection
   division?: string
   team?: string
   season?: string
@@ -96,6 +102,7 @@ export async function getLeaderboard(
   filters: LeaderboardFilters
 ): Promise<LeaderboardRow[]> {
   const statExpr = sql.raw(STAT_COLUMNS[filters.stat])
+  const direction = filters.direction === "asc" ? sql`ASC` : sql`DESC`
 
   // Unmatched players (no roster_entries row, so t.season is NULL via the
   // LEFT JOIN) still belong on the board — only exclude rows that are
@@ -122,15 +129,14 @@ export async function getLeaderboard(
         SUM(pms.assists) AS assists,
         AVG(pms.adr) AS adr,
         AVG(pms.hs_pct) AS hsPct,
-        SUM(pms.mvps) AS mvps,
-        ${statExpr} AS statValue
+        SUM(pms.mvps) AS mvps
       FROM player_match_stats pms
       JOIN players p ON p.steamid64 = pms.steamid64
       LEFT JOIN roster_entries re ON re.matched_steamid64 = p.steamid64
       LEFT JOIN teams t ON t.id = re.team_id
       ${where}
       GROUP BY p.steamid64, t.id
-      ORDER BY statValue DESC
+      ORDER BY ${statExpr} ${direction}
       `
   )) as LeaderboardRow[]
 }
