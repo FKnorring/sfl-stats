@@ -16,9 +16,37 @@ export type LeaderboardTableRow = LeaderboardRow & {
   avatarUrl: string | null
 }
 
+// Mirrors lib/db.ts's STAT_COLUMNS: kills/deaths/assists are shown (and
+// sorted) as per-match averages, matching the "Avg K"/"Avg D"/"Avg A"
+// columns rather than career totals.
+function statValueFor(stat: LeaderboardStat, row: LeaderboardTableRow): number {
+  switch (stat) {
+    case "matches":
+      return row.matchesPlayed
+    case "kills":
+      return row.matchesPlayed > 0 ? row.kills / row.matchesPlayed : 0
+    case "deaths":
+      return row.matchesPlayed > 0 ? row.deaths / row.matchesPlayed : 0
+    case "assists":
+      return row.matchesPlayed > 0 ? row.assists / row.matchesPlayed : 0
+    case "adr":
+      return row.adr ?? 0
+    case "hs_pct":
+      return row.hsPct ?? 0
+    case "mvps":
+      return row.mvps
+  }
+}
+
 function formatStat(stat: LeaderboardStat, value: number): string {
   if (stat === "hs_pct") return `${(value * 100).toFixed(1)}%`
-  if (stat === "adr") return value.toFixed(1)
+  if (
+    stat === "adr" ||
+    stat === "kills" ||
+    stat === "deaths" ||
+    stat === "assists"
+  )
+    return value.toFixed(1)
   return String(Math.round(value))
 }
 
@@ -161,12 +189,13 @@ export function buildLeaderboardColumns(
           : "—",
     },
     {
-      accessorKey: "statValue",
+      id: "statValue",
+      accessorFn: (row) => statValueFor(stat, row),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={statLabel ?? "Stat"} />
       ),
       meta: { className: "text-right font-medium" },
-      cell: ({ row }) => formatStat(stat, row.original.statValue),
+      cell: ({ row }) => formatStat(stat, statValueFor(stat, row.original)),
     },
     {
       accessorKey: "faceitElo",
