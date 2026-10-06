@@ -403,44 +403,11 @@ export async function getPlayerBySteamId64(
   return rows[0] ?? null
 }
 
-export type PlayerRosterHistoryRow = {
-  rosterEntryId: number
-  teamId: number
-  teamName: string
-  season: string
-  division: string
-  matchStatus: string
-}
-
-/**
- * All roster entries this player has been matched to, across every
- * team/season — a player can appear more than once (same team across
- * seasons, or different teams), so this is a list, not a single row.
- */
-export async function getPlayerRosterHistory(
-  steamid64: string
-): Promise<PlayerRosterHistoryRow[]> {
-  return (await db.all(
-    sql`
-      SELECT
-        re.id AS rosterEntryId,
-        t.id AS teamId,
-        t.name AS teamName,
-        t.season AS season,
-        t.division AS division,
-        re.match_status AS matchStatus
-      FROM roster_entries re
-      JOIN teams t ON t.id = re.team_id
-      WHERE re.matched_steamid64 = ${steamid64}
-      ORDER BY t.season DESC, t.division
-      `
-  )) as PlayerRosterHistoryRow[]
-}
-
 export type PlayerMatchHistoryRow = {
   matchId: number
   mapName: string | null
   demoDate: string | null
+  teamName: string | null
   kills: number
   deaths: number
   assists: number
@@ -459,6 +426,14 @@ export async function getPlayerMatchHistory(
         m.id AS matchId,
         m.map_name AS mapName,
         m.demo_date AS demoDate,
+        (
+          SELECT t.name
+          FROM roster_entries re
+          JOIN teams t ON t.id = re.team_id
+          WHERE re.matched_steamid64 = pms.steamid64
+          ORDER BY re.scraped_at DESC
+          LIMIT 1
+        ) AS teamName,
         pms.kills AS kills,
         pms.deaths AS deaths,
         pms.assists AS assists,
@@ -471,6 +446,93 @@ export async function getPlayerMatchHistory(
       ORDER BY m.demo_date DESC
       `
   )) as PlayerMatchHistoryRow[]
+}
+
+export type DemoMatchDetail = {
+  matchId: number
+  mapName: string | null
+  demoDate: string | null
+  teamAId: number | null
+  teamAName: string | null
+  teamAScore: number | null
+  teamBId: number | null
+  teamBName: string | null
+  teamBScore: number | null
+}
+
+/** Match header info (map, date, resolved team names/scores) for a single demo-ingested match. */
+export async function getDemoMatchById(
+  matchId: number
+): Promise<DemoMatchDetail | null> {
+  const rows = (await db.all(
+    sql`
+      SELECT
+        m.id AS matchId,
+        m.map_name AS mapName,
+        m.demo_date AS demoDate,
+        m.team_a_id AS teamAId,
+        ta.name AS teamAName,
+        m.team_a_score AS teamAScore,
+        m.team_b_id AS teamBId,
+        tb.name AS teamBName,
+        m.team_b_score AS teamBScore
+      FROM matches m
+      LEFT JOIN teams ta ON ta.id = m.team_a_id
+      LEFT JOIN teams tb ON tb.id = m.team_b_id
+      WHERE m.id = ${matchId}
+      `
+  )) as DemoMatchDetail[]
+  return rows[0] ?? null
+}
+
+export type DemoMatchPlayerStatsRow = {
+  steamid64: string
+  inGameName: string
+  // The in-game CT/T side the player was on for this demo (CS2's
+  // team_num, stringified) — only useful for splitting the roster into
+  // two sides, not as a display name. See rosterTeamName for that.
+  side: string | null
+  // The player's actual roster team name (most recently scraped), used
+  // to resolve a real display name for each side.
+  rosterTeamName: string | null
+  kills: number
+  deaths: number
+  assists: number
+  adr: number | null
+  hsPct: number | null
+  mvps: number | null
+}
+
+/** Every player's stat line for a single demo-ingested match, highest kills first. */
+export async function getDemoMatchPlayerStats(
+  matchId: number
+): Promise<DemoMatchPlayerStatsRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        pms.steamid64 AS steamid64,
+        p.latest_ingame_name AS inGameName,
+        pms.team_name AS side,
+        (
+          SELECT t.name
+          FROM roster_entries re
+          JOIN teams t ON t.id = re.team_id
+          WHERE re.matched_steamid64 = pms.steamid64
+          ORDER BY re.scraped_at DESC
+          LIMIT 1
+        ) AS rosterTeamName,
+        pms.kills AS kills,
+        pms.deaths AS deaths,
+        pms.assists AS assists,
+        pms.adr AS adr,
+        pms.hs_pct AS hsPct,
+        pms.mvps AS mvps
+      FROM player_match_stats pms
+      JOIN players p ON p.steamid64 = pms.steamid64
+      WHERE pms.match_id = ${matchId}
+      ORDER BY pms.kills DESC
+      `
+  )) as DemoMatchPlayerStatsRow[]
 }
 
 export type FutureOpponent = {
