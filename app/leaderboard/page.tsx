@@ -10,20 +10,12 @@ import {
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import {
   SeasonFilter,
   DivisionFilter,
   TeamFilter,
   StatFilter,
 } from "@/components/leaderboard-filters"
+import { LeaderboardTable } from "./leaderboard-table"
 
 // DB reads aren't `fetch`-cached requests, so without this the leaderboard
 // could get frozen at build time until the next deploy. force-dynamic keeps
@@ -47,12 +39,6 @@ function isLeaderboardStat(
   return !!value && STAT_VALUES.has(value as LeaderboardStat)
 }
 
-function formatStat(stat: LeaderboardStat, value: number): string {
-  if (stat === "hs_pct") return `${(value * 100).toFixed(1)}%`
-  if (stat === "adr") return value.toFixed(1)
-  return String(Math.round(value))
-}
-
 export default async function LeaderboardPage({
   searchParams,
 }: {
@@ -74,22 +60,41 @@ export default async function LeaderboardPage({
 
   const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
 
-  const [rows, seasons, divisions, teams, faceitStats] = await Promise.all([
-    getLeaderboard({
-      stat,
-      season,
-      division: divisionParam,
-      team: teamParam,
-    }),
-    getSeasons(),
-    getDivisions(),
-    getTeams(),
-    getFaceitPlayerStats(),
-  ])
+  const [leaderboardRows, seasons, divisions, teams, faceitStats] =
+    await Promise.all([
+      getLeaderboard({
+        stat,
+        season,
+        division: divisionParam,
+        team: teamParam,
+      }),
+      getSeasons(),
+      getDivisions(),
+      getTeams(),
+      getFaceitPlayerStats(),
+    ])
 
   const steamSummaries = await getPlayerSummaries(
-    rows.map((row) => row.steamid64)
+    leaderboardRows.map((row) => row.steamid64)
   )
+
+  // Pre-join Faceit stats and Steam avatars into plain, serializable fields
+  // — the lookup Maps themselves can't cross the server/client boundary
+  // into the DataTable.
+  const rows = leaderboardRows.map((row) => {
+    const fs = faceitStats.get(row.steamid64)
+    return {
+      ...row,
+      faceitElo: fs?.elo ?? null,
+      faceitRecent:
+        !fs || fs.matchesRecent === 0
+          ? "—"
+          : `${fs.matchesRecent} games, ${fs.avgKd != null ? fs.avgKd.toFixed(2) : "—"} K/D, ${fs.avgAdr != null ? fs.avgAdr.toFixed(1) : "—"} ADR`,
+      avatarUrl: steamSummaries.get(row.steamid64)?.avatarUrl ?? null,
+    }
+  })
+
+  const statLabel = STAT_OPTIONS.find((o) => o.value === stat)?.label
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
@@ -114,102 +119,7 @@ export default async function LeaderboardPage({
         </Link>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10">#</TableHead>
-            <TableHead>Player</TableHead>
-            <TableHead>Team</TableHead>
-            <TableHead>Division</TableHead>
-            <TableHead className="text-right">Matches</TableHead>
-            <TableHead className="text-right">K</TableHead>
-            <TableHead className="text-right">D</TableHead>
-            <TableHead className="text-right">A</TableHead>
-            <TableHead className="text-right">ADR</TableHead>
-            <TableHead className="text-right">HS%</TableHead>
-            <TableHead className="text-right">
-              {STAT_OPTIONS.find((o) => o.value === stat)?.label}
-            </TableHead>
-            <TableHead className="text-right">Faceit Elo</TableHead>
-            <TableHead className="text-right">Faceit (7d)</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row, i) => (
-            <TableRow key={`${row.steamid64}-${row.teamName ?? "none"}`}>
-              <TableCell className="text-muted-foreground">{i + 1}</TableCell>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  {steamSummaries.get(row.steamid64)?.avatarUrl ? (
-                    <img
-                      src={steamSummaries.get(row.steamid64)!.avatarUrl!}
-                      alt=""
-                      className="size-6 rounded border border-border object-cover"
-                    />
-                  ) : (
-                    <div className="size-6 rounded border border-border bg-muted" />
-                  )}
-                  <Link
-                    href={`/players/${encodeURIComponent(row.steamid64)}`}
-                    className="underline-offset-4 hover:underline"
-                  >
-                    {row.inGameName}
-                  </Link>
-                  {row.matchStatus &&
-                  row.matchStatus !== "manual" &&
-                  row.matchStatus !== "auto_high" ? (
-                    <Badge variant="outline" className="text-amber-600">
-                      {row.matchStatus === "auto_low"
-                        ? "low-confidence match"
-                        : row.matchStatus}
-                    </Badge>
-                  ) : null}
-                  {!row.teamName ? (
-                    <Badge variant="outline" className="text-destructive">
-                      unmatched
-                    </Badge>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell>{row.teamName ?? "—"}</TableCell>
-              <TableCell>{row.division ?? "—"}</TableCell>
-              <TableCell className="text-right">{row.matchesPlayed}</TableCell>
-              <TableCell className="text-right">{row.kills}</TableCell>
-              <TableCell className="text-right">{row.deaths}</TableCell>
-              <TableCell className="text-right">{row.assists}</TableCell>
-              <TableCell className="text-right">
-                {row.adr != null ? row.adr.toFixed(1) : "—"}
-              </TableCell>
-              <TableCell className="text-right">
-                {row.hsPct != null ? `${(row.hsPct * 100).toFixed(1)}%` : "—"}
-              </TableCell>
-              <TableCell className="text-right font-medium">
-                {formatStat(stat, row.statValue)}
-              </TableCell>
-              <TableCell className="text-right">
-                {faceitStats.get(row.steamid64)?.elo ?? "—"}
-              </TableCell>
-              <TableCell className="text-right">
-                {(() => {
-                  const fs = faceitStats.get(row.steamid64)
-                  if (!fs || fs.matchesRecent === 0) return "—"
-                  return `${fs.matchesRecent} games, ${fs.avgKd != null ? fs.avgKd.toFixed(2) : "—"} K/D, ${fs.avgAdr != null ? fs.avgAdr.toFixed(1) : "—"} ADR`
-                })()}
-              </TableCell>
-            </TableRow>
-          ))}
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell
-                colSpan={13}
-                className="text-center text-muted-foreground"
-              >
-                No matches found for this filter combination.
-              </TableCell>
-            </TableRow>
-          ) : null}
-        </TableBody>
-      </Table>
+      <LeaderboardTable rows={rows} stat={stat} statLabel={statLabel} />
     </div>
   )
 }
