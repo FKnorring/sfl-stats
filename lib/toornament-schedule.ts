@@ -7,6 +7,8 @@ export type ScheduledMatch = {
   scheduledAt: string | null
   teamAName: string
   teamBName: string
+  teamALogoPath: string | null
+  teamBLogoPath: string | null
   teamAScore: number | null
   teamBScore: number | null
   status: ScheduledMatchStatus
@@ -47,6 +49,11 @@ export function parseScheduleWidget(html: string): ScheduledMatch[] {
       const [teamAName, teamBName] = names
       if (!teamAName || !teamBName) return
 
+      const logoPaths = opponents
+        .toArray()
+        .map((el) => $(el).find(".logo img").first().attr("src")?.trim() || null)
+      const [teamALogoPath, teamBLogoPath] = logoPaths
+
       const scores = opponents.toArray().map((el) => {
         const text = $(el).find(".result").first().text().trim()
         if (!text) return null
@@ -70,6 +77,8 @@ export function parseScheduleWidget(html: string): ScheduledMatch[] {
         scheduledAt,
         teamAName,
         teamBName,
+        teamALogoPath,
+        teamBLogoPath,
         teamAScore,
         teamBScore,
         status,

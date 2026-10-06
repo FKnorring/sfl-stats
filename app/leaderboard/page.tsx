@@ -135,7 +135,12 @@ export default async function LeaderboardPage({
               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
-                  {row.inGameName}
+                  <Link
+                    href={`/players/${encodeURIComponent(row.steamid64)}`}
+                    className="underline-offset-4 hover:underline"
+                  >
+                    {row.inGameName}
+                  </Link>
                   {row.matchStatus &&
                   row.matchStatus !== "manual" &&
                   row.matchStatus !== "auto_high" ? (

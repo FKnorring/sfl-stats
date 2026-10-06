@@ -70,6 +70,21 @@ function resolveTeam(name: string, teams: TeamRow[]): number | null {
   return best >= MATCH_THRESHOLD_LOW ? bestId : null
 }
 
+const WIDGET_BASE = "https://widget.toornament.com"
+
+/**
+ * The schedule widget's inline logo <img> uses the tiny icon_small variant;
+ * swap it for logo_large (256x256, confirmed available for every current
+ * team) since the same media file ID serves multiple sizes. Falls back to
+ * the path as-is if Toornament ever changes this naming.
+ */
+function resolveLogoUrl(logoPath: string | null): string | null {
+  if (!logoPath) return null
+  const absolutePath = logoPath.replace(/^\/?/, "/")
+  const upsized = absolutePath.replace(/\/icon_small(?=\?|$)/, "/logo_large")
+  return `${WIDGET_BASE}${upsized}`
+}
+
 async function upsertMatches(
   db: AppDb,
   matches: ScheduledMatch[],
@@ -82,6 +97,7 @@ async function upsertMatches(
   let resolvedNone = 0
   let pending = 0
   let completed = 0
+  let logosCaptured = 0
 
   await db.transaction(async (tx) => {
     for (const m of matches) {
@@ -111,10 +127,24 @@ async function upsertMatches(
           status = excluded.status,
           scraped_at = excluded.scraped_at
       `)
+
+      // Only write when a logo was actually captured this run, so a
+      // transient scrape miss never clobbers a previously-captured logo.
+      for (const [teamId, logoPath] of [
+        [teamAId, m.teamALogoPath],
+        [teamBId, m.teamBLogoPath],
+      ] as const) {
+        const logoUrl = resolveLogoUrl(logoPath)
+        if (teamId == null || logoUrl == null) continue
+        await tx.run(
+          sql`UPDATE teams SET logo_url = ${logoUrl} WHERE id = ${teamId}`
+        )
+        logosCaptured++
+      }
     }
   })
 
-  return { resolvedBoth, resolvedOne, resolvedNone, pending, completed }
+  return { resolvedBoth, resolvedOne, resolvedNone, pending, completed, logosCaptured }
 }
 
 async function main() {
@@ -137,7 +167,8 @@ async function main() {
   console.log(
     `[scrape-schedule] upserted ${matches.length} matches ` +
       `(${summary.pending} pending, ${summary.completed} completed); ` +
-      `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}`
+      `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}; ` +
+      `logos captured: ${summary.logosCaptured}`
   )
 }
 
