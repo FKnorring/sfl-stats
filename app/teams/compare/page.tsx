@@ -27,15 +27,16 @@ function RosterTable({
   faceitStats,
 }: {
   roster: TeamRosterPlayerRow[]
-  faceitStats: Map<string, { elo: number | null }>
+  faceitStats: Map<string, { elo: number | null; faceitNickname: string }>
 }) {
-  const rows: TeamRosterTableRow[] = roster.map((row) => ({
-    ...row,
-    faceitElo: row.steamid64
-      ? (faceitStats.get(row.steamid64)?.elo ?? null)
-      : null,
-    faceitNickname: null,
-  }))
+  const rows: TeamRosterTableRow[] = roster.map((row) => {
+    const faceit = row.steamid64 ? faceitStats.get(row.steamid64) : undefined
+    return {
+      ...row,
+      faceitElo: faceit?.elo ?? null,
+      faceitNickname: faceit?.faceitNickname ?? null,
+    }
+  })
 
   return <CompareRosterTable rows={rows} />
 }
@@ -53,7 +54,7 @@ function TeamColumn({
   teamId?: number
   meta: TeamMeta | null
   roster: TeamRosterPlayerRow[]
-  faceitStats: Map<string, { elo: number | null }>
+  faceitStats: Map<string, { elo: number | null; faceitNickname: string }>
 }) {
   return (
     <div className="flex flex-col gap-3">

@@ -8,6 +8,7 @@ import {
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
+import { ProfileLinks } from "@/components/profile-links"
 import { TeamHistoryTable, MatchHistoryTable } from "./player-history-tables"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
@@ -59,29 +60,12 @@ export default async function PlayerPage({
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-medium">{player.inGameName}</h1>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <a
-              href={`https://steamcommunity.com/profiles/${steamid64}`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline-offset-4 hover:underline"
-            >
-              {steamid64}
-            </a>
-            {faceit ? (
-              <>
-                <span>·</span>
-                <a
-                  href={`https://www.faceit.com/en/players/${faceit.faceitNickname}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline-offset-4 hover:underline"
-                >
-                  {faceit.faceitNickname}
-                </a>
-                {faceit.elo != null ? (
-                  <Badge variant="outline">{faceit.elo} elo</Badge>
-                ) : null}
-              </>
+            <ProfileLinks
+              steamid64={steamid64}
+              faceitNickname={faceit?.faceitNickname}
+            />
+            {faceit?.elo != null ? (
+              <Badge variant="outline">{faceit.elo} elo</Badge>
             ) : null}
           </div>
         </div>
