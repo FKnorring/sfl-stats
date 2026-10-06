@@ -1,5 +1,4 @@
 import {
-  Geist,
   Geist_Mono,
   Space_Grotesk,
   JetBrains_Mono,
