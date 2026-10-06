@@ -59,6 +59,9 @@ export default async function PlayerPage({
         )}
         <div className="flex flex-col gap-1">
           <h1 className="text-lg font-medium">{player.inGameName}</h1>
+          <span className="text-sm text-muted-foreground">
+            {player.realName ?? "😂"}
+          </span>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ProfileLinks
               steamid64={steamid64}
