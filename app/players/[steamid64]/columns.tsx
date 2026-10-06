@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
-import type { PlayerRosterHistoryRow, PlayerMatchHistoryRow } from "@/lib/db"
+import type { PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 
 function formatDate(iso: string | null): string {
@@ -16,42 +16,6 @@ function formatDate(iso: string | null): string {
 
 const rightAlign = { className: "text-right" }
 
-export const teamHistoryColumns: ColumnDef<PlayerRosterHistoryRow>[] = [
-  {
-    accessorKey: "teamName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Team" />
-    ),
-    meta: { className: "font-medium" },
-    cell: ({ row }) => (
-      <Link
-        href={`/teams/${encodeURIComponent(row.original.teamName)}`}
-        className="underline-offset-4 hover:underline"
-      >
-        {row.original.teamName}
-      </Link>
-    ),
-  },
-  {
-    accessorKey: "season",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Season" />
-    ),
-  },
-  {
-    accessorKey: "division",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Division" />
-    ),
-  },
-  {
-    accessorKey: "matchStatus",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Match status" />
-    ),
-  },
-]
-
 export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
   {
     accessorKey: "demoDate",
@@ -65,7 +29,21 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Map" />
     ),
-    cell: ({ row }) => row.original.mapName ?? "—",
+    cell: ({ row }) => (
+      <Link
+        href={`/matches/demo/${row.original.matchId}`}
+        className="underline-offset-4 hover:underline"
+      >
+        {row.original.mapName ?? "—"}
+      </Link>
+    ),
+  },
+  {
+    accessorKey: "teamName",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Team" />
+    ),
+    cell: ({ row }) => row.original.teamName ?? "—",
   },
   {
     accessorKey: "kills",
