@@ -8,6 +8,7 @@ import {
   type LeaderboardStat,
 } from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
+import { getPlayerSummaries } from "@/lib/steam-client"
 import {
   Table,
   TableBody,
@@ -86,6 +87,10 @@ export default async function LeaderboardPage({
     getFaceitPlayerStats(),
   ])
 
+  const steamSummaries = await getPlayerSummaries(
+    rows.map((row) => row.steamid64)
+  )
+
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
       <div className="flex flex-col gap-1">
@@ -135,6 +140,15 @@ export default async function LeaderboardPage({
               <TableCell className="text-muted-foreground">{i + 1}</TableCell>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
+                  {steamSummaries.get(row.steamid64)?.avatarUrl ? (
+                    <img
+                      src={steamSummaries.get(row.steamid64)!.avatarUrl!}
+                      alt=""
+                      className="size-6 rounded border border-border object-cover"
+                    />
+                  ) : (
+                    <div className="size-6 rounded border border-border bg-muted" />
+                  )}
                   <Link
                     href={`/players/${encodeURIComponent(row.steamid64)}`}
                     className="underline-offset-4 hover:underline"
