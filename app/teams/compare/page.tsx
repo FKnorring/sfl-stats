@@ -8,11 +8,8 @@ import {
 } from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { TeamSelect, type TeamOption } from "@/components/team-select"
-import { DataTable } from "@/components/data-table/data-table"
-import {
-  buildTeamRosterColumns,
-  type TeamRosterTableRow,
-} from "@/components/team-roster-columns"
+import { CompareRosterTable } from "./compare-roster-table"
+import type { TeamRosterTableRow } from "@/components/team-roster-columns"
 
 // Same reasoning as app/teams/page.tsx and app/leaderboard/page.tsx — DB
 // reads need per-request freshness, not Next's build-time fetch caching.
@@ -24,8 +21,6 @@ function parseTeamId(value: string | string[] | undefined): number | undefined {
   const id = Number(raw)
   return Number.isFinite(id) ? id : undefined
 }
-
-const compareRosterColumns = buildTeamRosterColumns({ includeAccounts: false })
 
 function RosterTable({
   roster,
@@ -42,13 +37,7 @@ function RosterTable({
     faceitNickname: null,
   }))
 
-  return (
-    <DataTable
-      columns={compareRosterColumns}
-      data={rows}
-      emptyMessage="No roster entries for this team."
-    />
-  )
+  return <CompareRosterTable rows={rows} />
 }
 
 function TeamColumn({

@@ -8,8 +8,7 @@ import {
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
-import { DataTable } from "@/components/data-table/data-table"
-import { teamHistoryColumns, matchHistoryColumns } from "./columns"
+import { TeamHistoryTable, MatchHistoryTable } from "./player-history-tables"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
@@ -127,22 +126,14 @@ export default async function PlayerPage({
         <h2 className="text-sm font-medium text-muted-foreground">
           Team history
         </h2>
-        <DataTable
-          columns={teamHistoryColumns}
-          data={rosterHistory}
-          emptyMessage="No roster history found."
-        />
+        <TeamHistoryTable rows={rosterHistory} />
       </div>
 
       <div className="flex flex-col gap-2">
         <h2 className="text-sm font-medium text-muted-foreground">
           Match history
         </h2>
-        <DataTable
-          columns={matchHistoryColumns}
-          data={matchHistory}
-          emptyMessage="No match history found."
-        />
+        <MatchHistoryTable rows={matchHistory} />
       </div>
     </div>
   )

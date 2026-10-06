@@ -12,8 +12,8 @@ import {
   TeamCompareProvider,
   TeamCompareBar,
 } from "@/components/team-compare-picker"
-import { DataTable } from "@/components/data-table/data-table"
-import { teamStandingsColumns, type TeamStandingTableRow } from "./columns"
+import type { TeamStandingTableRow } from "./columns"
+import { TeamStandingsTable } from "./team-standings-table"
 
 // Same reasoning as app/leaderboard/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
@@ -92,9 +92,8 @@ export default async function TeamsPage({
           <DivisionTabs divisions={divisions} value={activeDivision}>
             {divisions.map((division) => (
               <TabsContent key={division} value={division}>
-                <DataTable
-                  columns={teamStandingsColumns}
-                  data={rowsByDivision.get(division) ?? []}
+                <TeamStandingsTable
+                  rows={rowsByDivision.get(division) ?? []}
                   emptyMessage="No teams found for this division."
                 />
               </TabsContent>

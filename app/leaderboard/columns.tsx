@@ -1,5 +1,3 @@
-"use client"
-
 import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import type { LeaderboardRow, LeaderboardStat } from "@/lib/db"
