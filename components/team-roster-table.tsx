@@ -1,3 +1,5 @@
+"use client"
+
 import type { TeamRosterPlayerRow } from "@/lib/db"
 import { DataTable } from "@/components/data-table/data-table"
 import {
