@@ -86,6 +86,7 @@ export default async function LeaderboardPage({
     return {
       ...row,
       faceitElo: fs?.elo ?? null,
+      faceitNickname: fs?.faceitNickname ?? null,
       faceitRecent:
         !fs || fs.matchesRecent === 0
           ? "—"

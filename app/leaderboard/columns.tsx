@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { LeaderboardRow, LeaderboardStat } from "@/lib/db"
 import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
+import { ProfileLinks } from "@/components/profile-links"
 
 // The leaderboard row shape as rendered by the table: the raw DB row plus
 // Faceit stats pre-joined into plain, serializable fields (the lookup Map
@@ -10,6 +11,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 // client boundary).
 export type LeaderboardTableRow = LeaderboardRow & {
   faceitElo: number | null
+  faceitNickname: string | null
   faceitRecent: string
   avatarUrl: string | null
 }
@@ -58,6 +60,10 @@ export function buildLeaderboardColumns(
           >
             {row.original.inGameName}
           </Link>
+          <ProfileLinks
+            steamid64={row.original.steamid64}
+            faceitNickname={row.original.faceitNickname}
+          />
           {row.original.matchStatus &&
           row.original.matchStatus !== "manual" &&
           row.original.matchStatus !== "auto_high" ? (

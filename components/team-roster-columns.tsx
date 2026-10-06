@@ -4,6 +4,7 @@ import type { TeamRosterPlayerRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { Badge } from "@/components/ui/badge"
 import { RosterAccountEditor } from "@/components/roster-account-editor"
+import { ProfileLinks } from "@/components/profile-links"
 
 // Roster row as rendered by the table: the raw DB row plus Faceit elo
 // pre-joined into a plain, serializable field.
@@ -125,44 +126,18 @@ export function buildTeamRosterColumns({
       enableSorting: false,
       meta: { className: "whitespace-normal" },
       cell: ({ row }) => (
-        <div className="flex flex-col gap-1 text-xs">
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Steam:</span>
-            {row.original.steamid64 ? (
-              <a
-                href={`https://steamcommunity.com/profiles/${row.original.steamid64}`}
-                target="_blank"
-                rel="noreferrer"
-                className="underline-offset-4 hover:underline"
-              >
-                {row.original.steamid64}
-              </a>
-            ) : (
-              <span>—</span>
-            )}
-            {teamName ? (
-              <RosterAccountEditor
-                teamName={teamName}
-                rosterEntryId={row.original.rosterEntryId}
-                currentSteamid64={row.original.steamid64}
-              />
-            ) : null}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">Faceit:</span>
-            {row.original.faceitNickname ? (
-              <a
-                href={`https://www.faceit.com/en/players/${row.original.faceitNickname}`}
-                target="_blank"
-                rel="noreferrer"
-                className="underline-offset-4 hover:underline"
-              >
-                {row.original.faceitNickname}
-              </a>
-            ) : (
-              <span>—</span>
-            )}
-          </div>
+        <div className="flex items-center gap-1.5">
+          <ProfileLinks
+            steamid64={row.original.steamid64}
+            faceitNickname={row.original.faceitNickname}
+          />
+          {teamName ? (
+            <RosterAccountEditor
+              teamName={teamName}
+              rosterEntryId={row.original.rosterEntryId}
+              currentSteamid64={row.original.steamid64}
+            />
+          ) : null}
         </div>
       ),
     })
