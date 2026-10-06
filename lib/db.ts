@@ -650,10 +650,9 @@ export type MatchDetail = {
 }
 
 /** A single Toornament match by its toornament_match_id, for the match detail page. */
-export function getMatchById(matchId: string): MatchDetail | null {
-  const row = db
-    .prepare(
-      `
+export async function getMatchById(matchId: string): Promise<MatchDetail | null> {
+  const rows = (await db.all(
+    sql`
       SELECT
         toornament_match_id AS matchId,
         scheduled_at AS scheduledAt,
@@ -666,9 +665,8 @@ export function getMatchById(matchId: string): MatchDetail | null {
         team_a_score AS teamAScore,
         team_b_score AS teamBScore
       FROM toornament_matches
-      WHERE toornament_match_id = @matchId
+      WHERE toornament_match_id = ${matchId}
       `
-    )
-    .get({ matchId }) as MatchDetail | undefined
-  return row ?? null
+  )) as MatchDetail[]
+  return rows[0] ?? null
 }

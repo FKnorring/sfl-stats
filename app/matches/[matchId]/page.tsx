@@ -47,7 +47,7 @@ export default async function MatchPage({
   params: Promise<{ matchId: string }>
 }) {
   const { matchId } = await params
-  const match = getMatchById(decodeURIComponent(matchId))
+  const match = await getMatchById(decodeURIComponent(matchId))
   if (!match) notFound()
 
   const isCompleted =
