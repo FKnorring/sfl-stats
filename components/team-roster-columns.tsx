@@ -47,7 +47,7 @@ export function buildTeamRosterColumns({
               {row.original.inGameName ?? row.original.nickname}
             </Link>
           ) : (
-            row.original.inGameName ?? row.original.nickname
+            (row.original.inGameName ?? row.original.nickname)
           )}
           {row.original.matchStatus !== "manual" &&
           row.original.matchStatus !== "auto_high" ? (

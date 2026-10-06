@@ -8,7 +8,10 @@ import {
 import { getFaceitTeamStats } from "@/lib/faceit"
 import { SeasonFilter } from "@/components/leaderboard-filters"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
-import { TeamCompareProvider, TeamCompareBar } from "@/components/team-compare-picker"
+import {
+  TeamCompareProvider,
+  TeamCompareBar,
+} from "@/components/team-compare-picker"
 import { DataTable } from "@/components/data-table/data-table"
 import { teamStandingsColumns, type TeamStandingTableRow } from "./columns"
 
@@ -107,4 +110,3 @@ export default async function TeamsPage({
     </div>
   )
 }
-

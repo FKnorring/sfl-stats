@@ -18,9 +18,7 @@ import {
 // reads need per-request freshness, not Next's build-time fetch caching.
 export const dynamic = "force-dynamic"
 
-function parseTeamId(
-  value: string | string[] | undefined
-): number | undefined {
+function parseTeamId(value: string | string[] | undefined): number | undefined {
   const raw = Array.isArray(value) ? value[0] : value
   if (!raw) return undefined
   const id = Number(raw)
@@ -38,7 +36,9 @@ function RosterTable({
 }) {
   const rows: TeamRosterTableRow[] = roster.map((row) => ({
     ...row,
-    faceitElo: row.steamid64 ? faceitStats.get(row.steamid64)?.elo ?? null : null,
+    faceitElo: row.steamid64
+      ? (faceitStats.get(row.steamid64)?.elo ?? null)
+      : null,
     faceitNickname: null,
   }))
 
