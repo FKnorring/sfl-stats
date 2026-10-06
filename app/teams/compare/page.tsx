@@ -7,16 +7,12 @@ import {
   type TeamRosterPlayerRow,
 } from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
 import { TeamSelect, type TeamOption } from "@/components/team-select"
+import { DataTable } from "@/components/data-table/data-table"
+import {
+  buildTeamRosterColumns,
+  type TeamRosterTableRow,
+} from "@/components/team-roster-columns"
 
 // Same reasoning as app/teams/page.tsx and app/leaderboard/page.tsx — DB
 // reads need per-request freshness, not Next's build-time fetch caching.
@@ -31,6 +27,8 @@ function parseTeamId(
   return Number.isFinite(id) ? id : undefined
 }
 
+const compareRosterColumns = buildTeamRosterColumns({ includeAccounts: false })
+
 function RosterTable({
   roster,
   faceitStats,
@@ -38,67 +36,18 @@ function RosterTable({
   roster: TeamRosterPlayerRow[]
   faceitStats: Map<string, { elo: number | null }>
 }) {
+  const rows: TeamRosterTableRow[] = roster.map((row) => ({
+    ...row,
+    faceitElo: row.steamid64 ? faceitStats.get(row.steamid64)?.elo ?? null : null,
+    faceitNickname: null,
+  }))
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Player</TableHead>
-          <TableHead className="text-right">Matches</TableHead>
-          <TableHead className="text-right">K</TableHead>
-          <TableHead className="text-right">D</TableHead>
-          <TableHead className="text-right">A</TableHead>
-          <TableHead className="text-right">ADR</TableHead>
-          <TableHead className="text-right">HS%</TableHead>
-          <TableHead className="text-right">Faceit Elo</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {roster.map((row) => (
-          <TableRow key={row.rosterEntryId}>
-            <TableCell className="font-medium">
-              <div className="flex items-center gap-2">
-                {row.inGameName ?? row.nickname}
-                {row.matchStatus !== "manual" &&
-                row.matchStatus !== "auto_high" ? (
-                  <Badge variant="outline" className="text-amber-600">
-                    {row.matchStatus === "auto_low"
-                      ? "low-confidence match"
-                      : row.matchStatus === "unmatched"
-                        ? "unmatched"
-                        : row.matchStatus}
-                  </Badge>
-                ) : null}
-              </div>
-            </TableCell>
-            <TableCell className="text-right">{row.matchesPlayed}</TableCell>
-            <TableCell className="text-right">{row.kills}</TableCell>
-            <TableCell className="text-right">{row.deaths}</TableCell>
-            <TableCell className="text-right">{row.assists}</TableCell>
-            <TableCell className="text-right">
-              {row.adr != null ? row.adr.toFixed(1) : "—"}
-            </TableCell>
-            <TableCell className="text-right">
-              {row.hsPct != null ? `${(row.hsPct * 100).toFixed(1)}%` : "—"}
-            </TableCell>
-            <TableCell className="text-right">
-              {row.steamid64
-                ? faceitStats.get(row.steamid64)?.elo ?? "—"
-                : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
-        {roster.length === 0 ? (
-          <TableRow>
-            <TableCell
-              colSpan={8}
-              className="text-center text-muted-foreground"
-            >
-              No roster entries for this team.
-            </TableCell>
-          </TableRow>
-        ) : null}
-      </TableBody>
-    </Table>
+    <DataTable
+      columns={compareRosterColumns}
+      data={rows}
+      emptyMessage="No roster entries for this team."
+    />
   )
 }
 
