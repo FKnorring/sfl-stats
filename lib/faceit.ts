@@ -71,19 +71,29 @@ export async function getFaceitTeamStats(
     sql`
       SELECT
         t.id AS teamId,
-        COUNT(DISTINCT fp.steamid64) AS playersWithFaceit,
-        AVG(fp.elo) AS avgElo,
+        elo_agg.playersWithFaceit AS playersWithFaceit,
+        elo_agg.avgElo AS avgElo,
         AVG(fms.kd_ratio) AS avgKd,
         AVG(fms.adr) AS avgAdr,
         COUNT(fms.id) AS matchesRecent
       FROM teams t
+      JOIN (
+        SELECT
+          re.team_id AS teamId,
+          COUNT(DISTINCT fp.steamid64) AS playersWithFaceit,
+          AVG(fp.elo) AS avgElo
+        FROM roster_entries re
+        JOIN faceit_players fp ON fp.steamid64 = re.matched_steamid64
+        WHERE re.match_status IN ('manual', 'auto_high')
+        GROUP BY re.team_id
+      ) elo_agg ON elo_agg.teamId = t.id
       JOIN roster_entries re ON re.team_id = t.id
         AND re.match_status IN ('manual', 'auto_high')
       JOIN faceit_players fp ON fp.steamid64 = re.matched_steamid64
       LEFT JOIN faceit_match_stats fms
         ON fms.steamid64 = fp.steamid64
         AND datetime(fms.played_at) >= datetime('now', ${daysOffset})
-      GROUP BY t.id
+      GROUP BY t.id, elo_agg.playersWithFaceit, elo_agg.avgElo
       `
   )) as (FaceitTeamSummary & { teamId: number })[]
 

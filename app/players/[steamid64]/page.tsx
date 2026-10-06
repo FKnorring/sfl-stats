@@ -1,10 +1,15 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getPlayerBySteamId64, getPlayerMatchHistory } from "@/lib/db"
+import {
+  getLeagueAverageStats,
+  getPlayerBySteamId64,
+  getPlayerMatchHistory,
+} from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
+import { StatValue } from "@/components/stat-value"
 import { MatchHistoryTable } from "./player-history-tables"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
@@ -22,11 +27,13 @@ export default async function PlayerPage({
   const player = await getPlayerBySteamId64(steamid64)
   if (!player) notFound()
 
-  const [matchHistory, faceitStats, steamSummary] = await Promise.all([
-    getPlayerMatchHistory(steamid64),
-    getFaceitPlayerStats(),
-    getPlayerSummary(steamid64).catch(() => null),
-  ])
+  const [matchHistory, faceitStats, steamSummary, leagueAverage] =
+    await Promise.all([
+      getPlayerMatchHistory(steamid64),
+      getFaceitPlayerStats(),
+      getPlayerSummary(steamid64).catch(() => null),
+      getLeagueAverageStats(),
+    ])
 
   const faceit = faceitStats.get(steamid64)
 
@@ -75,34 +82,91 @@ export default async function PlayerPage({
             <span className="font-medium">{player.matchesPlayed}</span>
           </div>
           <div className="flex flex-col gap-0.5">
+            <span className="text-muted-foreground">KDA</span>
+            <span className="font-medium">
+              <StatValue
+                value={player.kda}
+                average={leagueAverage.avgKda}
+                format={(v) => v.toFixed(2)}
+              />
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">Kills</span>
-            <span className="font-medium">{player.kills}</span>
+            <span className="font-medium">
+              <StatValue
+                value={player.matchesPlayed > 0 ? player.kills : null}
+                average={
+                  player.matchesPlayed > 0
+                    ? leagueAverage.avgKillsPerMatch * player.matchesPlayed
+                    : null
+                }
+                format={() => String(player.kills)}
+              />
+            </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">Deaths</span>
-            <span className="font-medium">{player.deaths}</span>
+            <span className="font-medium">
+              <StatValue
+                value={player.matchesPlayed > 0 ? player.deaths : null}
+                average={
+                  player.matchesPlayed > 0
+                    ? leagueAverage.avgDeathsPerMatch * player.matchesPlayed
+                    : null
+                }
+                invert
+                format={() => String(player.deaths)}
+              />
+            </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">Assists</span>
-            <span className="font-medium">{player.assists}</span>
+            <span className="font-medium">
+              <StatValue
+                value={player.matchesPlayed > 0 ? player.assists : null}
+                average={
+                  player.matchesPlayed > 0
+                    ? leagueAverage.avgAssistsPerMatch * player.matchesPlayed
+                    : null
+                }
+                format={() => String(player.assists)}
+              />
+            </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">Avg ADR</span>
             <span className="font-medium">
-              {player.adr != null ? player.adr.toFixed(1) : "—"}
+              <StatValue
+                value={player.adr}
+                average={leagueAverage.avgAdr}
+                format={(v) => v.toFixed(1)}
+              />
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">HS%</span>
             <span className="font-medium">
-              {player.hsPct != null
-                ? `${(player.hsPct * 100).toFixed(1)}%`
-                : "—"}
+              <StatValue
+                value={player.hsPct}
+                average={leagueAverage.avgHsPct}
+                format={(v) => `${(v * 100).toFixed(1)}%`}
+              />
             </span>
           </div>
           <div className="flex flex-col gap-0.5">
             <span className="text-muted-foreground">MVPs</span>
-            <span className="font-medium">{player.mvps}</span>
+            <span className="font-medium">
+              <StatValue
+                value={player.matchesPlayed > 0 ? player.mvps : null}
+                average={
+                  player.matchesPlayed > 0
+                    ? leagueAverage.avgMvpsPerMatch * player.matchesPlayed
+                    : null
+                }
+                format={() => String(player.mvps)}
+              />
+            </span>
           </div>
         </div>
       </div>
