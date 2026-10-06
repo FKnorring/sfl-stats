@@ -1,5 +1,12 @@
+import Link from "next/link"
 import type { RecentResult } from "@/lib/db"
 import { Badge } from "@/components/ui/badge"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export function TeamRecentForm({ results }: { results: RecentResult[] }) {
   if (results.length === 0) {
@@ -21,20 +28,33 @@ export function TeamRecentForm({ results }: { results: RecentResult[] }) {
         Recent form
       </h2>
       <div className="flex flex-wrap items-center gap-2">
-        {chronological.map((r) => (
-          <Badge
-            key={r.matchId}
-            variant="outline"
-            title={`${r.result === "win" ? "W" : "L"} ${r.teamScore}–${r.opponentScore} vs ${r.opponentName}`}
-            className={
-              r.result === "win"
-                ? "text-emerald-600"
-                : "text-destructive"
-            }
-          >
-            {r.result === "win" ? "W" : "L"} {r.teamScore}–{r.opponentScore}
-          </Badge>
-        ))}
+        <TooltipProvider>
+          {chronological.map((r) => (
+            <Tooltip key={r.matchId}>
+              <TooltipTrigger
+                render={
+                  <Link href={`/matches/${encodeURIComponent(r.matchId)}`}>
+                    <Badge
+                      variant="outline"
+                      className={
+                        r.result === "win"
+                          ? "text-emerald-600"
+                          : "text-destructive"
+                      }
+                    >
+                      {r.result === "win" ? "W" : "L"} {r.teamScore}–
+                      {r.opponentScore}
+                    </Badge>
+                  </Link>
+                }
+              />
+              <TooltipContent>
+                {r.teamScore}-{r.opponentScore} vs {r.opponentName}
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </TooltipProvider>
+
         <span className="text-xs text-muted-foreground">
           {wins}-{results.length - wins} last {results.length}
         </span>
