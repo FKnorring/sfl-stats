@@ -101,9 +101,14 @@ unavailable, history and filters still work. Dates use Stockholm time.
 History shows one row per demo, newest first, linking to
 `/matches/demo/[matchId]`. Demos attributable exclusively to seasons before
 S9 are excluded; unattributed demos remain visible. Unresolved teams use
-roster evidence when available, otherwise appear as unknown. Only stored
-demo scores are shown, never inferred official series results. Unknown
-division attribution cannot satisfy a selected division.
+the same eligible-season roster evidence as demo detail, otherwise appear
+as unknown. Tied or conflicting evidence is not guessed; unassignable
+players remain visible in detail. Stored scores are labeled **Demo score**.
+When both stored scores are absent, a uniquely closest completed Toornament
+result for the two teams within four days may be shown as **Official result**.
+This may be a series result, not this demo's round score. Partial stored
+scores are never combined with official results. Unknown division attribution
+cannot satisfy a selected division.
 
 This page does not write to the database or require `scrape:schedule` for
 upcoming data. Focused regression checks use an isolated in-memory database:

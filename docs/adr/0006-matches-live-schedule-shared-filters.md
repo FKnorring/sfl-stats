@@ -1,5 +1,8 @@
 # Matches page: cached live schedule and shared client-side filters
 
+The identity and score presentation policy below is amended by
+ADR-0008 for issue #65; the schedule, filtering and read-only decisions remain.
+
 Issue #51 adds `/matches`, combining upcoming Toornament fixtures and
 ingested-demo history. The existing schedule parser and live fetcher are
 reused; the page does not depend on a schedule-scrape run and never writes

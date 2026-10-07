@@ -4,7 +4,6 @@ import {
   getDemoMatchById,
   getDemoMatchPlayerStats,
   getMatchKills,
-  getToornamentScoreForDemo,
 } from "@/lib/db"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
@@ -62,63 +61,21 @@ export default async function DemoMatchPage({
 
   // `side` is just the in-game CT/T slot (CS2's team_num) — only useful
   // for splitting the roster into two groups, never as a display name.
-  const sides = Array.from(
-    new Set(players.map((p) => p.side).filter((s): s is string => !!s))
-  )
-  const [sideA, sideB] = sides
+  const sideA = match.teamASide
+  const sideB = match.teamBSide
   const sideAPlayers = sideA
     ? playersWithAvatars.filter((p) => p.side === sideA)
-    : playersWithAvatars
+    : []
   const sideBPlayers = sideB
     ? playersWithAvatars.filter((p) => p.side === sideB)
     : []
+  const unassignedPlayers = playersWithAvatars.filter(
+    (p) => !sideAPlayers.includes(p) && !sideBPlayers.includes(p)
+  )
 
-  // Prefer the resolved roster team on `matches` (set when ingestion could
-  // pin exactly two distinct roster teams); otherwise fall back to
-  // whichever roster team is most common among this side's players. Also
-  // resolves that team's logo, since `matches.team_a/b_id` not being
-  // resolved means `getDemoMatchById`'s team-logo join comes back null too.
-  function majorityRosterTeam(
-    rows: typeof players
-  ): { name: string; logoUrl: string | null } | null {
-    const counts = new Map<string, { count: number; logoUrl: string | null }>()
-    for (const row of rows) {
-      if (!row.rosterTeamName) continue
-      const entry = counts.get(row.rosterTeamName)
-      if (entry) {
-        entry.count++
-      } else {
-        counts.set(row.rosterTeamName, {
-          count: 1,
-          logoUrl: row.rosterTeamLogoUrl,
-        })
-      }
-    }
-    let best: string | null = null
-    let bestEntry: { count: number; logoUrl: string | null } | null = null
-    for (const [name, entry] of counts) {
-      if (!bestEntry || entry.count > bestEntry.count) {
-        best = name
-        bestEntry = entry
-      }
-    }
-    return best ? { name: best, logoUrl: bestEntry!.logoUrl } : null
-  }
-
-  const majorityTeamA = majorityRosterTeam(sideAPlayers)
-  const majorityTeamB = majorityRosterTeam(sideBPlayers)
-  const teamAName = match.teamAName ?? majorityTeamA?.name ?? "Team A"
-  const teamBName = match.teamBName ?? majorityTeamB?.name ?? "Team B"
-  const teamALogoUrl = match.teamALogoUrl ?? majorityTeamA?.logoUrl ?? null
-  const teamBLogoUrl = match.teamBLogoUrl ?? majorityTeamB?.logoUrl ?? null
-  // matches.team_a/b_score is often unset; fall back to the completed
-  // Toornament match for these two teams around the demo date.
-  const fallbackScore =
-    match.teamAScore == null || match.teamBScore == null
-      ? await getToornamentScoreForDemo(match.demoDate, teamAName, teamBName)
-      : null
-  const teamAScore = match.teamAScore ?? fallbackScore?.teamAScore ?? null
-  const teamBScore = match.teamBScore ?? fallbackScore?.teamBScore ?? null
+  const teamAName = match.teamAName ?? "Unknown team A"
+  const teamBName = match.teamBName ?? "Unknown team B"
+  const { teamALogoUrl, teamBLogoUrl, teamAScore, teamBScore } = match
   const mapImageUrl = getMapImageUrl(match.mapName)
   const radar = getMapRadar(match.mapName)
 
@@ -198,6 +155,14 @@ export default async function DemoMatchPage({
           <h1 className="text-2xl font-semibold drop-shadow-sm">
             {formatMapName(match.mapName) ?? "Unknown map"}
           </h1>
+          {match.scoreSource === "official" ? (
+            <Badge
+              variant="secondary"
+              title="Toornament result; may describe a series rather than this demo"
+            >
+              Official result
+            </Badge>
+          ) : null}
           {match.teamResolutionConflict ? (
             <Badge
               variant="outline"
@@ -213,6 +178,7 @@ export default async function DemoMatchPage({
       <DemoMatchView
         teamA={{ name: teamAName, score: teamAScore, players: sideAPlayers }}
         teamB={{ name: teamBName, score: teamBScore, players: sideBPlayers }}
+        unassignedPlayers={unassignedPlayers}
         kills={kills}
         hiddenSteamids={hiddenSteamids}
         mapImageUrl={mapImageUrl}

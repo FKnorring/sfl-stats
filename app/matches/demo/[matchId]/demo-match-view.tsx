@@ -29,6 +29,7 @@ function TeamHeading({ name, score }: { name: string; score: number | null }) {
 export function DemoMatchView({
   teamA,
   teamB,
+  unassignedPlayers = [],
   kills,
   hiddenSteamids,
   mapImageUrl,
@@ -36,12 +37,13 @@ export function DemoMatchView({
 }: {
   teamA: { name: string; score: number | null; players: DemoMatchPlayerRow[] }
   teamB: { name: string; score: number | null; players: DemoMatchPlayerRow[] }
+  unassignedPlayers?: DemoMatchPlayerRow[]
   kills: MatchKillRow[]
   hiddenSteamids: string[]
   mapImageUrl: string | null
   radar: MapRadar | null
 }) {
-  const all = [...teamA.players, ...teamB.players]
+  const all = [...teamA.players, ...teamB.players, ...unassignedPlayers]
   const [selected, setSelected] = useState<string | null>(
     all[0]?.steamid64 ?? null
   )
@@ -60,6 +62,20 @@ export function DemoMatchView({
             />
           </div>
         ))}
+        {unassignedPlayers.length ? (
+          <div className="flex flex-col gap-2">
+            <h2 className="text-sm font-medium">Unassigned players</h2>
+            <p className="text-xs text-muted-foreground">
+              Team evidence is ambiguous; these players cannot be assigned
+              safely.
+            </p>
+            <DemoMatchTable
+              rows={unassignedPlayers}
+              selectedSteamid64={selected}
+              onSelect={setSelected}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="flex min-w-0 flex-col gap-2">

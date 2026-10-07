@@ -13,3 +13,4 @@ When a decision here is final, add a new ADR with the next sequential number (ch
 | 0005 | [Auto-format and lint files via a Claude Code PostToolUse hook, shared project-wide](0005-auto-format-lint-posttooluse-hook.md) |
 | 0006 | [Matches page: cached live schedule and shared client-side filters](0006-matches-live-schedule-shared-filters.md) |
 | 0007 | [Browser-local follows and favorites with official live rankings](0007-browser-local-follow-preferences.md) |
+| 0008 | [Shared demo identities and explicit result provenance](0008-shared-demo-identities-and-result-provenance.md) |
