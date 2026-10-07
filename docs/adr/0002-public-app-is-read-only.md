@@ -9,3 +9,5 @@ This constraint survives the move to a hosted database (see ADR-0003): the deplo
 We anticipate wanting a UI for operations that are currently done by hand or via CLI script — e.g. the manual Steam ID correction tool from issue #5 — but any such UI is **local-only**, run by a maintainer on their own machine against the hosted DB with a full-access credential, and is a separate concern from the public-facing app. It is not a reason to relax the public app's read-only constraint.
 
 We considered allowing limited, scoped writes from the public app (e.g. a public correction-suggestion form) to avoid building a separate local UI, but rejected it: any public write surface reopens the question of auth and abuse-handling that read-only sharing was specifically meant to avoid.
+
+The first such tool is `/admin` (`app/admin`): when `ENV=local` it overwrites a roster entry's Steam64 ID in the DB and in `data/player-overrides.json`. It 404s otherwise, and its server action re-checks `isLocalEnv`.
