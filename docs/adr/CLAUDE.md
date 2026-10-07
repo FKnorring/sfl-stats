@@ -11,3 +11,4 @@ When a decision here is final, add a new ADR with the next sequential number (ch
 | 0003 | [Hosted database: Turso (libSQL) + `@libsql/client` + Drizzle, TS-schema-first migrations](0003-hosted-db-turso-libsql-drizzle.md) |
 | 0004 | [DataTable abstraction on TanStack Table v8, sorting split from server-side data selection](0004-data-table-tanstack-react-table-v8.md) |
 | 0005 | [Auto-format and lint files via a Claude Code PostToolUse hook, shared project-wide](0005-auto-format-lint-posttooluse-hook.md) |
+| 0006 | [Matches page: cached live schedule and shared client-side filters](0006-matches-live-schedule-shared-filters.md) |

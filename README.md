@@ -90,6 +90,28 @@ The app reads the database configured by `DATABASE_URL` (local file by
 default). If no data exists yet, run the ingestion scripts below first —
 the app has nothing to show otherwise.
 
+### Matches
+
+Open `/matches` from the sidebar to see a horizontally scrolling live
+Toornament schedule and the ingested-demo history. Division selection and
+team-name search update both sections immediately; all divisions are shown
+initially. Schedule requests are cached for five minutes. If Toornament is
+unavailable, history and filters still work. Dates use Stockholm time.
+
+History shows one row per demo, newest first, linking to
+`/matches/demo/[matchId]`. Demos attributable exclusively to seasons before
+S9 are excluded; unattributed demos remain visible. Unresolved teams use
+roster evidence when available, otherwise appear as unknown. Only stored
+demo scores are shown, never inferred official series results. Unknown
+division attribution cannot satisfy a selected division.
+
+This page does not write to the database or require `scrape:schedule` for
+upcoming data. Focused regression checks use an isolated in-memory database:
+
+```bash
+node --import tsx --test lib/matches.test.ts
+```
+
 ## Database schema & migrations
 
 The schema is defined in TypeScript at
