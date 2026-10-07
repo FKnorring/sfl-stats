@@ -7,6 +7,7 @@ import {
   CircleHelpIcon,
   GitCompareIcon,
   HomeIcon,
+  WrenchIcon,
   StarIcon,
   TrophyIcon,
   UsersIcon,
@@ -34,7 +35,7 @@ const ITEMS = [
   { href: "/about", label: "About", icon: CircleHelpIcon },
 ]
 
-export function SideNav() {
+export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
   const pathname = usePathname()
   // Longest matching href wins so /teams/compare doesn't also light up /teams.
   const active = ITEMS.filter(({ href }) =>
