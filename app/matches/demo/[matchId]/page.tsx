@@ -7,6 +7,7 @@ import {
 } from "@/lib/db"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { getMapImageUrl, getMapRadar } from "@/lib/map-images"
+import { Badge } from "@/components/ui/badge"
 import { DemoMatchTable } from "./demo-match-table"
 import { PlayerHeatmaps } from "./player-heatmaps"
 
@@ -141,6 +142,15 @@ export default async function DemoMatchPage({
           <h1 className="text-2xl font-semibold drop-shadow-sm">
             {match.mapName ?? "Unknown map"}
           </h1>
+          {match.teamResolutionConflict ? (
+            <Badge
+              variant="outline"
+              className="text-amber-600"
+              title={match.teamResolutionConflict}
+            >
+              team identity needs review
+            </Badge>
+          ) : null}
         </div>
       </div>
 

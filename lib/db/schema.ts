@@ -82,30 +82,59 @@ export const playerNameOverrides = sqliteTable("player_name_overrides", {
   createdAt: text("created_at").notNull(),
 })
 
-export const matches = sqliteTable("matches", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  // Just the demo's basename (e.g. "2026-10-01_19-05-47_22_de_nuke_....dem"),
-  // not an absolute path — demos are always downloaded fresh from the same
-  // SharePoint source, so the local --dir a maintainer ingests from varies
-  // between machines/runs while the filename itself is stable and unique
-  // (SFL's naming scheme embeds a timestamp + sequence number). Storing the
-  // full local path would make the uniqueness check (and re-ingestion
-  // dedup) depend on where the demo happens to live on disk.
-  fileName: text("file_name").notNull().unique(),
-  mapName: text("map_name"),
-  serverName: text("server_name"),
-  demoDate: text("demo_date"),
-  totalRounds: integer("total_rounds"),
-  // Resolved only when exactly two distinct roster teams are matched among
-  // this demo's players (see scripts/ingest-demos.ts) — round wins tallied
-  // from round_end events' winning side, attributed to a team via each
-  // matched player's side at that round's tick (sides swap at halftime).
-  teamAId: integer("team_a_id").references(() => teams.id),
-  teamAScore: integer("team_a_score"),
-  teamBId: integer("team_b_id").references(() => teams.id),
-  teamBScore: integer("team_b_score"),
-  parsedAt: text("parsed_at").notNull(),
-})
+export const matches = sqliteTable(
+  "matches",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // Just the demo's basename (e.g. "2026-10-01_19-05-47_22_de_nuke_....dem"),
+    // not an absolute path — demos are always downloaded fresh from the same
+    // SharePoint source, so the local --dir a maintainer ingests from varies
+    // between machines/runs while the filename itself is stable and unique
+    // (SFL's naming scheme embeds a timestamp + sequence number). Storing the
+    // full local path would make the uniqueness check (and re-ingestion
+    // dedup) depend on where the demo happens to live on disk.
+    fileName: text("file_name").notNull().unique(),
+    mapName: text("map_name"),
+    serverName: text("server_name"),
+    demoDate: text("demo_date"),
+    totalRounds: integer("total_rounds"),
+    // Resolved only when exactly two distinct roster teams are matched among
+    // this demo's players (see scripts/ingest-demos.ts) — round wins tallied
+    // from round_end events' winning side, attributed to a team via each
+    // matched player's side at that round's tick (sides swap at halftime).
+    teamAId: integer("team_a_id").references(() => teams.id),
+    teamAScore: integer("team_a_score"),
+    teamBId: integer("team_b_id").references(() => teams.id),
+    teamBScore: integer("team_b_score"),
+    // How each side's team identity was established: resolved from matched
+    // roster players ("player_match"), or inferred from the closest
+    // same-date completed Toornament match once the other side was already
+    // confirmed ("toornament_inferred") — see lib/team-anchoring.ts. NULL
+    // until that side is resolved at all.
+    teamAResolution: text("team_a_resolution").$type<
+      "player_match" | "toornament_inferred" | null
+    >(),
+    teamBResolution: text("team_b_resolution").$type<
+      "player_match" | "toornament_inferred" | null
+    >(),
+    // Set only when a backfill re-run's fresh player-matching resolves a side
+    // to a different team than an earlier run's toornament_inferred guess for
+    // that same side — player-matched evidence always wins and is kept, this
+    // just records that the two disagreed so a human can look. NULL normally.
+    teamResolutionConflict: text("team_resolution_conflict"),
+    parsedAt: text("parsed_at").notNull(),
+  },
+  (t) => [
+    check(
+      "matches_team_a_resolution_check",
+      sql`${t.teamAResolution} IS NULL OR ${t.teamAResolution} IN ('player_match', 'toornament_inferred')`
+    ),
+    check(
+      "matches_team_b_resolution_check",
+      sql`${t.teamBResolution} IS NULL OR ${t.teamBResolution} IN ('player_match', 'toornament_inferred')`
+    ),
+  ]
+)
 
 export const playerMatchStats = sqliteTable(
   "player_match_stats",
