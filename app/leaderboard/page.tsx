@@ -99,14 +99,6 @@ export default async function LeaderboardPage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">Player leaderboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Svenska Företagsligan — aggregated from ingested demos, matched to
-          scraped rosters.
-        </p>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
         <StatFilter stats={STAT_OPTIONS} value={stat} />
         <SeasonFilter seasons={seasons} value={season} />

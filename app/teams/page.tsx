@@ -69,14 +69,6 @@ export default async function TeamsPage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">Team standings</h1>
-        <p className="text-sm text-muted-foreground">
-          Ranked by official match results, with demo-derived stats as
-          supplementary columns.
-        </p>
-      </div>
-
       <div className="flex flex-wrap items-center gap-2">
         <SeasonFilter seasons={seasons} value={season} />
         <Link
