@@ -7,7 +7,14 @@ export type DemoMatchPlayerRow = DemoMatchPlayerStatsRow & {
   avatarUrl: string | null
 }
 
-const rightAlign = { className: "text-right" }
+// Fixed width so both team tables (stacked, table-fixed) share identical
+// column edges.
+const rightAlign = { className: "w-16 text-right" }
+
+// Sort button sits in the header cell with built-in padding and its icon
+// after the label; flip it so the label's right edge lines up with the
+// right-aligned numbers below it.
+const numHeader = "ml-0 -mr-2.5 flex-row-reverse"
 
 export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   {
@@ -28,34 +35,38 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
         ) : (
           <div className="size-6 rounded border border-border bg-muted" />
         )}
+        <span>{row.original.inGameName}</span>
         <Link
           href={`/players/${encodeURIComponent(row.original.steamid64)}`}
-          className="underline-offset-4 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`${row.original.inGameName}'s profile`}
+          title="Player profile"
+          className="text-muted-foreground hover:text-foreground"
         >
-          {row.original.inGameName}
+          ↗
         </Link>
       </div>
     ),
   },
   {
     accessorKey: "kills",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="K" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="K" className={numHeader} />,
     meta: rightAlign,
   },
   {
     accessorKey: "deaths",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="D" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="D" className={numHeader} />,
     meta: rightAlign,
   },
   {
     accessorKey: "assists",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="A" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="A" className={numHeader} />,
     meta: rightAlign,
   },
   {
     accessorKey: "adr",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="ADR" />
+      <DataTableColumnHeader column={column} title="ADR" className={numHeader} />
     ),
     meta: rightAlign,
     cell: ({ row }) =>
@@ -64,7 +75,7 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   {
     accessorKey: "hsPct",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="HS%" />
+      <DataTableColumnHeader column={column} title="HS%" className={numHeader} />
     ),
     meta: rightAlign,
     cell: ({ row }) =>
@@ -75,7 +86,7 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   {
     accessorKey: "mvps",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="MVPs" />
+      <DataTableColumnHeader column={column} title="MVPs" className={numHeader} />
     ),
     meta: rightAlign,
     cell: ({ row }) => row.original.mvps ?? "—",
