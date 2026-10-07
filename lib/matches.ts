@@ -22,6 +22,7 @@ export type DemoMatchRow = MatchTeams & {
   demoDate: string | null
   teamAScore: number | null
   teamBScore: number | null
+  scoreSource: "demo" | "official" | null
 }
 
 export type UpcomingMatchRow = MatchTeams & {

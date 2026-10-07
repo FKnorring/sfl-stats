@@ -67,14 +67,30 @@ const columns: ColumnDef<DemoMatchRow>[] = [
   {
     accessorKey: "teamAScore",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Demo score" />
+      <DataTableColumnHeader column={column} title="Score" />
     ),
     meta: { className: "text-center tabular-nums" },
     cell: ({ row }) => {
       const match = row.original
-      return match.teamAScore !== null && match.teamBScore !== null
-        ? `${match.teamAScore}-${match.teamBScore}`
-        : "-"
+      return match.teamAScore !== null && match.teamBScore !== null ? (
+        <div>
+          {match.teamAScore}-{match.teamBScore}
+          <span
+            className="block text-xs text-muted-foreground"
+            title={
+              match.scoreSource === "official"
+                ? "Toornament result; may describe a series rather than this demo"
+                : undefined
+            }
+          >
+            {match.scoreSource === "official"
+              ? "Official result"
+              : "Demo score"}
+          </span>
+        </div>
+      ) : (
+        "-"
+      )
     },
   },
   {
@@ -277,8 +293,8 @@ export function MatchesView({
           getRowHref={(match) => `/matches/demo/${match.matchId}`}
         />
         <p className="mt-3 text-xs text-muted-foreground">
-          One row per ingested demo. Scores come from the demo, not the official
-          series result.
+          One row per ingested demo. Demo scores come from the demo; official
+          results come from Toornament and may describe a series instead.
         </p>
       </section>
     </div>

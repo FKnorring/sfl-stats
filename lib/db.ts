@@ -595,18 +595,13 @@ export async function getPlayerMatchHistory(
   })
 }
 
-export type DemoMatchDetail = {
-  matchId: number
-  mapName: string | null
-  demoDate: string | null
+export type DemoMatchDetail = DemoMatchRow & {
   teamAId: number | null
-  teamAName: string | null
   teamALogoUrl: string | null
-  teamAScore: number | null
   teamBId: number | null
-  teamBName: string | null
   teamBLogoUrl: string | null
-  teamBScore: number | null
+  teamASide: string | null
+  teamBSide: string | null
   teamResolutionConflict: string | null
 }
 
@@ -624,56 +619,78 @@ export async function getMatchTeams(
 
 /** All eligible demos, including those without resolved teams or player stats. */
 export async function getDemoMatches(
-  database: AppDb = db
-): Promise<DemoMatchRow[]> {
-  type Source = DemoMatchRow & {
-    teamAId: number | null
-    teamBId: number | null
+  database: AppDb = db,
+  matchId?: number
+): Promise<DemoMatchDetail[]> {
+  type Source = Omit<
+    DemoMatchDetail,
+    "teamASide" | "teamBSide" | "scoreSource"
+  > & {
     teamASeason: string | null
     teamBSeason: string | null
   }
   type RosterTeam = MatchTeam & {
+    logoUrl: string | null
     matchId: number
     side: string | null
     votes: number
   }
 
-  const [matches, rosterTeams] = await Promise.all([
+  const [matches, rosterTeams, playerSides] = await Promise.all([
     database.all<Source>(sql`
       SELECT m.id AS matchId, m.map_name AS mapName, m.demo_date AS demoDate,
         m.team_a_id AS teamAId, ta.name AS teamAName,
         ta.season AS teamASeason, ta.division AS teamADivision,
-        m.team_a_score AS teamAScore,
+        ta.logo_url AS teamALogoUrl, m.team_a_score AS teamAScore,
         m.team_b_id AS teamBId, tb.name AS teamBName,
         tb.season AS teamBSeason, tb.division AS teamBDivision,
-        m.team_b_score AS teamBScore
+        tb.logo_url AS teamBLogoUrl, m.team_b_score AS teamBScore,
+        m.team_resolution_conflict AS teamResolutionConflict
       FROM matches m
       LEFT JOIN teams ta ON ta.id = m.team_a_id
       LEFT JOIN teams tb ON tb.id = m.team_b_id
+      ${matchId === undefined ? sql`` : sql`WHERE m.id = ${matchId}`}
     `),
     database.all<RosterTeam>(sql`
       WITH latest_roster AS (
         SELECT re.matched_steamid64, t.id AS teamId,
-          t.name AS teamName, t.season, t.division,
+          t.name AS teamName, t.season, t.division, t.logo_url AS logoUrl,
           ROW_NUMBER() OVER (
             PARTITION BY re.matched_steamid64
-            ORDER BY re.scraped_at DESC, re.id DESC
+            ORDER BY CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) DESC,
+              re.scraped_at DESC, re.id DESC
           ) AS rank
         FROM roster_entries re
         JOIN teams t ON t.id = re.team_id
         WHERE re.matched_steamid64 IS NOT NULL
       )
       SELECT pms.match_id AS matchId, pms.team_name AS side,
-        r.teamId, r.teamName, r.season, r.division, COUNT(*) AS votes
+        r.teamId, r.teamName, r.season, r.division, r.logoUrl, COUNT(*) AS votes
       FROM player_match_stats pms
       JOIN matches m ON m.id = pms.match_id
       JOIN latest_roster r ON r.matched_steamid64 = pms.steamid64 AND r.rank = 1
-      WHERE m.team_a_id IS NULL OR m.team_b_id IS NULL
+      ${matchId === undefined ? sql`` : sql`WHERE m.id = ${matchId}`}
       GROUP BY pms.match_id, pms.team_name, r.teamId
       ORDER BY pms.match_id, pms.team_name, votes DESC, r.teamId
     `),
+    database.all<{ matchId: number; side: string }>(sql`
+      SELECT DISTINCT pms.match_id AS matchId, pms.team_name AS side
+      FROM player_match_stats pms
+      WHERE pms.team_name IS NOT NULL
+        ${matchId === undefined ? sql`` : sql`AND pms.match_id = ${matchId}`}
+      ORDER BY pms.match_id, pms.team_name
+    `),
   ])
 
+  const sidesByMatch = new Map<number, Map<string, RosterTeam[]>>()
+  for (const { matchId, side } of playerSides) {
+    let sides = sidesByMatch.get(matchId)
+    if (!sides) {
+      sides = new Map()
+      sidesByMatch.set(matchId, sides)
+    }
+    sides.set(side, [])
+  }
   const evidence = new Map<number, RosterTeam[]>()
   for (const team of rosterTeams) {
     const existing = evidence.get(team.matchId)
@@ -685,7 +702,7 @@ export async function getDemoMatches(
     return season ? Number(season.match(/\d+/)?.[0]) : NaN
   }
 
-  const rows: DemoMatchRow[] = []
+  const rows: DemoMatchDetail[] = []
   for (const match of matches) {
     const teams = evidence.get(match.matchId) ?? []
     const seasons = [
@@ -700,7 +717,8 @@ export async function getDemoMatches(
       continue
     }
 
-    const sides = new Map<string, RosterTeam[]>()
+    const sides =
+      sidesByMatch.get(match.matchId) ?? new Map<string, RosterTeam[]>()
     for (const team of teams) {
       if (team.side === null) continue
       const existing = sides.get(team.side)
@@ -719,6 +737,16 @@ export async function getDemoMatches(
 
     let fallbackA: RosterTeam | null = null
     let fallbackB: RosterTeam | null = null
+    let [teamASide = null, teamBSide = null]: (string | null)[] = [
+      ...sides.keys(),
+    ]
+    function anchoredSide(id: number | null, name: string | null) {
+      if (id === null) return null
+      const anchors = [...sides.entries()].filter(([, candidates]) =>
+        candidates.some((team) => team.teamId === id || team.teamName === name)
+      )
+      return anchors.length === 1 ? anchors[0][0] : null
+    }
     if (match.teamAId === null && match.teamBId === null && sides.size <= 2) {
       const [sideA, sideB] = [...sides.values()]
       fallbackA = sideA ? majority(sideA) : null
@@ -726,20 +754,35 @@ export async function getDemoMatches(
       if (fallbackA?.teamId === fallbackB?.teamId) fallbackB = null
     } else if ((match.teamAId === null) !== (match.teamBId === null)) {
       const knownId = match.teamAId ?? match.teamBId
-      const anchors = [...sides.entries()].filter(([, candidates]) =>
-        candidates.some((team) => team.teamId === knownId)
+      const knownSide = anchoredSide(
+        knownId,
+        match.teamAName ?? match.teamBName
       )
       // A stored team's A/B slot is not necessarily the first CT/T group.
-      if (anchors.length === 1 && sides.size === 2) {
+      teamASide = match.teamAId === null ? null : knownSide
+      teamBSide = match.teamBId === null ? null : knownSide
+      if (knownSide !== null && sides.size === 2) {
         const opponentSide = [...sides.entries()].find(
-          ([side]) => side !== anchors[0][0]
+          ([side]) => side !== knownSide
         )
         const opponent = opponentSide ? majority(opponentSide[1]) : null
+        if (match.teamAId === null) teamASide = opponentSide?.[0] ?? null
+        else teamBSide = opponentSide?.[0] ?? null
         if (opponent?.teamId !== knownId) {
           if (match.teamAId === null) fallbackA = opponent
           else fallbackB = opponent
         }
       }
+    } else if (match.teamAId !== null && match.teamBId !== null) {
+      teamASide = anchoredSide(match.teamAId, match.teamAName)
+      teamBSide = anchoredSide(match.teamBId, match.teamBName)
+      if (teamASide !== null && teamASide === teamBSide) {
+        teamASide = null
+        teamBSide = null
+      }
+    } else {
+      teamASide = null
+      teamBSide = null
     }
 
     rows.push({
@@ -750,6 +793,11 @@ export async function getDemoMatches(
       demoDate: match.demoDate,
       teamAName: match.teamAName ?? fallbackA?.teamName ?? null,
       teamBName: match.teamBName ?? fallbackB?.teamName ?? null,
+      teamALogoUrl: match.teamALogoUrl ?? fallbackA?.logoUrl ?? null,
+      teamBLogoUrl: match.teamBLogoUrl ?? fallbackB?.logoUrl ?? null,
+      teamASide,
+      teamBSide,
+      teamResolutionConflict: match.teamResolutionConflict,
       teamADivision:
         (seasonNumber(match.teamASeason) >= MIN_SEASON
           ? match.teamADivision
@@ -764,7 +812,30 @@ export async function getDemoMatches(
         null,
       teamAScore: match.teamAScore,
       teamBScore: match.teamBScore,
+      scoreSource:
+        match.teamAScore !== null || match.teamBScore !== null ? "demo" : null,
     })
+  }
+
+  const missingScores = rows.filter(
+    (row) => row.scoreSource === null && row.teamAName && row.teamBName
+  )
+  if (missingScores.length) {
+    const completed = await getCompletedDemoResults(database)
+    for (const row of missingScores) {
+      if (!row.teamAName || !row.teamBName) continue
+      const result = findToornamentScoreForDemo(
+        row.demoDate,
+        row.teamAName,
+        row.teamBName,
+        completed
+      )
+      if (result) {
+        row.teamAScore = result.teamAScore
+        row.teamBScore = result.teamBScore
+        row.scoreSource = "official"
+      }
+    }
   }
 
   return rows.sort(
@@ -776,29 +847,10 @@ export async function getDemoMatches(
 
 /** Match header info (map, date, resolved team names/scores) for a single demo-ingested match. */
 export async function getDemoMatchById(
-  matchId: number
+  matchId: number,
+  database: AppDb = db
 ): Promise<DemoMatchDetail | null> {
-  const rows = (await db.all(
-    sql`
-      SELECT
-        m.id AS matchId,
-        m.map_name AS mapName,
-        m.demo_date AS demoDate,
-        m.team_a_id AS teamAId,
-        ta.name AS teamAName,
-        ta.logo_url AS teamALogoUrl,
-        m.team_a_score AS teamAScore,
-        m.team_b_id AS teamBId,
-        tb.name AS teamBName,
-        tb.logo_url AS teamBLogoUrl,
-        m.team_b_score AS teamBScore,
-        m.team_resolution_conflict AS teamResolutionConflict
-      FROM matches m
-      LEFT JOIN teams ta ON ta.id = m.team_a_id
-      LEFT JOIN teams tb ON tb.id = m.team_b_id
-      WHERE m.id = ${matchId}
-      `
-  )) as DemoMatchDetail[]
+  const rows = await getDemoMatches(database, matchId)
   return rows[0] ?? null
 }
 
@@ -810,8 +862,8 @@ export type DemoMatchPlayerStatsRow = {
   // team_num, stringified) — only useful for splitting the roster into
   // two sides, not as a display name. See rosterTeamName for that.
   side: string | null
-  // The player's actual roster team name (most recently scraped), used
-  // to resolve a real display name for each side.
+  // The player's roster identity from the latest available season,
+  // with scrape time breaking ties, matching the demo-header resolver.
   rosterTeamName: string | null
   // That same roster team's logo, for when `matches.team_a/b_id` wasn't
   // resolved at ingestion time and the page falls back to the roster name.
@@ -826,9 +878,10 @@ export type DemoMatchPlayerStatsRow = {
 
 /** Every player's stat line for a single demo-ingested match, highest kills first. */
 export async function getDemoMatchPlayerStats(
-  matchId: number
+  matchId: number,
+  database: AppDb = db
 ): Promise<DemoMatchPlayerStatsRow[]> {
-  return (await db.all(
+  return (await database.all(
     sql`
       SELECT
         pms.steamid64 AS steamid64,
@@ -839,20 +892,24 @@ export async function getDemoMatchPlayerStats(
           FROM roster_entries re
           JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC, re.id DESC
+          ORDER BY CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) DESC,
+            re.scraped_at DESC, re.id DESC
           LIMIT 1
         ) AS rosterTeamName,
         (
           SELECT re.team_id FROM roster_entries re
+          JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC, re.id DESC LIMIT 1
+          ORDER BY CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) DESC,
+            re.scraped_at DESC, re.id DESC LIMIT 1
         ) AS rosterTeamId,
         (
           SELECT t.logo_url
           FROM roster_entries re
           JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC, re.id DESC
+          ORDER BY CAST(TRIM(REPLACE(t.season, 'SFL Säsong', '')) AS INTEGER) DESC,
+            re.scraped_at DESC, re.id DESC
           LIMIT 1
         ) AS rosterTeamLogoUrl,
         pms.kills AS kills,
@@ -1302,13 +1359,28 @@ export async function getMatchById(
 export async function getToornamentScoreForDemo(
   demoDate: string | null,
   teamAName: string,
-  teamBName: string
+  teamBName: string,
+  database: AppDb = db
 ): Promise<{ teamAScore: number; teamBScore: number } | null> {
-  if (!demoDate) return null
-  const demoTime = new Date(demoDate).getTime()
-  if (Number.isNaN(demoTime)) return null
+  if (matchDateTime(demoDate) === null) return null
+  return findToornamentScoreForDemo(
+    demoDate,
+    teamAName,
+    teamBName,
+    await getCompletedDemoResults(database)
+  )
+}
 
-  const rows = (await db.all(
+type CompletedDemoResult = {
+  scheduledAt: string
+  teamAName: string
+  teamBName: string
+  teamAScore: number
+  teamBScore: number
+}
+
+async function getCompletedDemoResults(database: AppDb) {
+  return database.all<CompletedDemoResult>(
     sql`
       SELECT
         scheduled_at AS scheduledAt,
@@ -1320,13 +1392,17 @@ export async function getToornamentScoreForDemo(
       WHERE status = 'completed' AND scheduled_at IS NOT NULL
         AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
       `
-  )) as {
-    scheduledAt: string
-    teamAName: string
-    teamBName: string
-    teamAScore: number
-    teamBScore: number
-  }[]
+  )
+}
+
+function findToornamentScoreForDemo(
+  demoDate: string | null,
+  teamAName: string,
+  teamBName: string,
+  rows: CompletedDemoResult[]
+): { teamAScore: number; teamBScore: number } | null {
+  const demoTime = matchDateTime(demoDate)
+  if (demoTime === null) return null
 
   const WINDOW_MS = 4 * 24 * 60 * 60 * 1000
   let best: {
@@ -1334,20 +1410,38 @@ export async function getToornamentScoreForDemo(
     teamAScore: number
     teamBScore: number
   } | null = null
+  let tied = false
   for (const r of rows) {
     const diff = Math.abs(new Date(r.scheduledAt).getTime() - demoTime)
-    if (!(diff <= WINDOW_MS) || (best && diff >= best.diff)) continue
-    const straight =
-      scoreSimilarity(r.teamAName, teamAName) >= MATCH_THRESHOLD_LOW &&
-      scoreSimilarity(r.teamBName, teamBName) >= MATCH_THRESHOLD_LOW
-    const swapped =
-      scoreSimilarity(r.teamAName, teamBName) >= MATCH_THRESHOLD_LOW &&
-      scoreSimilarity(r.teamBName, teamAName) >= MATCH_THRESHOLD_LOW
+    if (!(diff <= WINDOW_MS) || (best && diff > best.diff)) continue
+    const straightA = scoreSimilarity(r.teamAName, teamAName)
+    const straightB = scoreSimilarity(r.teamBName, teamBName)
+    const swappedA = scoreSimilarity(r.teamAName, teamBName)
+    const swappedB = scoreSimilarity(r.teamBName, teamAName)
+    let straight =
+      straightA >= MATCH_THRESHOLD_LOW && straightB >= MATCH_THRESHOLD_LOW
+    let swapped =
+      swappedA >= MATCH_THRESHOLD_LOW && swappedB >= MATCH_THRESHOLD_LOW
+    if (straight && swapped) {
+      const exactStraight = straightA === 1 && straightB === 1
+      const exactSwapped = swappedA === 1 && swappedB === 1
+      if (exactStraight === exactSwapped) continue
+      straight = exactStraight
+      swapped = exactSwapped
+    }
+    if (!straight && !swapped) continue
+    if (best && diff === best.diff) {
+      tied = true
+      continue
+    }
+    tied = false
     if (straight) {
       best = { diff, teamAScore: r.teamAScore, teamBScore: r.teamBScore }
     } else if (swapped) {
       best = { diff, teamAScore: r.teamBScore, teamBScore: r.teamAScore }
     }
   }
-  return best
+  return best && !tied
+    ? { teamAScore: best.teamAScore, teamBScore: best.teamBScore }
+    : null
 }
