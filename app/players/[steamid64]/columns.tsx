@@ -1,6 +1,7 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import type { PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
+import { FollowIndicator } from "@/components/follow-indicator"
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -21,7 +22,12 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Date" />
     ),
-    cell: ({ row }) => formatDate(row.original.demoDate),
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {formatDate(row.original.demoDate)}
+        <FollowIndicator teamId={row.original.teamId} />
+      </div>
+    ),
   },
   {
     accessorKey: "mapName",
@@ -35,7 +41,12 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Opponent" />
     ),
-    cell: ({ row }) => row.original.opponentTeamName ?? "—",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.opponentTeamName ?? "—"}
+        <FollowIndicator teamId={row.original.opponentTeamId} />
+      </div>
+    ),
   },
   {
     accessorKey: "kills",

@@ -82,9 +82,10 @@ function scanGameTab(itemContent: Block[], season: string): ScrapedTeam[] {
  * within it, the "Counter-Strike 2" game tab, and extract all teams/players
  * from its division lineup grids.
  */
-export function extractCs2Rosters(contentArea: Block[]): ScrapedTeam[] {
-  const teams: ScrapedTeam[] = []
-
+function visitCs2Tabs(
+  contentArea: Block[],
+  visit: (blocks: Block[], season: string) => void
+) {
   function walk(node: unknown, season: string | null) {
     const blocks = asBlockArray(node)
     for (const block of blocks) {
@@ -98,7 +99,7 @@ export function extractCs2Rosters(contentArea: Block[]): ScrapedTeam[] {
 
       if (ct === "contentBoxItem" && title === GAME_TITLE && nextSeason) {
         const itemContent = asBlockArray(block.fields.itemContent)
-        teams.push(...scanGameTab(itemContent, nextSeason))
+        visit(itemContent, nextSeason)
       }
 
       for (const value of Object.values(block.fields)) {
@@ -108,5 +109,37 @@ export function extractCs2Rosters(contentArea: Block[]): ScrapedTeam[] {
   }
 
   walk(contentArea, null)
+}
+
+export function extractCs2Rosters(contentArea: Block[]): ScrapedTeam[] {
+  const teams: ScrapedTeam[] = []
+  visitCs2Tabs(contentArea, (blocks, season) => {
+    teams.push(...scanGameTab(blocks, season))
+  })
   return teams
+}
+
+export function extractCs2DivisionStages(contentArea: Block[]) {
+  const stages: { season: string; division: string; path: string }[] = []
+  visitCs2Tabs(contentArea, (blocks, season) => {
+    let division: string | null = null
+    for (const block of blocks) {
+      if (block.system.contentType === "headlineBlock") {
+        const title = fieldString(block, "headline")?.trim()
+        if (title && /^division/i.test(title)) division = title
+      }
+      const path = fieldString(block, "embedPath")
+      if (
+        division &&
+        block.system.contentType === "toornamentEmbedBlock" &&
+        path &&
+        /^\/tournaments\/\d+\/stages\/\d+\/(?:\?_locale=[a-z]{2}_[A-Z]{2})?$/.test(
+          path
+        )
+      ) {
+        stages.push({ season, division, path })
+      }
+    }
+  })
+  return stages
 }

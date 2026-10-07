@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
+import { FollowIndicator } from "@/components/follow-indicator"
 
 // The leaderboard row shape as rendered by the table: the raw DB row plus
 // Faceit stats pre-joined into plain, serializable fields (the lookup Map
@@ -73,6 +74,7 @@ export function buildLeaderboardColumns(
       meta: { className: "font-medium" },
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
+          <FollowIndicator teamId={row.original.teamId} />
           {row.original.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- small, variable-source external avatars, same tradeoff as team logos
             <img

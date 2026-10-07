@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm"
 import { db, type AppDb } from "@/lib/db/client"
 import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
+import { teamDemoScope } from "@/lib/follow-stats"
 import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
@@ -36,6 +37,7 @@ const STAT_COLUMNS: Record<LeaderboardStat, string> = {
 export type SortDirection = "asc" | "desc"
 
 export type LeaderboardRow = {
+  teamId: number | null
   steamid64: string
   inGameName: string
   realName: string | null
@@ -122,6 +124,7 @@ export async function getLeaderboard(
         p.latest_ingame_name AS inGameName,
         re.real_name AS realName,
         t.name AS teamName,
+        t.id AS teamId,
         t.season AS season,
         t.division AS division,
         re.match_status AS matchStatus,
@@ -308,6 +311,17 @@ export type TeamMeta = {
   logoUrl: string | null
 }
 
+export async function getCurrentTeamCatalog(): Promise<TeamMeta[]> {
+  const season = await getCurrentSeason()
+  if (!season) return []
+  return (await db.all(sql`
+    SELECT t.id AS teamId, t.name AS teamName, t.season, t.division,
+      t.logo_url AS logoUrl
+    FROM teams t WHERE t.season = ${season} AND ${SEASON_CUTOFF_SQL}
+    ORDER BY t.name, t.id
+  `)) as TeamMeta[]
+}
+
 /** Looks up a single team-season row by id, for the compare page's headers. */
 export async function getTeamMeta(teamId: number): Promise<TeamMeta | null> {
   const rows = (await db.all(
@@ -361,9 +375,11 @@ export type TeamRosterPlayerRow = {
  * of aggregated, for the team-compare view.
  */
 export async function getTeamRoster(
-  teamId: number
+  teamId: number,
+  scoped = false,
+  database: AppDb = db
 ): Promise<TeamRosterPlayerRow[]> {
-  return (await db.all(
+  return (await database.all(
     sql`
       SELECT
         re.id AS rosterEntryId,
@@ -381,6 +397,7 @@ export async function getTeamRoster(
       FROM roster_entries re
       LEFT JOIN players p ON p.steamid64 = re.matched_steamid64
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
+        ${scoped ? sql`AND pms.match_id IN (SELECT m.id FROM matches m WHERE ${teamDemoScope(teamId)})` : sql``}
       WHERE re.team_id = ${teamId}
       GROUP BY re.id
       ORDER BY kills DESC
@@ -489,6 +506,8 @@ export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
 }
 
 export type PlayerMatchHistoryRow = {
+  teamId: number | null
+  opponentTeamId: number | null
   matchId: number
   mapName: string | null
   demoDate: string | null
@@ -509,7 +528,7 @@ export async function getPlayerMatchHistory(
   // Opponent = most common roster team among players on the other CT/T side
   // of the same demo (same fallback the demo page uses), since
   // matches.team_a_id/team_b_id are often unresolved.
-  return (await db.all(
+  const rows = (await db.all(
     sql`
       SELECT
         m.id AS matchId,
@@ -520,9 +539,14 @@ export async function getPlayerMatchHistory(
           FROM roster_entries re
           JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC
+          ORDER BY re.scraped_at DESC, re.id DESC
           LIMIT 1
         ) AS teamName,
+        (
+          SELECT re.team_id FROM roster_entries re
+          WHERE re.matched_steamid64 = pms.steamid64
+          ORDER BY re.scraped_at DESC, re.id DESC LIMIT 1
+        ) AS teamId,
         (
           SELECT opp.name
           FROM (
@@ -556,6 +580,19 @@ export async function getPlayerMatchHistory(
       ORDER BY m.demo_date DESC
       `
   )) as PlayerMatchHistoryRow[]
+  const identities = new Map(
+    (await getDemoMatches()).map((match) => [match.matchId, match])
+  )
+  return rows.map((row) => {
+    const match = identities.get(row.matchId)
+    const opponentTeamId =
+      row.teamId !== null && match?.teamAId === row.teamId
+        ? (match.teamBId ?? null)
+        : row.teamId !== null && match?.teamBId === row.teamId
+          ? (match.teamAId ?? null)
+          : null
+    return { ...row, opponentTeamId }
+  })
 }
 
 export type DemoMatchDetail = {
@@ -707,6 +744,8 @@ export async function getDemoMatches(
 
     rows.push({
       matchId: match.matchId,
+      teamAId: match.teamAId ?? fallbackA?.teamId ?? null,
+      teamBId: match.teamBId ?? fallbackB?.teamId ?? null,
       mapName: match.mapName,
       demoDate: match.demoDate,
       teamAName: match.teamAName ?? fallbackA?.teamName ?? null,
@@ -764,6 +803,7 @@ export async function getDemoMatchById(
 }
 
 export type DemoMatchPlayerStatsRow = {
+  rosterTeamId: number | null
   steamid64: string
   inGameName: string
   // The in-game CT/T side the player was on for this demo (CS2's
@@ -799,15 +839,20 @@ export async function getDemoMatchPlayerStats(
           FROM roster_entries re
           JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC
+          ORDER BY re.scraped_at DESC, re.id DESC
           LIMIT 1
         ) AS rosterTeamName,
+        (
+          SELECT re.team_id FROM roster_entries re
+          WHERE re.matched_steamid64 = pms.steamid64
+          ORDER BY re.scraped_at DESC, re.id DESC LIMIT 1
+        ) AS rosterTeamId,
         (
           SELECT t.logo_url
           FROM roster_entries re
           JOIN teams t ON t.id = re.team_id
           WHERE re.matched_steamid64 = pms.steamid64
-          ORDER BY re.scraped_at DESC
+          ORDER BY re.scraped_at DESC, re.id DESC
           LIMIT 1
         ) AS rosterTeamLogoUrl,
         pms.kills AS kills,
@@ -991,6 +1036,7 @@ export async function getTeamMapStats(teamId: number): Promise<TeamMapStat[]> {
 }
 
 export type TeamDemoMatchRow = {
+  opponentTeamId: number | null
   matchId: number
   mapName: string | null
   demoDate: string | null
@@ -1009,14 +1055,19 @@ export type TeamDemoMatchRow = {
  * the demo match page itself do.
  */
 export async function getTeamDemoMatches(
-  teamId: number
+  teamId: number,
+  scoped = false,
+  database: AppDb = db
 ): Promise<TeamDemoMatchRow[]> {
-  const rows = (await db.all(
+  const rows = (await database.all(
     sql`
       SELECT
         m.id AS matchId,
         m.map_name AS mapName,
         m.demo_date AS demoDate,
+        CASE WHEN m.team_a_id = ${teamId} THEN m.team_b_id
+             WHEN m.team_b_id = ${teamId} THEN m.team_a_id
+             ELSE NULL END AS opponentTeamId,
         (
           SELECT opp.name
           FROM (
@@ -1054,15 +1105,34 @@ export async function getTeamDemoMatches(
           ELSE NULL
         END AS opponentScore
       FROM matches m
-      WHERE m.id IN (
+      WHERE ${
+        scoped
+          ? teamDemoScope(teamId)
+          : sql`m.id IN (
         SELECT DISTINCT pms.match_id
         FROM player_match_stats pms
         JOIN roster_entries re ON re.matched_steamid64 = pms.steamid64
         WHERE re.team_id = ${teamId}
-      )
+      )`
+      }
       ORDER BY m.demo_date DESC
       `
   )) as TeamDemoMatchRow[]
+
+  const identities = new Map(
+    (await getDemoMatches(database)).map((match) => [match.matchId, match])
+  )
+  for (const row of rows) {
+    const match = identities.get(row.matchId)
+    if (!match) continue
+    if (match.teamAId === teamId) {
+      row.opponentTeamId = match.teamBId ?? null
+      row.opponentTeamName = match.teamBName ?? row.opponentTeamName
+    } else if (match.teamBId === teamId) {
+      row.opponentTeamId = match.teamAId ?? null
+      row.opponentTeamName = match.teamAName ?? row.opponentTeamName
+    }
+  }
 
   if (rows.every((r) => r.teamScore != null)) return rows
 
@@ -1070,7 +1140,7 @@ export async function getTeamDemoMatches(
   // fall back to the completed Toornament match this demo corresponds to:
   // same team, scheduled within a few days of the demo (demo_date can lag
   // the scheduled slot), closest wins, same opponent when known.
-  const completed = (await db.all(
+  const completed = (await database.all(
     sql`
       SELECT
         scheduled_at AS scheduledAt,

@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
 import type { DemoMatchPlayerStatsRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
+import { FollowIndicator } from "@/components/follow-indicator"
 
 export type DemoMatchPlayerRow = DemoMatchPlayerStatsRow & {
   avatarUrl: string | null
@@ -25,6 +26,7 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
     meta: { className: "font-medium" },
     cell: ({ row }) => (
       <div className="flex items-center gap-2">
+        <FollowIndicator teamId={row.original.rosterTeamId} />
         {row.original.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- small, variable-source external avatars, same tradeoff as team logos
           <img

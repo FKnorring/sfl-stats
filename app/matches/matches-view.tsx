@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/select"
 import { formatMapName } from "@/lib/map-images"
 import {
+  FollowIndicator,
+  useFollowRowClass,
+} from "@/components/follow-indicator"
+import {
   formatMatchDate,
   matchDateTime,
   matchesFilters,
@@ -53,7 +57,12 @@ const columns: ColumnDef<DemoMatchRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Team A" />
     ),
-    cell: ({ row }) => row.original.teamAName ?? "Unknown team",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.teamAName ?? "Unknown team"}
+        <FollowIndicator teamId={row.original.teamAId} />
+      </div>
+    ),
   },
   {
     accessorKey: "teamAScore",
@@ -73,7 +82,12 @@ const columns: ColumnDef<DemoMatchRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Team B" />
     ),
-    cell: ({ row }) => row.original.teamBName ?? "Unknown team",
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2">
+        {row.original.teamBName ?? "Unknown team"}
+        <FollowIndicator teamId={row.original.teamBId} />
+      </div>
+    ),
   },
   {
     id: "division",
@@ -94,6 +108,7 @@ export function MatchesView({
   upcoming: UpcomingMatchRow[] | null
   divisions: string[]
 }) {
+  const rowClass = useFollowRowClass()
   const [division, setDivision] = useState("")
   const [search, setSearch] = useState("")
   const filteredHistory = history.filter((match) =>
@@ -217,10 +232,12 @@ export function MatchesView({
                 <div className="flex flex-col gap-1">
                   <span className="font-medium wrap-break-word">
                     {match.teamAName}
+                    <FollowIndicator teamId={match.teamAId} />
                   </span>
                   <span className="text-xs text-muted-foreground">vs</span>
                   <span className="font-medium wrap-break-word">
                     {match.teamBName}
+                    <FollowIndicator teamId={match.teamBId} />
                   </span>
                 </div>
                 <span className="mt-auto text-xs text-muted-foreground">
@@ -249,6 +266,9 @@ export function MatchesView({
         <DataTable
           columns={columns}
           data={filteredHistory}
+          getRowClassName={(row) =>
+            rowClass(row.teamAId) ?? rowClass(row.teamBId)
+          }
           emptyMessage={
             history.length
               ? "No demo matches for these filters."

@@ -1,6 +1,7 @@
 "use client"
 
 import { DataTable } from "@/components/data-table/data-table"
+import { useFollowRowClass } from "@/components/follow-indicator"
 import { teamStandingsColumns, type TeamStandingTableRow } from "./columns"
 
 // Thin client wrapper: `teamStandingsColumns` contains function-valued
@@ -15,10 +16,12 @@ export function TeamStandingsTable({
   rows: TeamStandingTableRow[]
   emptyMessage: string
 }) {
+  const rowClass = useFollowRowClass()
   return (
     <DataTable
       columns={teamStandingsColumns}
       data={rows}
+      getRowClassName={(row) => rowClass(row.teamId)}
       emptyMessage={emptyMessage}
     />
   )

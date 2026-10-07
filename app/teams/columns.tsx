@@ -4,6 +4,8 @@ import type { TeamStandingRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { TeamCompareCheckbox } from "@/components/team-compare-picker"
 import { isNetlightTeam } from "@/components/netlight-flames"
+import { FollowTeamButton } from "@/components/follow-team-button"
+import { FollowIndicator } from "@/components/follow-indicator"
 
 // Team standings row as rendered by the table: the raw DB row plus Faceit
 // team stats pre-joined into plain, serializable fields.
@@ -15,6 +17,14 @@ export type TeamStandingTableRow = TeamStandingRow & {
 const rightAlign = { className: "text-right" }
 
 export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
+  {
+    id: "follow",
+    header: "Follow",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <FollowTeamButton teamName={row.original.teamName} iconOnly />
+    ),
+  },
   {
     id: "compare",
     header: "",
@@ -64,6 +74,7 @@ export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
         >
           {row.original.teamName}
         </span>
+        <FollowIndicator teamId={row.original.teamId} />
       </Link>
     ),
   },

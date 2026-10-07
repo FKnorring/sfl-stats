@@ -23,9 +23,11 @@ function parseTeamId(value: string | string[] | undefined): number | undefined {
 }
 
 function RosterTable({
+  teamId,
   roster,
   faceitStats,
 }: {
+  teamId: number
   roster: TeamRosterPlayerRow[]
   faceitStats: Map<string, { elo: number | null; faceitNickname: string }>
 }) {
@@ -38,7 +40,7 @@ function RosterTable({
     }
   })
 
-  return <CompareRosterTable rows={rows} />
+  return <CompareRosterTable teamId={teamId} rows={rows} />
 }
 
 function TeamColumn({
@@ -76,7 +78,13 @@ function TeamColumn({
           Pick a team above to see their roster.
         </p>
       )}
-      {meta ? <RosterTable roster={roster} faceitStats={faceitStats} /> : null}
+      {meta ? (
+        <RosterTable
+          teamId={meta.teamId}
+          roster={roster}
+          faceitStats={faceitStats}
+        />
+      ) : null}
     </div>
   )
 }
