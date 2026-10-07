@@ -22,6 +22,20 @@
       "when": 1791273024854,
       "tag": "0002_add_teams_logo_url",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791357570464,
+      "tag": "0003_cold_argent",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791358392855,
+      "tag": "0004_left_swordsman",
+      "breakpoints": true
     }
   ]
 }

@@ -143,6 +143,33 @@ export const playerMatchStats = sqliteTable(
   ]
 )
 
+// One row per player_death event, with world-space positions of both
+// players, for the per-player heatmaps on the demo match page. Killer fields
+// are NULL for world deaths (fall damage, bomb, etc.).
+export const matchKills = sqliteTable(
+  "match_kills",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id),
+    round: integer("round").notNull(),
+    tick: integer("tick").notNull(),
+    attackerSteamid64: text("attacker_steamid64"),
+    attackerX: real("attacker_x"),
+    attackerY: real("attacker_y"),
+    // "T" | "CT" at the moment of the kill (sides swap at halftime).
+    attackerSide: text("attacker_side"),
+    victimSteamid64: text("victim_steamid64").notNull(),
+    victimX: real("victim_x"),
+    victimY: real("victim_y"),
+    victimSide: text("victim_side"),
+    weapon: text("weapon"),
+    headshot: integer("headshot"),
+  },
+  (t) => [index("idx_match_kills_match").on(t.matchId)]
+)
+
 // Current Faceit identity + elo/skill snapshot per player.
 export const faceitPlayers = sqliteTable(
   "faceit_players",

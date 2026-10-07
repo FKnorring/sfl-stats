@@ -8,6 +8,7 @@ import {
   tickRowSchema,
   deriveStats,
   roundEndRowSchema,
+  killRowSchema,
   isMatchComplete,
   type RoundEndRow,
 } from "@/lib/demo-stats"
@@ -234,6 +235,45 @@ function computeTeamScore(
   return { teamAId, teamAScore, teamBId, teamBScore }
 }
 
+// parseTicks/events label sides "CT"/"TERRORIST"; store "CT"/"T".
+function toSide(name: string | null | undefined): string | null {
+  if (name === "CT") return "CT"
+  if (name === "TERRORIST") return "T"
+  return null
+}
+
+async function insertKills(db: AppDb, matchId: number, filePath: string) {
+  // "X"/"Y" must be requested for demoparser2 to populate the attacker_*/
+  // user_* position fields at all; without them they come back undefined.
+  const raw = parseEvent(filePath, "player_death", [
+    "X",
+    "Y",
+    "attacker_X",
+    "attacker_Y",
+    "attacker_steamid",
+    "user_X",
+    "user_Y",
+    "user_steamid",
+    // Bare prop name; demoparser2 expands it to attacker_/user_team_name.
+    "team_name",
+    "total_rounds_played",
+  ]) as unknown[]
+  const kills = z.array(killRowSchema).parse(raw)
+
+  for (const k of kills) {
+    if (!k.user_steamid) continue
+    await db.run(sql`
+      INSERT INTO match_kills (
+        match_id, round, tick, attacker_steamid64, attacker_x, attacker_y, attacker_side,
+        victim_steamid64, victim_x, victim_y, victim_side, weapon, headshot
+      ) VALUES (
+        ${matchId}, ${k.total_rounds_played ?? 0}, ${k.tick}, ${k.attacker_steamid ?? null}, ${k.attacker_X ?? null}, ${k.attacker_Y ?? null}, ${toSide(k.attacker_team_name)},
+        ${k.user_steamid}, ${k.user_X ?? null}, ${k.user_Y ?? null}, ${toSide(k.user_team_name)}, ${k.weapon ?? null}, ${k.headshot == null ? null : k.headshot ? 1 : 0}
+      )
+    `)
+  }
+}
+
 async function ingestDemo(
   db: AppDb,
   filePath: string,
@@ -335,6 +375,8 @@ async function ingestDemo(
     }
   }
 
+  await insertKills(db, matchId, filePath)
+
   const score = computeTeamScore(filePath, roundEnds, steamidToTeam)
   if (score) {
     await db.run(sql`
@@ -372,8 +414,29 @@ async function main() {
   let ingested = 0
   let skipped = 0
 
+  // Demos ingested before kill positions were stored get backfilled here.
+  const withKills = new Set(
+    (
+      (await db.all(
+        sql`SELECT DISTINCT m.file_name AS file_name FROM matches m JOIN match_kills k ON k.match_id = m.id`
+      )) as { file_name: string }[]
+    ).map((r) => r.file_name)
+  )
+
   for (const file of files) {
-    if (alreadyIngested.has(path.basename(file))) {
+    const name = path.basename(file)
+    if (alreadyIngested.has(name)) {
+      if (!withKills.has(name)) {
+        const rows = (await db.all(
+          sql`SELECT id FROM matches WHERE file_name = ${name}`
+        )) as { id: number }[]
+        console.log(`[ingest-demos] backfilling kills for ${name}`)
+        try {
+          await insertKills(db, rows[0].id, file)
+        } catch (err) {
+          console.error(`[ingest-demos] failed to backfill ${file}:`, err)
+        }
+      }
       skipped++
       continue
     }

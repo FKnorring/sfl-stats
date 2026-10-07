@@ -160,3 +160,23 @@ export function deriveStats(
     hsPct: kills > 0 ? headshotKills / kills : null,
   }
 }
+
+// player_death rows carry attacker_*/user_* (victim) fields. Everything but
+// the victim's steamid is nullable: world deaths have no attacker, and the
+// bot null-field bug can blank any of them.
+export const killRowSchema = z.object({
+  tick: z.number(),
+  total_rounds_played: z.number().nullish(),
+  attacker_steamid: z.string().nullish(),
+  attacker_X: z.number().nullish(),
+  attacker_Y: z.number().nullish(),
+  attacker_team_name: z.string().nullish(),
+  user_steamid: z.string().nullish(),
+  user_X: z.number().nullish(),
+  user_Y: z.number().nullish(),
+  user_team_name: z.string().nullish(),
+  weapon: z.string().nullish(),
+  headshot: z.boolean().nullish(),
+})
+
+export type KillRow = z.infer<typeof killRowSchema>

@@ -1,9 +1,14 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { getDemoMatchById, getDemoMatchPlayerStats } from "@/lib/db"
+import {
+  getDemoMatchById,
+  getDemoMatchPlayerStats,
+  getMatchKills,
+} from "@/lib/db"
 import { getPlayerSummaries } from "@/lib/steam-client"
-import { getMapImageUrl } from "@/lib/map-images"
+import { getMapImageUrl, getMapRadar } from "@/lib/map-images"
 import { DemoMatchTable } from "./demo-match-table"
+import { PlayerHeatmaps } from "./player-heatmaps"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
@@ -38,6 +43,7 @@ export default async function DemoMatchPage({
   if (!match) notFound()
 
   const players = await getDemoMatchPlayerStats(matchId)
+  const kills = await getMatchKills(matchId)
   const steamSummaries = await getPlayerSummaries(
     players.map((p) => p.steamid64)
   )
@@ -87,6 +93,7 @@ export default async function DemoMatchPage({
   const teamBName =
     match.teamBName ?? majorityRosterTeamName(sideBPlayers) ?? "Team B"
   const mapImageUrl = getMapImageUrl(match.mapName)
+  const radar = getMapRadar(match.mapName)
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
@@ -145,6 +152,19 @@ export default async function DemoMatchPage({
       <div className="flex flex-col gap-2">
         <TeamHeading name={teamBName} score={match.teamBScore} />
         <DemoMatchTable rows={sideBPlayers} />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h2 className="text-sm font-medium">Player heatmaps</h2>
+        <PlayerHeatmaps
+          players={players.map((p) => ({
+            steamid64: p.steamid64,
+            name: p.inGameName,
+          }))}
+          kills={kills}
+          mapImageUrl={mapImageUrl}
+          radar={radar}
+        />
       </div>
     </div>
   )

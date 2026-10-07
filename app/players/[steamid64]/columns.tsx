@@ -1,5 +1,4 @@
 import type { ColumnDef } from "@tanstack/react-table"
-import Link from "next/link"
 import type { PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 
@@ -29,36 +28,32 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Map" />
     ),
-    cell: ({ row }) => (
-      <Link
-        href={`/matches/demo/${row.original.matchId}`}
-        className="underline-offset-4 hover:underline"
-      >
-        {row.original.mapName ?? "—"}
-      </Link>
-    ),
+    cell: ({ row }) => row.original.mapName ?? "—",
   },
   {
-    accessorKey: "teamName",
+    accessorKey: "opponentTeamName",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Team" />
+      <DataTableColumnHeader column={column} title="Opponent" />
     ),
-    cell: ({ row }) => row.original.teamName ?? "—",
+    cell: ({ row }) => row.original.opponentTeamName ?? "—",
   },
   {
     accessorKey: "kills",
     header: ({ column }) => <DataTableColumnHeader column={column} title="K" />,
     meta: rightAlign,
+    cell: ({ row }) => row.original.kills,
   },
   {
     accessorKey: "deaths",
     header: ({ column }) => <DataTableColumnHeader column={column} title="D" />,
     meta: rightAlign,
+    cell: ({ row }) => row.original.deaths,
   },
   {
     accessorKey: "assists",
     header: ({ column }) => <DataTableColumnHeader column={column} title="A" />,
     meta: rightAlign,
+    cell: ({ row }) => row.original.assists,
   },
   {
     accessorKey: "adr",

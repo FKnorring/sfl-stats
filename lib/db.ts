@@ -465,6 +465,7 @@ export type PlayerMatchHistoryRow = {
   mapName: string | null
   demoDate: string | null
   teamName: string | null
+  opponentTeamName: string | null
   kills: number
   deaths: number
   assists: number
@@ -477,6 +478,9 @@ export type PlayerMatchHistoryRow = {
 export async function getPlayerMatchHistory(
   steamid64: string
 ): Promise<PlayerMatchHistoryRow[]> {
+  // Opponent = most common roster team among players on the other CT/T side
+  // of the same demo (same fallback the demo page uses), since
+  // matches.team_a_id/team_b_id are often unresolved.
   return (await db.all(
     sql`
       SELECT
@@ -491,6 +495,27 @@ export async function getPlayerMatchHistory(
           ORDER BY re.scraped_at DESC
           LIMIT 1
         ) AS teamName,
+        (
+          SELECT opp.name
+          FROM (
+            SELECT
+              (
+                SELECT t.name
+                FROM roster_entries re
+                JOIN teams t ON t.id = re.team_id
+                WHERE re.matched_steamid64 = o.steamid64
+                ORDER BY re.scraped_at DESC
+                LIMIT 1
+              ) AS name
+            FROM player_match_stats o
+            WHERE o.match_id = pms.match_id
+              AND o.team_name IS NOT pms.team_name
+          ) opp
+          WHERE opp.name IS NOT NULL
+          GROUP BY opp.name
+          ORDER BY COUNT(*) DESC
+          LIMIT 1
+        ) AS opponentTeamName,
         pms.kills AS kills,
         pms.deaths AS deaths,
         pms.assists AS assists,
@@ -590,6 +615,40 @@ export async function getDemoMatchPlayerStats(
       ORDER BY pms.kills DESC
       `
   )) as DemoMatchPlayerStatsRow[]
+}
+
+export type MatchKillRow = {
+  attackerSteamid64: string | null
+  attackerX: number | null
+  attackerY: number | null
+  attackerSide: string | null
+  victimSteamid64: string
+  victimX: number | null
+  victimY: number | null
+  victimSide: string | null
+  weapon: string | null
+  headshot: number | null
+}
+
+export async function getMatchKills(matchId: number): Promise<MatchKillRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        attacker_steamid64 AS attackerSteamid64,
+        attacker_x AS attackerX,
+        attacker_y AS attackerY,
+        attacker_side AS attackerSide,
+        victim_steamid64 AS victimSteamid64,
+        victim_x AS victimX,
+        victim_y AS victimY,
+        victim_side AS victimSide,
+        weapon,
+        headshot
+      FROM match_kills
+      WHERE match_id = ${matchId}
+      ORDER BY tick
+      `
+  )) as MatchKillRow[]
 }
 
 export type FutureOpponent = {
