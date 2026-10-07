@@ -796,6 +796,81 @@ export async function getTeamMapStats(teamId: number): Promise<TeamMapStat[]> {
   }))
 }
 
+export type TeamDemoMatchRow = {
+  matchId: number
+  mapName: string | null
+  demoDate: string | null
+  opponentTeamName: string | null
+  teamScore: number | null
+  opponentScore: number | null
+}
+
+/**
+ * Ingested demos involving this team, newest first — mirrors
+ * getPlayerMatchHistory's shape so the demo page the row links to is the
+ * same /matches/demo/[matchId] either way. Membership is via roster_entries
+ * (same as getTeamMapStats), not matches.team_a/b_id, since that's often
+ * unresolved; opponent name/score fall back to the majority roster team on
+ * the other side of each demo for the same reason getPlayerMatchHistory and
+ * the demo match page itself do.
+ */
+export async function getTeamDemoMatches(
+  teamId: number
+): Promise<TeamDemoMatchRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        m.id AS matchId,
+        m.map_name AS mapName,
+        m.demo_date AS demoDate,
+        (
+          SELECT opp.name
+          FROM (
+            SELECT
+              (
+                SELECT t.name
+                FROM roster_entries re
+                JOIN teams t ON t.id = re.team_id
+                WHERE re.matched_steamid64 = o.steamid64
+                ORDER BY re.scraped_at DESC
+                LIMIT 1
+              ) AS name
+            FROM player_match_stats o
+            WHERE o.match_id = m.id
+              AND o.team_name IS NOT (
+                SELECT MIN(pms.team_name)
+                FROM player_match_stats pms
+                JOIN roster_entries re ON re.matched_steamid64 = pms.steamid64
+                WHERE pms.match_id = m.id AND re.team_id = ${teamId}
+              )
+          ) opp
+          WHERE opp.name IS NOT NULL
+          GROUP BY opp.name
+          ORDER BY COUNT(*) DESC
+          LIMIT 1
+        ) AS opponentTeamName,
+        CASE
+          WHEN m.team_a_id = ${teamId} THEN m.team_a_score
+          WHEN m.team_b_id = ${teamId} THEN m.team_b_score
+          ELSE NULL
+        END AS teamScore,
+        CASE
+          WHEN m.team_a_id = ${teamId} THEN m.team_b_score
+          WHEN m.team_b_id = ${teamId} THEN m.team_a_score
+          ELSE NULL
+        END AS opponentScore
+      FROM matches m
+      WHERE m.id IN (
+        SELECT DISTINCT pms.match_id
+        FROM player_match_stats pms
+        JOIN roster_entries re ON re.matched_steamid64 = pms.steamid64
+        WHERE re.team_id = ${teamId}
+      )
+      ORDER BY m.demo_date DESC
+      `
+  )) as TeamDemoMatchRow[]
+}
+
 export type RecentResult = {
   matchId: string
   opponentName: string
