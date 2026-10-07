@@ -109,13 +109,6 @@ export default async function TeamComparePage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-medium">Compare teams</h1>
-        <p className="text-sm text-muted-foreground">
-          Side-by-side rosters and demo stats for two teams.
-        </p>
-      </div>
-
       <Link
         href="/teams"
         className="text-sm text-muted-foreground underline-offset-4 hover:underline"
