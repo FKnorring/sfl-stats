@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
+  CalendarDaysIcon,
   GitCompareIcon,
   HomeIcon,
   StarIcon,
@@ -26,6 +27,7 @@ const ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
   { href: "/teams", label: "Teams", icon: UsersIcon },
+  { href: "/matches", label: "Matches", icon: CalendarDaysIcon },
   { href: "/followed", label: "Followed", icon: StarIcon },
   { href: "/teams/compare", label: "Compare", icon: GitCompareIcon },
 ]

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm"
-import { db } from "@/lib/db/client"
+import { db, type AppDb } from "@/lib/db/client"
 import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
+import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
 // in the CLI scripts (scrape-roster, ingest-demos) via
@@ -570,6 +571,168 @@ export type DemoMatchDetail = {
   teamBLogoUrl: string | null
   teamBScore: number | null
   teamResolutionConflict: string | null
+}
+
+export async function getMatchTeams(
+  season: string,
+  database: AppDb = db
+): Promise<MatchTeam[]> {
+  return database.all<MatchTeam>(sql`
+    SELECT t.id AS teamId, t.name AS teamName, t.season, t.division
+    FROM teams t
+    WHERE t.season = ${season} AND ${SEASON_CUTOFF_SQL}
+    ORDER BY t.division, t.name, t.id
+  `)
+}
+
+/** All eligible demos, including those without resolved teams or player stats. */
+export async function getDemoMatches(
+  database: AppDb = db
+): Promise<DemoMatchRow[]> {
+  type Source = DemoMatchRow & {
+    teamAId: number | null
+    teamBId: number | null
+    teamASeason: string | null
+    teamBSeason: string | null
+  }
+  type RosterTeam = MatchTeam & {
+    matchId: number
+    side: string | null
+    votes: number
+  }
+
+  const [matches, rosterTeams] = await Promise.all([
+    database.all<Source>(sql`
+      SELECT m.id AS matchId, m.map_name AS mapName, m.demo_date AS demoDate,
+        m.team_a_id AS teamAId, ta.name AS teamAName,
+        ta.season AS teamASeason, ta.division AS teamADivision,
+        m.team_a_score AS teamAScore,
+        m.team_b_id AS teamBId, tb.name AS teamBName,
+        tb.season AS teamBSeason, tb.division AS teamBDivision,
+        m.team_b_score AS teamBScore
+      FROM matches m
+      LEFT JOIN teams ta ON ta.id = m.team_a_id
+      LEFT JOIN teams tb ON tb.id = m.team_b_id
+    `),
+    database.all<RosterTeam>(sql`
+      WITH latest_roster AS (
+        SELECT re.matched_steamid64, t.id AS teamId,
+          t.name AS teamName, t.season, t.division,
+          ROW_NUMBER() OVER (
+            PARTITION BY re.matched_steamid64
+            ORDER BY re.scraped_at DESC, re.id DESC
+          ) AS rank
+        FROM roster_entries re
+        JOIN teams t ON t.id = re.team_id
+        WHERE re.matched_steamid64 IS NOT NULL
+      )
+      SELECT pms.match_id AS matchId, pms.team_name AS side,
+        r.teamId, r.teamName, r.season, r.division, COUNT(*) AS votes
+      FROM player_match_stats pms
+      JOIN matches m ON m.id = pms.match_id
+      JOIN latest_roster r ON r.matched_steamid64 = pms.steamid64 AND r.rank = 1
+      WHERE m.team_a_id IS NULL OR m.team_b_id IS NULL
+      GROUP BY pms.match_id, pms.team_name, r.teamId
+      ORDER BY pms.match_id, pms.team_name, votes DESC, r.teamId
+    `),
+  ])
+
+  const evidence = new Map<number, RosterTeam[]>()
+  for (const team of rosterTeams) {
+    const existing = evidence.get(team.matchId)
+    if (existing) existing.push(team)
+    else evidence.set(team.matchId, [team])
+  }
+
+  function seasonNumber(season: string | null) {
+    return season ? Number(season.match(/\d+/)?.[0]) : NaN
+  }
+
+  const rows: DemoMatchRow[] = []
+  for (const match of matches) {
+    const teams = evidence.get(match.matchId) ?? []
+    const seasons = [
+      match.teamASeason,
+      match.teamBSeason,
+      ...teams.map((team) => team.season),
+    ].filter((season) => season !== null)
+    if (
+      seasons.length > 0 &&
+      seasons.every((season) => seasonNumber(season) < MIN_SEASON)
+    ) {
+      continue
+    }
+
+    const sides = new Map<string, RosterTeam[]>()
+    for (const team of teams) {
+      if (team.side === null) continue
+      const existing = sides.get(team.side)
+      if (existing) existing.push(team)
+      else sides.set(team.side, [team])
+    }
+
+    function majority(candidates: RosterTeam[]): RosterTeam | null {
+      const [best, second] = candidates
+      return best &&
+        best.votes !== second?.votes &&
+        seasonNumber(best.season) >= MIN_SEASON
+        ? best
+        : null
+    }
+
+    let fallbackA: RosterTeam | null = null
+    let fallbackB: RosterTeam | null = null
+    if (match.teamAId === null && match.teamBId === null && sides.size <= 2) {
+      const [sideA, sideB] = [...sides.values()]
+      fallbackA = sideA ? majority(sideA) : null
+      fallbackB = sideB ? majority(sideB) : null
+      if (fallbackA?.teamId === fallbackB?.teamId) fallbackB = null
+    } else if ((match.teamAId === null) !== (match.teamBId === null)) {
+      const knownId = match.teamAId ?? match.teamBId
+      const anchors = [...sides.entries()].filter(([, candidates]) =>
+        candidates.some((team) => team.teamId === knownId)
+      )
+      // A stored team's A/B slot is not necessarily the first CT/T group.
+      if (anchors.length === 1 && sides.size === 2) {
+        const opponentSide = [...sides.entries()].find(
+          ([side]) => side !== anchors[0][0]
+        )
+        const opponent = opponentSide ? majority(opponentSide[1]) : null
+        if (opponent?.teamId !== knownId) {
+          if (match.teamAId === null) fallbackA = opponent
+          else fallbackB = opponent
+        }
+      }
+    }
+
+    rows.push({
+      matchId: match.matchId,
+      mapName: match.mapName,
+      demoDate: match.demoDate,
+      teamAName: match.teamAName ?? fallbackA?.teamName ?? null,
+      teamBName: match.teamBName ?? fallbackB?.teamName ?? null,
+      teamADivision:
+        (seasonNumber(match.teamASeason) >= MIN_SEASON
+          ? match.teamADivision
+          : null) ??
+        fallbackA?.division ??
+        null,
+      teamBDivision:
+        (seasonNumber(match.teamBSeason) >= MIN_SEASON
+          ? match.teamBDivision
+          : null) ??
+        fallbackB?.division ??
+        null,
+      teamAScore: match.teamAScore,
+      teamBScore: match.teamBScore,
+    })
+  }
+
+  return rows.sort(
+    (a, b) =>
+      (matchDateTime(b.demoDate) ?? -Infinity) -
+        (matchDateTime(a.demoDate) ?? -Infinity) || b.matchId - a.matchId
+  )
 }
 
 /** Match header info (map, date, resolved team names/scores) for a single demo-ingested match. */
