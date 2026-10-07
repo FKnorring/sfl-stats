@@ -1543,13 +1543,15 @@ export type AdminRosterEntry = {
   matchStatus: string
 }
 
-/** Roster entries for the local-only /admin steamid editor. With no query,
+/** Current-season roster entries for the local-only /admin steamid editor. With no query,
  * entries still needing review come first; a query filters by nickname,
  * real name, team or steamid64. */
 export async function getAdminRosterEntries(
   query: string
 ): Promise<AdminRosterEntry[]> {
   const q = `%${query.trim().toLowerCase()}%`
+  const season = await getCurrentSeason()
+  if (!season) return []
   return (await db.all(
     sql`
       SELECT
@@ -1563,7 +1565,7 @@ export async function getAdminRosterEntries(
         re.match_status AS matchStatus
       FROM roster_entries re
       JOIN teams t ON t.id = re.team_id
-      WHERE ${SEASON_CUTOFF_SQL}
+      WHERE t.season = ${season}
         AND (
           ${q} = '%%'
           OR LOWER(re.nickname) LIKE ${q}
@@ -1573,7 +1575,7 @@ export async function getAdminRosterEntries(
         )
       ORDER BY
         CASE re.match_status WHEN 'manual' THEN 2 WHEN 'auto_high' THEN 1 ELSE 0 END,
-        t.season DESC, t.name, re.nickname
+        t.name, re.nickname
       LIMIT 200
       `
   )) as AdminRosterEntry[]

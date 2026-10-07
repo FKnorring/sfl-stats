@@ -51,9 +51,7 @@ export default async function AdminPage({
             <tr key={e.id} className="border-t border-border align-top">
               <td className="py-1.5">{e.nickname}</td>
               <td>{e.realName ?? "—"}</td>
-              <td>
-                {e.teamName}{" "}
-              </td>
+              <td>{e.teamName} </td>
               <td>
                 <Badge variant="outline">{e.matchStatus}</Badge>
               </td>

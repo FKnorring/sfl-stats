@@ -37,12 +37,17 @@ const ITEMS = [
 
 export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
   const pathname = usePathname()
+  const items = showAdmin
+    ? [...ITEMS, { href: "/admin", label: "Admin", icon: WrenchIcon }]
+    : ITEMS
   // Longest matching href wins so /teams/compare doesn't also light up /teams.
-  const active = ITEMS.filter(({ href }) =>
-    href === "/"
-      ? pathname === "/"
-      : pathname === href || pathname.startsWith(`${href}/`)
-  ).sort((a, b) => b.href.length - a.href.length)[0]?.href
+  const active = items
+    .filter(({ href }) =>
+      href === "/"
+        ? pathname === "/"
+        : pathname === href || pathname.startsWith(`${href}/`)
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +60,7 @@ export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {ITEMS.map(({ href, label, icon: Icon }) => (
+              {items.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
                     isActive={href === active}
