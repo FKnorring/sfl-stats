@@ -54,11 +54,22 @@ function formatStat(stat: LeaderboardStat, value: number): string {
 
 const rightAlign = { className: "text-right" }
 
+// Columns dropped by the compact variant (e.g. the home page preview).
+const COMPACT_HIDDEN = new Set([
+  "division",
+  "assists",
+  "hsPct",
+  "statValue",
+  "faceitElo",
+  "faceitRecent",
+])
+
 export function buildLeaderboardColumns(
   stat: LeaderboardStat,
-  statLabel: string | undefined
+  statLabel: string | undefined,
+  compact = false
 ): ColumnDef<LeaderboardTableRow>[] {
-  return [
+  const columns: ColumnDef<LeaderboardTableRow>[] = [
     {
       id: "rank",
       header: "#",
@@ -96,11 +107,14 @@ export function buildLeaderboardColumns(
               {row.original.realName ?? "😂"}
             </span>
           </div>
-          <ProfileLinks
-            steamid64={row.original.steamid64}
-            faceitNickname={row.original.faceitNickname}
-          />
-          {row.original.matchStatus &&
+          {compact ? null : (
+            <ProfileLinks
+              steamid64={row.original.steamid64}
+              faceitNickname={row.original.faceitNickname}
+            />
+          )}
+          {!compact &&
+          row.original.matchStatus &&
           row.original.matchStatus !== "manual" &&
           row.original.matchStatus !== "auto_high" ? (
             <Badge variant="outline" className="text-amber-600">
@@ -109,7 +123,7 @@ export function buildLeaderboardColumns(
                 : row.original.matchStatus}
             </Badge>
           ) : null}
-          {!row.original.teamName ? (
+          {!compact && !row.original.teamName ? (
             <Badge variant="outline" className="text-destructive">
               unmatched
             </Badge>
@@ -222,4 +236,10 @@ export function buildLeaderboardColumns(
       meta: rightAlign,
     },
   ]
+  return compact
+    ? columns.filter((c) => {
+        const key = c.id ?? ("accessorKey" in c ? String(c.accessorKey) : "")
+        return !COMPACT_HIDDEN.has(key)
+      })
+    : columns
 }

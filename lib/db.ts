@@ -3,6 +3,7 @@ import { db, type AppDb } from "@/lib/db/client"
 import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
 import { teamDemoScope } from "@/lib/follow-stats"
 import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
+import { resolveOfficialTeam } from "@/lib/toornament-standings"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
 // in the CLI scripts (scrape-roster, ingest-demos) via
@@ -111,7 +112,14 @@ export async function getLeaderboard(
   // Unmatched players (no roster_entries row, so t.season is NULL via the
   // LEFT JOIN) still belong on the board — only exclude rows that are
   // explicitly tied to a pre-season-9 team.
-  const conditions = [sql`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`]
+  // Also skip aborted/warmup demos (< 10 rounds) and rows where the player
+  // never played (0 kills, deaths and damage) — they count as a match and
+  // drag per-match averages down.
+  const conditions = [
+    sql`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`,
+    sql`m.total_rounds >= 10`,
+    sql`NOT (pms.kills = 0 AND pms.deaths = 0 AND pms.damage_total = 0)`,
+  ]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
   if (filters.division) conditions.push(sql`t.division = ${filters.division}`)
   if (filters.team) conditions.push(sql`t.name = ${filters.team}`)
@@ -137,6 +145,7 @@ export async function getLeaderboard(
         SUM(pms.mvps) AS mvps
       FROM player_match_stats pms
       JOIN players p ON p.steamid64 = pms.steamid64
+      JOIN matches m ON m.id = pms.match_id
       LEFT JOIN roster_entries re ON re.matched_steamid64 = p.steamid64
       LEFT JOIN teams t ON t.id = re.team_id
       ${where}
@@ -281,7 +290,8 @@ export async function getMatchesNeedingReview(): Promise<MatchNeedingReview[]> {
         m.id AS matchId,
         m.file_name AS fileName,
         m.demo_date AS demoDate,
-        m.team_resolution_conflict AS teamResolutionConflict
+        m.team_resolution_conflict AS teamResolutionConflict,
+        m.server_name AS serverName
       FROM matches m
       WHERE m.team_resolution_conflict IS NOT NULL
       ORDER BY m.demo_date DESC
@@ -617,6 +627,29 @@ export async function getMatchTeams(
   `)
 }
 
+/**
+ * Team names from a MatchZy server name ("MatchZy | Telia_Sverige_AB vs
+ * team_Falken"), resolved to current-season teams; unresolvable names are
+ * dropped.
+ */
+function serverNameTeams(
+  serverName: string | null,
+  teams: TeamMeta[]
+): TeamMeta[] {
+  if (!serverName) return []
+  const [, matchup = serverName] = serverName.split("|").map((p) => p.trim())
+  const found: TeamMeta[] = []
+  for (const raw of matchup.split(/\s+vs\s+/i)) {
+    const name = raw
+      .replace(/^team_/i, "")
+      .replace(/_/g, " ")
+      .trim()
+    const team = name ? resolveOfficialTeam(name, teams) : null
+    if (team) found.push(teams.find((t) => t.teamId === team.teamId)!)
+  }
+  return found
+}
+
 /** All eligible demos, including those without resolved teams or player stats. */
 export async function getDemoMatches(
   database: AppDb = db,
@@ -628,6 +661,7 @@ export async function getDemoMatches(
   > & {
     teamASeason: string | null
     teamBSeason: string | null
+    serverName: string | null
   }
   type RosterTeam = MatchTeam & {
     logoUrl: string | null
@@ -636,7 +670,7 @@ export async function getDemoMatches(
     votes: number
   }
 
-  const [matches, rosterTeams, playerSides] = await Promise.all([
+  const [matches, rosterTeams, playerSides, eligibleTeams] = await Promise.all([
     database.all<Source>(sql`
       SELECT m.id AS matchId, m.map_name AS mapName, m.demo_date AS demoDate,
         m.team_a_id AS teamAId, ta.name AS teamAName,
@@ -680,7 +714,21 @@ export async function getDemoMatches(
         ${matchId === undefined ? sql`` : sql`AND pms.match_id = ${matchId}`}
       ORDER BY pms.match_id, pms.team_name
     `),
+    database.all<TeamMeta>(sql`
+      SELECT t.id AS teamId, t.name AS teamName, t.season, t.division,
+        t.logo_url AS logoUrl
+      FROM teams t WHERE ${SEASON_CUTOFF_SQL}
+    `),
   ])
+
+  // Latest eligible season, read via `database` like everything else here.
+  const latestSeason = Math.max(
+    ...eligibleTeams.map((team) => Number(team.season.match(/\d+/)?.[0])),
+    -Infinity
+  )
+  const seasonTeams = eligibleTeams.filter(
+    (team) => Number(team.season.match(/\d+/)?.[0]) === latestSeason
+  )
 
   const sidesByMatch = new Map<number, Map<string, RosterTeam[]>>()
   for (const { matchId, side } of playerSides) {
@@ -780,21 +828,57 @@ export async function getDemoMatches(
         teamASide = null
         teamBSide = null
       }
+      // With exactly two sides and one team anchored, the other team can
+      // only be the remaining side, even if its roster evidence is stale.
+      if (sides.size === 2) {
+        const remaining = [...sides.keys()].find(
+          (side) => side !== (teamASide ?? teamBSide)
+        )
+        if (teamASide !== null && teamBSide === null)
+          teamBSide = remaining ?? null
+        else if (teamBSide !== null && teamASide === null)
+          teamASide = remaining ?? null
+      }
     } else {
       teamASide = null
       teamBSide = null
     }
 
+    // Last resort for a slot still without a team: the team names MatchZy
+    // put in the server name ("A vs B"), matched strictly against the
+    // current season. A name already used by the other slot is skipped, and
+    // an unmatched or ambiguous name leaves the slot unknown. Sides stay
+    // unassigned since the name order says nothing about CT/T.
+    let nameA: TeamMeta | null = null
+    let nameB: TeamMeta | null = null
+    const idA = match.teamAId ?? fallbackA?.teamId ?? null
+    const idB = match.teamBId ?? fallbackB?.teamId ?? null
+    if (idA === null || idB === null) {
+      const named = serverNameTeams(match.serverName, seasonTeams)
+        .filter((team) => team.teamId !== idA && team.teamId !== idB)
+        .filter((team, i, all) => all.indexOf(team) === i)
+      if (idA === null && idB === null) {
+        if (named.length === 2) [nameA, nameB] = named
+      } else if (named.length === 1) {
+        if (idA === null) nameA = named[0]
+        else nameB = named[0]
+      }
+    }
+
     rows.push({
       matchId: match.matchId,
-      teamAId: match.teamAId ?? fallbackA?.teamId ?? null,
-      teamBId: match.teamBId ?? fallbackB?.teamId ?? null,
+      teamAId: match.teamAId ?? fallbackA?.teamId ?? nameA?.teamId ?? null,
+      teamBId: match.teamBId ?? fallbackB?.teamId ?? nameB?.teamId ?? null,
       mapName: match.mapName,
       demoDate: match.demoDate,
-      teamAName: match.teamAName ?? fallbackA?.teamName ?? null,
-      teamBName: match.teamBName ?? fallbackB?.teamName ?? null,
-      teamALogoUrl: match.teamALogoUrl ?? fallbackA?.logoUrl ?? null,
-      teamBLogoUrl: match.teamBLogoUrl ?? fallbackB?.logoUrl ?? null,
+      teamAName:
+        match.teamAName ?? fallbackA?.teamName ?? nameA?.teamName ?? null,
+      teamBName:
+        match.teamBName ?? fallbackB?.teamName ?? nameB?.teamName ?? null,
+      teamALogoUrl:
+        match.teamALogoUrl ?? fallbackA?.logoUrl ?? nameA?.logoUrl ?? null,
+      teamBLogoUrl:
+        match.teamBLogoUrl ?? fallbackB?.logoUrl ?? nameB?.logoUrl ?? null,
       teamASide,
       teamBSide,
       teamResolutionConflict: match.teamResolutionConflict,
@@ -803,12 +887,14 @@ export async function getDemoMatches(
           ? match.teamADivision
           : null) ??
         fallbackA?.division ??
+        nameA?.division ??
         null,
       teamBDivision:
         (seasonNumber(match.teamBSeason) >= MIN_SEASON
           ? match.teamBDivision
           : null) ??
         fallbackB?.division ??
+        nameB?.division ??
         null,
       teamAScore: match.teamAScore,
       teamBScore: match.teamBScore,

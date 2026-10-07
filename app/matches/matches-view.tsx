@@ -115,6 +115,26 @@ const columns: ColumnDef<DemoMatchRow>[] = [
   },
 ]
 
+// Compact variant for the home page: drops map and division.
+const COMPACT_HIDDEN = new Set(["mapName", "division"])
+
+export function RecentMatchesTable({ rows }: { rows: DemoMatchRow[] }) {
+  const rowClass = useFollowRowClass()
+  const compactColumns = columns.filter((c) => {
+    const key = c.id ?? ("accessorKey" in c ? String(c.accessorKey) : "")
+    return !COMPACT_HIDDEN.has(key)
+  })
+  return (
+    <DataTable
+      columns={compactColumns}
+      data={rows}
+      getRowClassName={(row) => rowClass(row.teamAId) ?? rowClass(row.teamBId)}
+      emptyMessage="No ingested demo matches yet."
+      getRowHref={(match) => `/matches/demo/${match.matchId}`}
+    />
+  )
+}
+
 export function MatchesView({
   history,
   upcoming,
