@@ -23,10 +23,7 @@ async function fetchPage(url: string): Promise<string> {
   return res.text()
 }
 
-async function upsertTeamsAndRoster(
-  db: AppDb,
-  teams: ScrapedTeam[]
-) {
+async function upsertTeamsAndRoster(db: AppDb, teams: ScrapedTeam[]) {
   const now = new Date().toISOString()
 
   let teamCount = 0

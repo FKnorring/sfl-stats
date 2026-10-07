@@ -9,7 +9,6 @@ import { DemoMatchTable } from "./demo-match-table"
 // freshness, not Next's build-time fetch caching.
 export const dynamic = "force-dynamic"
 
-
 function TeamHeading({ name, score }: { name: string; score: number | null }) {
   return (
     <div className="flex items-center justify-between">

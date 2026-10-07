@@ -16,6 +16,10 @@ export function TeamStandingsTable({
   emptyMessage: string
 }) {
   return (
-    <DataTable columns={teamStandingsColumns} data={rows} emptyMessage={emptyMessage} />
+    <DataTable
+      columns={teamStandingsColumns}
+      data={rows}
+      emptyMessage={emptyMessage}
+    />
   )
 }

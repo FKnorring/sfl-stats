@@ -11,9 +11,7 @@ import {
 export function TeamRecentForm({ results }: { results: RecentResult[] }) {
   if (results.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No completed matches yet.
-      </p>
+      <p className="text-sm text-muted-foreground">No completed matches yet.</p>
     )
   }
 
@@ -24,9 +22,7 @@ export function TeamRecentForm({ results }: { results: RecentResult[] }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-muted-foreground">
-        Recent form
-      </h2>
+      <h2 className="text-sm font-medium text-muted-foreground">Recent form</h2>
       <div className="flex flex-wrap items-center gap-2">
         <TooltipProvider>
           {chronological.map((r) => (

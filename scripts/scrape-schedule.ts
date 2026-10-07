@@ -144,7 +144,14 @@ async function upsertMatches(
     }
   })
 
-  return { resolvedBoth, resolvedOne, resolvedNone, pending, completed, logosCaptured }
+  return {
+    resolvedBoth,
+    resolvedOne,
+    resolvedNone,
+    pending,
+    completed,
+    logosCaptured,
+  }
 }
 
 async function main() {

@@ -21,7 +21,11 @@ const CompareContext = React.createContext<CompareContextValue | null>(null)
  * standings row and the floating compare bar, without threading state
  * through the server component in app/teams/page.tsx.
  */
-export function TeamCompareProvider({ children }: { children: React.ReactNode }) {
+export function TeamCompareProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const [picked, setPicked] = React.useState<Picked[]>([])
 
   const toggle = React.useCallback((team: Picked) => {
@@ -43,7 +47,9 @@ export function TeamCompareProvider({ children }: { children: React.ReactNode })
 function useCompare() {
   const ctx = React.useContext(CompareContext)
   if (!ctx) {
-    throw new Error("TeamCompareCheckbox/Bar must be used inside TeamCompareProvider")
+    throw new Error(
+      "TeamCompareCheckbox/Bar must be used inside TeamCompareProvider"
+    )
   }
   return ctx
 }

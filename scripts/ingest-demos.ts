@@ -89,9 +89,7 @@ type RosterRow = {
   match_status: string
 }
 
-async function getUnresolvedCandidates(
-  db: AppDb
-): Promise<MatchCandidate[]> {
+async function getUnresolvedCandidates(db: AppDb): Promise<MatchCandidate[]> {
   // Candidates still open for (re-)matching: never matched, or matched only
   // at low confidence. Manual and ambiguous entries are left alone —
   // manual always wins via the override table, and ambiguous needs a human.
@@ -170,7 +168,12 @@ function computeTeamScore(
   filePath: string,
   rounds: RoundEndRow[],
   steamidToTeam: Map<string, number>
-): { teamAId: number; teamAScore: number; teamBId: number; teamBScore: number } | null {
+): {
+  teamAId: number
+  teamAScore: number
+  teamBId: number
+  teamBScore: number
+} | null {
   const teamIds = [...new Set(steamidToTeam.values())]
   if (teamIds.length !== 2) return null
   const [teamAId, teamBId] = teamIds
@@ -189,9 +192,10 @@ function computeTeamScore(
   for (const row of sideTicks) {
     if (!row.player_steamid || !row.team_name) continue
     if (!bySideTick.has(row.tick)) bySideTick.set(row.tick, [])
-    bySideTick
-      .get(row.tick)!
-      .push({ steamid64: row.player_steamid, side: normalizeSide(row.team_name) })
+    bySideTick.get(row.tick)!.push({
+      steamid64: row.player_steamid,
+      side: normalizeSide(row.team_name),
+    })
   }
 
   let teamAScore = 0
