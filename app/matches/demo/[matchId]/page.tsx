@@ -132,13 +132,20 @@ export default async function DemoMatchPage({
           </>
         ) : null}
         <div className="relative flex flex-col items-center gap-2">
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+          {/* Single grid (not two stacked ones) so the logo and name rows
+              share the same column widths and stay aligned on the same
+              center axis as the vs/score, no matter how wide "vs" vs the
+              score text is. */}
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-8 gap-y-2">
             {teamALogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the team logos on /teams: small, variable-source external images
               <img
                 src={teamALogoUrl}
                 alt=""
-                className="size-16 justify-self-end rounded-md border border-border object-cover drop-shadow-sm"
+                // bg-card (not bg-muted, which is shared with the no-logo
+                // placeholder) so a logo with a transparent background
+                // still reads against light and dark themes alike.
+                className="size-16 justify-self-end rounded-md border border-border bg-card object-contain p-1.5 drop-shadow-sm"
               />
             ) : (
               <div className="size-16 justify-self-end rounded-md border border-border bg-muted" />
@@ -149,13 +156,11 @@ export default async function DemoMatchPage({
               <img
                 src={teamBLogoUrl}
                 alt=""
-                className="size-16 justify-self-start rounded-md border border-border object-cover drop-shadow-sm"
+                className="size-16 justify-self-start rounded-md border border-border bg-card object-contain p-1.5 drop-shadow-sm"
               />
             ) : (
               <div className="size-16 justify-self-start rounded-md border border-border bg-muted" />
             )}
-          </div>
-          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <Link
               href={`/teams/${encodeURIComponent(teamAName)}`}
               className="justify-self-end text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
