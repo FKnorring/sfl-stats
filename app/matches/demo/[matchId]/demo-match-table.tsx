@@ -20,6 +20,7 @@ export function DemoMatchTable({
     <DataTable
       columns={demoMatchPlayerColumns}
       data={rows}
+      getRowPlayerId={(r) => r.steamid64}
       tableClassName="table-fixed"
       emptyMessage="No player stats found for this match."
       onRowClick={(row) => onSelect(row.steamid64)}

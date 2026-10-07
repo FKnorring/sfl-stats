@@ -26,9 +26,12 @@ const rightAlign = { className: "text-right" }
 export function buildTeamRosterColumns({
   teamName,
   includeAccounts,
+  linkNames = true,
 }: {
   teamName?: string
   includeAccounts: boolean
+  /** Turn off when the whole row already links to the player (avoids nested anchors). */
+  linkNames?: boolean
 }): ColumnDef<TeamRosterTableRow>[] {
   const columns: ColumnDef<TeamRosterTableRow>[] = [
     {
@@ -39,7 +42,7 @@ export function buildTeamRosterColumns({
       meta: { className: "font-medium" },
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          {row.original.steamid64 ? (
+          {row.original.steamid64 && linkNames ? (
             <Link
               href={`/players/${encodeURIComponent(row.original.steamid64)}`}
               className={`underline-offset-4 hover:underline ${isNetlightTeam(teamName) ? "netlight-name font-semibold" : ""}`}
@@ -47,7 +50,13 @@ export function buildTeamRosterColumns({
               {row.original.inGameName ?? row.original.nickname}
             </Link>
           ) : (
-            (row.original.inGameName ?? row.original.nickname)
+            <span
+              className={
+                isNetlightTeam(teamName) ? "netlight-name font-semibold" : ""
+              }
+            >
+              {row.original.inGameName ?? row.original.nickname}
+            </span>
           )}
           {row.original.matchStatus !== "manual" &&
           row.original.matchStatus !== "auto_high" ? (
@@ -127,7 +136,7 @@ export function buildTeamRosterColumns({
       enableSorting: false,
       meta: { className: "whitespace-normal" },
       cell: ({ row }) => (
-        <div className="flex items-center gap-1.5">
+        <div className="relative z-10 flex items-center gap-1.5">
           <ProfileLinks
             steamid64={row.original.steamid64}
             faceitNickname={row.original.faceitNickname}

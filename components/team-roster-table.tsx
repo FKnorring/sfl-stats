@@ -34,12 +34,20 @@ export function TeamRosterTable({
     }
   })
 
-  const columns = buildTeamRosterColumns({ teamName, includeAccounts: true })
+  const columns = buildTeamRosterColumns({
+    teamName,
+    includeAccounts: true,
+    linkNames: false,
+  })
 
   return (
     <DataTable
       columns={columns}
       data={rows}
+      getRowHref={(r) =>
+        r.steamid64 ? `/players/${encodeURIComponent(r.steamid64)}` : null
+      }
+      getRowPlayerId={(r) => r.steamid64}
       emptyMessage="No roster entries for this team."
     />
   )
