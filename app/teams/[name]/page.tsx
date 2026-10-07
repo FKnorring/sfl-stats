@@ -15,6 +15,11 @@ import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"
 import { TeamDemoMatches } from "@/components/team-demo-matches"
 import { TeamRecentForm } from "@/components/team-recent-form"
+import {
+  isNetlightTeam,
+  NetlightEmbers,
+  NetlightName,
+} from "@/components/netlight-flames"
 
 // Same reasoning as app/teams/page.tsx and app/teams/compare/page.tsx — DB
 // reads need per-request freshness, not Next's build-time fetch caching.
@@ -48,6 +53,8 @@ export default async function TeamPage({
     getRecentResults(meta.teamId),
   ])
 
+  const isNetlight = isNetlightTeam(meta.teamName)
+
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
       <Link
@@ -57,19 +64,26 @@ export default async function TeamPage({
         ← Back to standings
       </Link>
 
-      <div className="flex items-center gap-4">
+      <div
+        className={`relative flex items-center gap-4 overflow-hidden rounded-md p-4 ${isNetlight ? "netlight-card border" : ""}`}
+      >
+        {isNetlight ? <NetlightEmbers /> : null}
         {meta.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the table it replaces: small, variable-source external logos
           <img
             src={meta.logoUrl}
             alt={meta.teamName}
-            className="size-16 rounded-md border border-border object-cover"
+            className="relative size-16 rounded-md border border-border object-cover"
           />
         ) : (
           <div className="size-16 rounded-md border border-border bg-muted" />
         )}
         <div className="flex flex-col gap-1">
-          <h1 className="text-lg font-medium">{meta.teamName}</h1>
+          {isNetlight ? (
+            <NetlightName align="start">{meta.teamName}</NetlightName>
+          ) : (
+            <h1 className="text-lg font-medium">{meta.teamName}</h1>
+          )}
           <p className="text-sm text-muted-foreground">
             {meta.division} — {meta.season}
           </p>

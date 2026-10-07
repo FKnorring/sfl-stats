@@ -4,6 +4,7 @@ import type { LeaderboardRow, LeaderboardStat } from "@/lib/db"
 import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { ProfileLinks } from "@/components/profile-links"
+import { isNetlightTeam } from "@/components/netlight-flames"
 
 // The leaderboard row shape as rendered by the table: the raw DB row plus
 // Faceit stats pre-joined into plain, serializable fields (the lookup Map
@@ -85,7 +86,7 @@ export function buildLeaderboardColumns(
           <div className="flex flex-col">
             <Link
               href={`/players/${encodeURIComponent(row.original.steamid64)}`}
-              className="underline-offset-4 hover:underline"
+              className={`underline-offset-4 hover:underline ${isNetlightTeam(row.original.teamName) ? "netlight-name font-semibold" : ""}`}
             >
               {row.original.inGameName}
             </Link>
@@ -119,7 +120,14 @@ export function buildLeaderboardColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Team" />
       ),
-      cell: ({ row }) => row.original.teamName ?? "—",
+      cell: ({ row }) =>
+        isNetlightTeam(row.original.teamName) ? (
+          <span className="netlight-name font-semibold">
+            {row.original.teamName}
+          </span>
+        ) : (
+          (row.original.teamName ?? "—")
+        ),
     },
     {
       accessorKey: "division",

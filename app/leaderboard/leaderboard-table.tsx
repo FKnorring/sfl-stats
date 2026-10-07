@@ -3,6 +3,7 @@
 import * as React from "react"
 import { DataTable } from "@/components/data-table/data-table"
 import { buildLeaderboardColumns, type LeaderboardTableRow } from "./columns"
+import { isNetlightTeam } from "@/components/netlight-flames"
 import type { LeaderboardStat } from "@/lib/db"
 
 // Thin client wrapper around DataTable: column defs contain functions
@@ -29,6 +30,9 @@ export function LeaderboardTable({
       columns={columns}
       data={rows}
       globalFilterPlaceholder="Search players…"
+      getRowClassName={(r) =>
+        isNetlightTeam(r.teamName) ? "netlight-row" : undefined
+      }
       emptyMessage="No matches found for this filter combination."
     />
   )

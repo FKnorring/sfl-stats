@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { TeamStandingRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { TeamCompareCheckbox } from "@/components/team-compare-picker"
+import { isNetlightTeam } from "@/components/netlight-flames"
 
 // Team standings row as rendered by the table: the raw DB row plus Faceit
 // team stats pre-joined into plain, serializable fields.
@@ -54,7 +55,15 @@ export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
         ) : (
           <div className="size-8 rounded border border-border bg-muted" />
         )}
-        {row.original.teamName}
+        <span
+          className={
+            isNetlightTeam(row.original.teamName)
+              ? "netlight-name font-semibold"
+              : ""
+          }
+        >
+          {row.original.teamName}
+        </span>
       </Link>
     ),
   },

@@ -694,6 +694,36 @@ export async function getMatchKills(matchId: number): Promise<MatchKillRow[]> {
   )) as MatchKillRow[]
 }
 
+export type PlayerKillRow = MatchKillRow & { mapName: string }
+
+// Every kill event a player took part in (as killer or victim) across all
+// parsed demos, with the map it happened on, for the player-page heatmaps.
+export async function getPlayerKills(
+  steamid64: string
+): Promise<PlayerKillRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        m.map_name AS mapName,
+        mk.attacker_steamid64 AS attackerSteamid64,
+        mk.attacker_x AS attackerX,
+        mk.attacker_y AS attackerY,
+        mk.attacker_side AS attackerSide,
+        mk.victim_steamid64 AS victimSteamid64,
+        mk.victim_x AS victimX,
+        mk.victim_y AS victimY,
+        mk.victim_side AS victimSide,
+        mk.weapon,
+        mk.headshot
+      FROM match_kills mk
+      JOIN matches m ON m.id = mk.match_id
+      WHERE m.map_name IS NOT NULL
+        AND (mk.attacker_steamid64 = ${steamid64}
+          OR mk.victim_steamid64 = ${steamid64})
+      `
+  )) as PlayerKillRow[]
+}
+
 export type FutureOpponent = {
   matchId: string
   opponentName: string
