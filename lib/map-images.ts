@@ -15,3 +15,28 @@ export function getMapImageUrl(mapName: string | null): string | null {
   if (!mapName) return null
   return MAP_IMAGES[mapName] ?? null
 }
+
+// Top-down radar overviews (1024x1024) plus the calibration from the game's
+// resource/overviews/<map>.txt: world position of the image's top-left
+// corner (pos_x, pos_y) and world units per pixel (scale). Pixel position of
+// a world point is ((x - originX) / scale, (originY - y) / scale).
+export type MapRadar = {
+  url: string
+  originX: number
+  originY: number
+  scale: number
+}
+
+const MAP_RADARS: Record<string, MapRadar> = {
+  de_inferno: {
+    url: "/maps/de_inferno_radar.png",
+    originX: -2087,
+    originY: 3870,
+    scale: 4.9,
+  },
+}
+
+export function getMapRadar(mapName: string | null): MapRadar | null {
+  if (!mapName) return null
+  return MAP_RADARS[mapName] ?? null
+}

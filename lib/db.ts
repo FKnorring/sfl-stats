@@ -586,6 +586,40 @@ export async function getDemoMatchPlayerStats(
   )) as DemoMatchPlayerStatsRow[]
 }
 
+export type MatchKillRow = {
+  attackerSteamid64: string | null
+  attackerX: number | null
+  attackerY: number | null
+  attackerSide: string | null
+  victimSteamid64: string
+  victimX: number | null
+  victimY: number | null
+  victimSide: string | null
+  weapon: string | null
+  headshot: number | null
+}
+
+export async function getMatchKills(matchId: number): Promise<MatchKillRow[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        attacker_steamid64 AS attackerSteamid64,
+        attacker_x AS attackerX,
+        attacker_y AS attackerY,
+        attacker_side AS attackerSide,
+        victim_steamid64 AS victimSteamid64,
+        victim_x AS victimX,
+        victim_y AS victimY,
+        victim_side AS victimSide,
+        weapon,
+        headshot
+      FROM match_kills
+      WHERE match_id = ${matchId}
+      ORDER BY tick
+      `
+  )) as MatchKillRow[]
+}
+
 export type FutureOpponent = {
   matchId: string
   opponentName: string
