@@ -1,33 +1,59 @@
 "use client"
 
-import * as React from "react"
-import { StarIcon } from "lucide-react"
+import { HeartIcon, StarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { toggleFollowTeam } from "@/app/followed/actions"
+import { useFollows } from "@/components/follow-provider"
+import { currentTeam } from "@/lib/followed-teams"
 
 export function FollowTeamButton({
   teamName,
-  followed,
   iconOnly = false,
 }: {
   teamName: string
-  followed: boolean
   iconOnly?: boolean
 }) {
-  const [pending, startTransition] = React.useTransition()
+  const { state, ready, teams, toggle } = useFollows()
+  const followed = state.follows.some((f) => f.teamName === teamName)
+  const team = currentTeam(teamName, teams)
   const label = followed ? "Unfollow" : "Follow"
 
   return (
     <Button
       variant="outline"
       size={iconOnly ? "icon-sm" : "sm"}
-      disabled={pending}
+      className="min-h-11 min-w-11"
+      disabled={!ready || (!followed && !team)}
       aria-label={`${label} ${teamName}`}
       aria-pressed={followed}
-      onClick={() => startTransition(() => toggleFollowTeam(teamName))}
+      onClick={(event) => {
+        event.stopPropagation()
+        toggle(team ?? { teamName, teamId: null })
+      }}
     >
-      <StarIcon className={followed ? "fill-amber-400 text-amber-400" : ""} />
+      <HeartIcon className={followed ? "fill-current" : ""} />
       {iconOnly ? null : label}
+    </Button>
+  )
+}
+
+export function FavoriteTeamButton({ teamName }: { teamName: string }) {
+  const { state, ready, favorite } = useFollows()
+  const active = state.favorite === teamName
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="min-h-11 min-w-11"
+      disabled={!ready || !state.follows.some((f) => f.teamName === teamName)}
+      aria-label={`${active ? "Favorite" : "Make favorite"} ${teamName}`}
+      aria-pressed={active}
+      onClick={(event) => {
+        event.stopPropagation()
+        favorite(teamName)
+      }}
+    >
+      <StarIcon className={active ? "fill-current" : ""} />
+      {active ? "Favorite" : "Make favorite"}
     </Button>
   )
 }

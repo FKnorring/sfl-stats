@@ -2,6 +2,7 @@
 
 import type { TeamRosterPlayerRow } from "@/lib/db"
 import { DataTable } from "@/components/data-table/data-table"
+import { useFollowRowClass } from "@/components/follow-indicator"
 import {
   buildTeamRosterColumns,
   type TeamRosterTableRow,
@@ -18,10 +19,14 @@ type FaceitLookup = Map<string, { faceitNickname: string; elo: number | null }>
  */
 export function TeamRosterTable({
   teamName,
+  teamId,
+  includeAccounts = true,
   roster,
   faceitStats,
 }: {
   teamName: string
+  teamId?: number
+  includeAccounts?: boolean
   roster: TeamRosterPlayerRow[]
   faceitStats: FaceitLookup
 }) {
@@ -34,9 +39,11 @@ export function TeamRosterTable({
     }
   })
 
+  const rowClass = useFollowRowClass()
   const columns = buildTeamRosterColumns({
     teamName,
-    includeAccounts: true,
+    teamId,
+    includeAccounts,
     linkNames: false,
   })
 
@@ -44,6 +51,7 @@ export function TeamRosterTable({
     <DataTable
       columns={columns}
       data={rows}
+      getRowClassName={() => rowClass(teamId)}
       getRowHref={(r) =>
         r.steamid64 ? `/players/${encodeURIComponent(r.steamid64)}` : null
       }

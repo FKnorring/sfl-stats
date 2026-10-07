@@ -2,6 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useFollows } from "@/components/follow-provider"
+import { currentTeam, followHref } from "@/lib/followed-teams"
 import {
   CalendarDaysIcon,
   GitCompareIcon,
@@ -34,11 +36,30 @@ const ITEMS = [
 
 export function SideNav() {
   const pathname = usePathname()
+  const { state, teams } = useFollows()
+  const favorite = state.favorite ? currentTeam(state.favorite, teams) : null
+  const items = ITEMS.map((item) =>
+    item.href === "/" && favorite
+      ? {
+          href: followHref(favorite.teamName),
+          label: favorite.teamName,
+          icon: StarIcon,
+        }
+      : item
+  )
 
   // Longest matching href wins so /teams/compare doesn't also light up /teams.
-  const active = ITEMS.filter(({ href }) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href)
-  ).sort((a, b) => b.href.length - a.href.length)[0]?.href
+  const active = items
+    .filter(({ href }) =>
+      href === "/"
+        ? pathname === "/"
+        : pathname === href ||
+          pathname.startsWith(`${href}/`) ||
+          (favorite &&
+            href === followHref(favorite.teamName) &&
+            pathname === "/")
+    )
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href
 
   return (
     <Sidebar collapsible="icon">
@@ -51,7 +72,7 @@ export function SideNav() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {ITEMS.map(({ href, label, icon: Icon }) => (
+              {items.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
                     isActive={href === active}

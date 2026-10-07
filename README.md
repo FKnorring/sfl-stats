@@ -112,6 +112,43 @@ upcoming data. Focused regression checks use an isolated in-memory database:
 node --import tsx --test lib/matches.test.ts
 ```
 
+## Following teams
+
+Follow teams from `/teams` or a team detail page. `/followed` lists your
+followed teams and lets you choose a favorite; `/follow/[team]` opens one
+team's dashboard. The first follow is automatically the favorite. Removing
+the favorite promotes the oldest remaining follow, and removing the last
+follow restores the introductory home page.
+
+The favorite replaces Home in the sidebar and redirects `/` to its
+dashboard after browser preferences load. Preferences live only in
+localStorage on this browser, with cross-tab updates but no account or
+cross-device sync. Existing cookie follows migrate automatically after a
+successful storage write. If storage is unavailable, changes are
+session-only and a warning is shown. Unreadable preferences are preserved
+until you explicitly reset them.
+
+Follows use canonical team names to carry into the current season; resolved
+database IDs refresh without changing favorite status or highlight colors.
+Unavailable or ambiguous names remain in `/followed` for manual removal,
+and an unavailable favorite does not redirect Home to a missing page.
+Colored row accents and numbered follow markers identify followed teams
+throughout overview tables.
+
+The dashboard combines upcoming matches, all attributed demo history,
+official division placement, roster statistics/MVP, and other followed
+teams. Live schedule and ranking widgets are discovered from publiclir.se's
+current-season CS2 embeds and cached for up to five minutes. Source failures
+are shown explicitly; ingested demo data remains usable. This does not
+require a schedule-scrape run or any public database writes.
+
+The demo-stat MVP is ranked by team-attributed demo ADR, then K/D (deaths
+clamped to one for ranking), then demos played, then roster-entry ID. It is
+not CS2's per-round MVP count. Unmatched players remain listed without
+invented statistics. Anchored demo teams take precedence; unresolved demos
+use non-conflicting roster evidence. Unanchored demos have no independent
+season field, so exact historical attribution may be unavailable.
+
 ## Database schema & migrations
 
 The schema is defined in TypeScript at

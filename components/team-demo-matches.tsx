@@ -5,6 +5,10 @@ import type { TeamDemoMatchRow } from "@/lib/db"
 import { DataTable } from "@/components/data-table/data-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { formatMapName } from "@/lib/map-images"
+import {
+  FollowIndicator,
+  useFollowRowClass,
+} from "@/components/follow-indicator"
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -17,40 +21,52 @@ function formatDate(iso: string | null): string {
   })
 }
 
-const columns: ColumnDef<TeamDemoMatchRow>[] = [
-  {
-    accessorKey: "demoDate",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Date" />
-    ),
-    cell: ({ row }) => formatDate(row.original.demoDate),
-  },
-  {
-    accessorKey: "mapName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Map" />
-    ),
-    cell: ({ row }) => formatMapName(row.original.mapName) ?? "—",
-  },
-  {
-    accessorKey: "opponentTeamName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Opponent" />
-    ),
-    cell: ({ row }) => row.original.opponentTeamName ?? "—",
-  },
-  {
-    accessorKey: "teamScore",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Score" />
-    ),
-    meta: { className: "text-right" },
-    cell: ({ row }) =>
-      row.original.teamScore != null && row.original.opponentScore != null
-        ? `${row.original.teamScore}–${row.original.opponentScore}`
-        : "—",
-  },
-]
+function buildColumns(teamId?: number): ColumnDef<TeamDemoMatchRow>[] {
+  return [
+    {
+      accessorKey: "demoDate",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Date" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {formatDate(row.original.demoDate)}
+          <FollowIndicator teamId={teamId} />
+        </div>
+      ),
+    },
+    {
+      accessorKey: "mapName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Map" />
+      ),
+      cell: ({ row }) => formatMapName(row.original.mapName) ?? "—",
+    },
+    {
+      accessorKey: "opponentTeamName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Opponent" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.opponentTeamName ?? "—"}
+          <FollowIndicator teamId={row.original.opponentTeamId} />
+        </div>
+      ),
+    },
+    {
+      accessorKey: "teamScore",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Score" />
+      ),
+      meta: { className: "text-right" },
+      cell: ({ row }) =>
+        row.original.teamScore != null && row.original.opponentScore != null
+          ? `${row.original.teamScore}–${row.original.opponentScore}`
+          : "—",
+    },
+  ]
+}
 
 /**
  * Ingested demos for this team, linking to the same /matches/demo/[matchId]
@@ -60,10 +76,13 @@ const columns: ColumnDef<TeamDemoMatchRow>[] = [
 export function TeamDemoMatches({
   matches,
   title = "Demos",
+  teamId,
 }: {
   matches: TeamDemoMatchRow[]
   title?: string
+  teamId?: number
 }) {
+  const rowClass = useFollowRowClass()
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
@@ -73,8 +92,11 @@ export function TeamDemoMatches({
         </p>
       ) : (
         <DataTable
-          columns={columns}
+          columns={buildColumns(teamId)}
           data={matches}
+          getRowClassName={(row) =>
+            rowClass(teamId) ?? rowClass(row.opponentTeamId)
+          }
           getRowHref={(row) => `/matches/demo/${row.matchId}`}
         />
       )}

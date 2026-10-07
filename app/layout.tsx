@@ -6,6 +6,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { FollowProvider } from "@/components/follow-provider"
+import { getCurrentTeamCatalog } from "@/lib/db"
+import { connection } from "next/server"
 
 const jetbrainsMonoHeading = JetBrains_Mono({
   subsets: ["latin"],
@@ -22,11 +25,13 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  await connection()
+  const teams = await getCurrentTeamCatalog()
   return (
     <html
       lang="en"
@@ -42,10 +47,12 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <TooltipProvider>
-            <SidebarProvider>
-              <SideNav />
-              <SidebarInset className="min-w-0">{children}</SidebarInset>
-            </SidebarProvider>
+            <FollowProvider teams={teams}>
+              <SidebarProvider>
+                <SideNav />
+                <SidebarInset className="min-w-0">{children}</SidebarInset>
+              </SidebarProvider>
+            </FollowProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>

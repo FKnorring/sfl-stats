@@ -15,7 +15,6 @@ import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"
 import { TeamDemoMatches } from "@/components/team-demo-matches"
 import { FollowTeamButton } from "@/components/follow-team-button"
-import { getFollowedTeamNames } from "@/lib/followed-teams"
 import { TeamRecentForm } from "@/components/team-recent-form"
 import {
   isNetlightTeam,
@@ -55,7 +54,6 @@ export default async function TeamPage({
     getRecentResults(meta.teamId),
   ])
 
-  const followed = (await getFollowedTeamNames()).includes(meta.teamName)
   const isNetlight = isNetlightTeam(meta.teamName)
 
   return (
@@ -92,7 +90,7 @@ export default async function TeamPage({
           </p>
         </div>
         <div className="relative ml-auto">
-          <FollowTeamButton teamName={meta.teamName} followed={followed} />
+          <FollowTeamButton teamName={meta.teamName} />
         </div>
       </div>
 
@@ -101,6 +99,7 @@ export default async function TeamPage({
       <FutureOpponentsBar opponents={futureOpponents} />
 
       <TeamRosterTable
+        teamId={meta.teamId}
         teamName={meta.teamName}
         roster={roster}
         faceitStats={faceitStats}
@@ -108,7 +107,7 @@ export default async function TeamPage({
 
       <TeamMapStats maps={mapStats} />
 
-      <TeamDemoMatches matches={demoMatches} />
+      <TeamDemoMatches teamId={meta.teamId} matches={demoMatches} />
     </div>
   )
 }

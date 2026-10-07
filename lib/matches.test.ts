@@ -15,6 +15,7 @@ import type { ScheduledMatch } from "./toornament-schedule"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { MatchesView } from "../app/matches/matches-view"
+import { FollowProvider } from "../components/follow-provider"
 
 // Importing the app's default connection must not create or open a real DB.
 const originalUrl = process.env.DATABASE_URL
@@ -281,23 +282,27 @@ test("shared filters match either canonical/raw team, combine division and searc
 
 test("initial view labels the all-divisions control and keeps history during schedule failure", () => {
   const html = renderToStaticMarkup(
-    createElement(MatchesView, {
-      divisions: ["1"],
-      upcoming: null,
-      history: [
-        {
-          matchId: 42,
-          mapName: "de_nuke",
-          demoDate: null,
-          teamAName: null,
-          teamBName: null,
-          teamADivision: null,
-          teamBDivision: null,
-          teamAScore: null,
-          teamBScore: null,
-        },
-      ],
-    })
+    createElement(
+      FollowProvider,
+      { teams: [] },
+      createElement(MatchesView, {
+        divisions: ["1"],
+        upcoming: null,
+        history: [
+          {
+            matchId: 42,
+            mapName: "de_nuke",
+            demoDate: null,
+            teamAName: null,
+            teamBName: null,
+            teamADivision: null,
+            teamBDivision: null,
+            teamAScore: null,
+            teamBScore: null,
+          },
+        ],
+      })
+    )
   )
   assert.match(html, /All divisions/)
   assert.match(html, /Demo history is still available below/)
@@ -336,13 +341,16 @@ test("live schedule fetch keeps five-minute cache options and excludes completed
     rows?.map((row) => row.toornamentMatchId),
     ["pending"]
   )
-  assert.deepEqual(fetch.mock.calls[0].arguments[1], {
-    next: { revalidate: 300 },
-  })
+  assert.deepEqual(fetch.mock.calls[0].arguments[1]?.next, { revalidate: 300 })
+  assert.ok(fetch.mock.calls[0].arguments[1]?.signal instanceof AbortSignal)
 })
 
 test("an empty live schedule is not an unavailable schedule", async (t) => {
-  t.mock.method(globalThis, "fetch", async () => new Response(""))
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () => new Response('<div data-role="sch-calendar"></div>')
+  )
   assert.deepEqual(await getLivePendingMatches(), [])
 })
 

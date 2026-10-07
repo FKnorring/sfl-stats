@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { RosterAccountEditor } from "@/components/roster-account-editor"
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
+import { FollowIndicator } from "@/components/follow-indicator"
 
 // Roster row as rendered by the table: the raw DB row plus Faceit elo
 // pre-joined into a plain, serializable field.
@@ -25,10 +26,12 @@ const rightAlign = { className: "text-right" }
  */
 export function buildTeamRosterColumns({
   teamName,
+  teamId,
   includeAccounts,
   linkNames = true,
 }: {
   teamName?: string
+  teamId?: number
   includeAccounts: boolean
   /** Turn off when the whole row already links to the player (avoids nested anchors). */
   linkNames?: boolean
@@ -42,6 +45,7 @@ export function buildTeamRosterColumns({
       meta: { className: "font-medium" },
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
+          <FollowIndicator teamId={teamId} />
           {row.original.steamid64 && linkNames ? (
             <Link
               href={`/players/${encodeURIComponent(row.original.steamid64)}`}
@@ -80,6 +84,8 @@ export function buildTeamRosterColumns({
     },
     {
       accessorKey: "kills",
+      cell: ({ row }) =>
+        row.original.matchesPlayed ? row.original.kills : "—",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="K" />
       ),
@@ -87,6 +93,8 @@ export function buildTeamRosterColumns({
     },
     {
       accessorKey: "deaths",
+      cell: ({ row }) =>
+        row.original.matchesPlayed ? row.original.deaths : "—",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="D" />
       ),
@@ -94,6 +102,8 @@ export function buildTeamRosterColumns({
     },
     {
       accessorKey: "assists",
+      cell: ({ row }) =>
+        row.original.matchesPlayed ? row.original.assists : "—",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="A" />
       ),

@@ -6,6 +6,8 @@ export type MatchTeam = {
 }
 
 export type MatchTeams = {
+  teamAId?: number | null
+  teamBId?: number | null
   teamAName: string | null
   teamBName: string | null
   teamADivision: string | null
