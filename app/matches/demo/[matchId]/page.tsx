@@ -4,6 +4,7 @@ import {
   getDemoMatchById,
   getDemoMatchPlayerStats,
   getMatchKills,
+  getToornamentScoreForDemo,
 } from "@/lib/db"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
@@ -107,6 +108,14 @@ export default async function DemoMatchPage({
   const teamBName = match.teamBName ?? majorityTeamB?.name ?? "Team B"
   const teamALogoUrl = match.teamALogoUrl ?? majorityTeamA?.logoUrl ?? null
   const teamBLogoUrl = match.teamBLogoUrl ?? majorityTeamB?.logoUrl ?? null
+  // matches.team_a/b_score is often unset; fall back to the completed
+  // Toornament match for these two teams around the demo date.
+  const fallbackScore =
+    match.teamAScore == null || match.teamBScore == null
+      ? await getToornamentScoreForDemo(match.demoDate, teamAName, teamBName)
+      : null
+  const teamAScore = match.teamAScore ?? fallbackScore?.teamAScore ?? null
+  const teamBScore = match.teamBScore ?? fallbackScore?.teamBScore ?? null
   const mapImageUrl = getMapImageUrl(match.mapName)
   const radar = getMapRadar(match.mapName)
 
@@ -167,9 +176,9 @@ export default async function DemoMatchPage({
             >
               {teamAName}
             </Link>
-            {match.teamAScore != null && match.teamBScore != null ? (
+            {teamAScore != null && teamBScore != null ? (
               <span className="justify-self-center text-xl font-semibold tabular-nums">
-                {match.teamAScore}–{match.teamBScore}
+                {teamAScore}–{teamBScore}
               </span>
             ) : (
               <span className="justify-self-center text-sm text-muted-foreground">
@@ -199,12 +208,12 @@ export default async function DemoMatchPage({
       </div>
 
       <div className="flex flex-col gap-2">
-        <TeamHeading name={teamAName} score={match.teamAScore} />
+        <TeamHeading name={teamAName} score={teamAScore} />
         <DemoMatchTable rows={sideAPlayers} />
       </div>
 
       <div className="flex flex-col gap-2">
-        <TeamHeading name={teamBName} score={match.teamBScore} />
+        <TeamHeading name={teamBName} score={teamBScore} />
         <DemoMatchTable rows={sideBPlayers} />
       </div>
 
