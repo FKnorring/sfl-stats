@@ -2,7 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { GitCompareIcon, HomeIcon, TrophyIcon, UsersIcon } from "lucide-react"
+import {
+  GitCompareIcon,
+  HomeIcon,
+  StarIcon,
+  TrophyIcon,
+  UsersIcon,
+} from "lucide-react"
 
 import {
   Sidebar,
@@ -20,6 +26,7 @@ const ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon },
   { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
   { href: "/teams", label: "Teams", icon: UsersIcon },
+  { href: "/followed", label: "Followed", icon: StarIcon },
   { href: "/teams/compare", label: "Compare", icon: GitCompareIcon },
 ]
 

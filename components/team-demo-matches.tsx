@@ -57,10 +57,16 @@ const columns: ColumnDef<TeamDemoMatchRow>[] = [
  * page the player match history links to. Rendered below the maps-played
  * stats on the team page — see getTeamDemoMatches.
  */
-export function TeamDemoMatches({ matches }: { matches: TeamDemoMatchRow[] }) {
+export function TeamDemoMatches({
+  matches,
+  title = "Demos",
+}: {
+  matches: TeamDemoMatchRow[]
+  title?: string
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-muted-foreground">Demos</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">{title}</h2>
       {matches.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No ingested demos for this team yet.

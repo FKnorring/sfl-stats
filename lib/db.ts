@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm"
 import { db } from "@/lib/db/client"
+import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
 // in the CLI scripts (scrape-roster, ingest-demos) via
@@ -847,7 +848,7 @@ export type TeamDemoMatchRow = {
 export async function getTeamDemoMatches(
   teamId: number
 ): Promise<TeamDemoMatchRow[]> {
-  return (await db.all(
+  const rows = (await db.all(
     sql`
       SELECT
         m.id AS matchId,
@@ -899,6 +900,67 @@ export async function getTeamDemoMatches(
       ORDER BY m.demo_date DESC
       `
   )) as TeamDemoMatchRow[]
+
+  if (rows.every((r) => r.teamScore != null)) return rows
+
+  // matches.team_a/b_score is only filled when ingest resolved both teams, so
+  // fall back to the completed Toornament match this demo corresponds to:
+  // same team, scheduled within a few days of the demo (demo_date can lag
+  // the scheduled slot), closest wins, same opponent when known.
+  const completed = (await db.all(
+    sql`
+      SELECT
+        scheduled_at AS scheduledAt,
+        team_a_id AS teamAId,
+        team_a_name_raw AS teamAName,
+        team_b_name_raw AS teamBName,
+        team_a_score AS teamAScore,
+        team_b_score AS teamBScore
+      FROM toornament_matches
+      WHERE status = 'completed' AND scheduled_at IS NOT NULL
+        AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
+        AND (team_a_id = ${teamId} OR team_b_id = ${teamId})
+      `
+  )) as {
+    scheduledAt: string
+    teamAId: number | null
+    teamAName: string
+    teamBName: string
+    teamAScore: number
+    teamBScore: number
+  }[]
+
+  const WINDOW_MS = 4 * 24 * 60 * 60 * 1000
+  return rows.map((r) => {
+    if (r.teamScore != null || !r.demoDate) return r
+    const demoTime = new Date(r.demoDate).getTime()
+    if (Number.isNaN(demoTime)) return r
+
+    let best: { diff: number; row: (typeof completed)[number] } | null = null
+    for (const c of completed) {
+      const diff = Math.abs(new Date(c.scheduledAt).getTime() - demoTime)
+      if (!(diff <= WINDOW_MS)) continue
+      const isTeamA = c.teamAId === teamId
+      const opponent = isTeamA ? c.teamBName : c.teamAName
+      if (
+        r.opponentTeamName &&
+        scoreSimilarity(opponent, r.opponentTeamName) < MATCH_THRESHOLD_LOW
+      )
+        continue
+      if (!best || diff < best.diff) best = { diff, row: c }
+    }
+    if (!best) return r
+
+    const isTeamA = best.row.teamAId === teamId
+    return {
+      ...r,
+      opponentTeamName:
+        r.opponentTeamName ??
+        (isTeamA ? best.row.teamBName : best.row.teamAName),
+      teamScore: isTeamA ? best.row.teamAScore : best.row.teamBScore,
+      opponentScore: isTeamA ? best.row.teamBScore : best.row.teamAScore,
+    }
+  })
 }
 
 export type RecentResult = {
@@ -996,4 +1058,63 @@ export async function getMatchById(
       `
   )) as MatchDetail[]
   return rows[0] ?? null
+}
+
+/**
+ * Fallback result for a demo whose `matches.team_a/b_score` was never filled
+ * (ingest only stores it when both teams resolved): finds the completed
+ * Toornament match between these two team names scheduled within a few days
+ * of the demo, closest first, and returns its score oriented as [A, B].
+ */
+export async function getToornamentScoreForDemo(
+  demoDate: string | null,
+  teamAName: string,
+  teamBName: string
+): Promise<{ teamAScore: number; teamBScore: number } | null> {
+  if (!demoDate) return null
+  const demoTime = new Date(demoDate).getTime()
+  if (Number.isNaN(demoTime)) return null
+
+  const rows = (await db.all(
+    sql`
+      SELECT
+        scheduled_at AS scheduledAt,
+        team_a_name_raw AS teamAName,
+        team_b_name_raw AS teamBName,
+        team_a_score AS teamAScore,
+        team_b_score AS teamBScore
+      FROM toornament_matches
+      WHERE status = 'completed' AND scheduled_at IS NOT NULL
+        AND team_a_score IS NOT NULL AND team_b_score IS NOT NULL
+      `
+  )) as {
+    scheduledAt: string
+    teamAName: string
+    teamBName: string
+    teamAScore: number
+    teamBScore: number
+  }[]
+
+  const WINDOW_MS = 4 * 24 * 60 * 60 * 1000
+  let best: {
+    diff: number
+    teamAScore: number
+    teamBScore: number
+  } | null = null
+  for (const r of rows) {
+    const diff = Math.abs(new Date(r.scheduledAt).getTime() - demoTime)
+    if (!(diff <= WINDOW_MS) || (best && diff >= best.diff)) continue
+    const straight =
+      scoreSimilarity(r.teamAName, teamAName) >= MATCH_THRESHOLD_LOW &&
+      scoreSimilarity(r.teamBName, teamBName) >= MATCH_THRESHOLD_LOW
+    const swapped =
+      scoreSimilarity(r.teamAName, teamBName) >= MATCH_THRESHOLD_LOW &&
+      scoreSimilarity(r.teamBName, teamAName) >= MATCH_THRESHOLD_LOW
+    if (straight) {
+      best = { diff, teamAScore: r.teamAScore, teamBScore: r.teamBScore }
+    } else if (swapped) {
+      best = { diff, teamAScore: r.teamBScore, teamBScore: r.teamAScore }
+    }
+  }
+  return best
 }
