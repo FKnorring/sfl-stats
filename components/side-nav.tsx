@@ -8,6 +8,7 @@ import {
   CalendarDaysIcon,
   GitCompareIcon,
   HomeIcon,
+  WrenchIcon,
   StarIcon,
   TrophyIcon,
   UsersIcon,
@@ -34,11 +35,16 @@ const ITEMS = [
   { href: "/teams/compare", label: "Compare", icon: GitCompareIcon },
 ]
 
-export function SideNav() {
+export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
   const pathname = usePathname()
   const { state, teams } = useFollows()
   const favorite = state.favorite ? currentTeam(state.favorite, teams) : null
-  const items = ITEMS.map((item) =>
+  const items = [
+    ...ITEMS,
+    ...(showAdmin
+      ? [{ href: "/admin", label: "Admin", icon: WrenchIcon }]
+      : []),
+  ].map((item) =>
     item.href === "/" && favorite
       ? {
           href: followHref(favorite.teamName),

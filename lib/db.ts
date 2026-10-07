@@ -1351,3 +1351,50 @@ export async function getToornamentScoreForDemo(
   }
   return best
 }
+
+export type AdminRosterEntry = {
+  id: number
+  nickname: string
+  realName: string | null
+  teamName: string
+  season: string
+  division: string
+  steamid64: string | null
+  matchStatus: string
+}
+
+/** Roster entries for the local-only /admin steamid editor. With no query,
+ * entries still needing review come first; a query filters by nickname,
+ * real name, team or steamid64. */
+export async function getAdminRosterEntries(
+  query: string
+): Promise<AdminRosterEntry[]> {
+  const q = `%${query.trim().toLowerCase()}%`
+  return (await db.all(
+    sql`
+      SELECT
+        re.id AS id,
+        re.nickname AS nickname,
+        re.real_name AS realName,
+        t.name AS teamName,
+        t.season AS season,
+        t.division AS division,
+        re.matched_steamid64 AS steamid64,
+        re.match_status AS matchStatus
+      FROM roster_entries re
+      JOIN teams t ON t.id = re.team_id
+      WHERE ${SEASON_CUTOFF_SQL}
+        AND (
+          ${q} = '%%'
+          OR LOWER(re.nickname) LIKE ${q}
+          OR LOWER(COALESCE(re.real_name, '')) LIKE ${q}
+          OR LOWER(t.name) LIKE ${q}
+          OR COALESCE(re.matched_steamid64, '') LIKE ${q}
+        )
+      ORDER BY
+        CASE re.match_status WHEN 'manual' THEN 2 WHEN 'auto_high' THEN 1 ELSE 0 END,
+        t.season DESC, t.name, re.nickname
+      LIMIT 200
+      `
+  )) as AdminRosterEntry[]
+}
