@@ -50,6 +50,7 @@ export default async function TeamPage({
 
       <div className="flex items-center gap-4">
         {meta.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the table it replaces: small, variable-source external logos
           <img
             src={meta.logoUrl}
             alt={meta.teamName}

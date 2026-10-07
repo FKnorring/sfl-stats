@@ -49,6 +49,7 @@ export default async function PlayerPage({
       <div className="flex flex-wrap gap-4">
         <div className="flex w-56 flex-col items-center gap-3 rounded-md border border-border p-6 text-center">
           {steamSummary?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- small, variable-source external avatar, same tradeoff as team logos
             <img
               src={steamSummary.avatarUrl}
               alt={player.inGameName}

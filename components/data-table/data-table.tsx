@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input"
 // Lets a column opt into alignment/width classes applied to both its header
 // and cells, e.g. `meta: { className: "text-right" }` for numeric columns.
 declare module "@tanstack/react-table" {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- module augmentation must match ColumnMeta's original type params even though this merge doesn't use them
   interface ColumnMeta<TData, TValue> {
     className?: string
   }
