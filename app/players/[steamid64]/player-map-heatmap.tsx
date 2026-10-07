@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select"
 import type { PlayerKillRow } from "@/lib/db"
 import type { MapRadar } from "@/lib/map-images"
+import { inferCtSite } from "@/lib/site-inference"
 import {
   Heatmap,
   ToggleGroup,
@@ -62,6 +63,11 @@ export function PlayerMapHeatmap({
     return out
   }, [kills, map, mode, side, radar, steamid64])
 
+  const siteGuess = useMemo(
+    () => (map && radar ? inferCtSite(kills, steamid64, map, radar) : null),
+    [kills, map, radar, steamid64]
+  )
+
   if (!map || !radar) {
     return (
       <div className="flex min-w-80 flex-1 items-center justify-center rounded-md border border-border p-6 text-sm text-muted-foreground">
@@ -102,6 +108,18 @@ export function PlayerMapHeatmap({
         {points.length} {mode}
         {side === "all" ? "" : ` as ${side}`}
       </span>
+      {siteGuess && (
+        <span className="text-sm">
+          <span className="text-muted-foreground">CT site: </span>
+          {siteGuess.kind === "unsupported"
+            ? "Vem vet bror"
+            : siteGuess.site
+              ? `${siteGuess.site === "Mid" ? "Mid player" : `${siteGuess.site} site`}, ${siteGuess.confidence} confidence (${siteGuess.siteKills} of ${siteGuess.ctKills} CT kills in a zone)`
+              : siteGuess.ctKills === 0
+                ? "no confidence (no CT kills)"
+                : `no confidence (${siteGuess.siteKills} of ${siteGuess.ctKills} CT kills in a site/mid zone)`}
+        </span>
+      )}
       <Heatmap
         points={points}
         imageUrl={radar.url}
