@@ -114,11 +114,13 @@ function drawDensity(canvas: HTMLCanvasElement, points: Point[]) {
   ctx.putImageData(img, 0, 0)
 }
 
-function Heatmap({
+export function Heatmap({
   points,
   imageUrl,
   isRadar,
+  className = "max-w-xl",
 }: {
+  className?: string
   points: Point[]
   imageUrl: string | null
   isRadar: boolean
@@ -129,7 +131,9 @@ function Heatmap({
   }, [points])
 
   return (
-    <div className="relative aspect-square w-full max-w-xl overflow-hidden rounded-md border border-border bg-muted">
+    <div
+      className={`relative aspect-square w-full overflow-hidden rounded-md border border-border bg-muted ${className}`}
+    >
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
         className="absolute inset-0 size-full"
@@ -156,7 +160,7 @@ function Heatmap({
   )
 }
 
-function ToggleGroup<T extends string>({
+export function ToggleGroup<T extends string>({
   options,
   value,
   onChange,

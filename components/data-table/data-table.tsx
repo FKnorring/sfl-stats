@@ -47,12 +47,14 @@ export function DataTable<TData, TValue>({
   emptyMessage = "No results found.",
   globalFilterPlaceholder,
   getRowHref,
+  getRowClassName,
 }: {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   emptyMessage?: string
   globalFilterPlaceholder?: string
   getRowHref?: (row: TData) => string
+  getRowClassName?: (row: TData) => string | undefined
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = React.useState("")
@@ -105,7 +107,14 @@ export function DataTable<TData, TValue>({
             rows.map((row) => (
               <TableRow
                 key={row.id}
-                className={getRowHref ? "relative" : undefined}
+                className={
+                  [
+                    getRowHref ? "relative" : undefined,
+                    getRowClassName?.(row.original),
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
               >
                 {row.getVisibleCells().map((cell, index) => (
                   <TableCell

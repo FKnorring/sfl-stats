@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { Badge } from "@/components/ui/badge"
 import { RosterAccountEditor } from "@/components/roster-account-editor"
 import { ProfileLinks } from "@/components/profile-links"
+import { isNetlightTeam } from "@/components/netlight-flames"
 
 // Roster row as rendered by the table: the raw DB row plus Faceit elo
 // pre-joined into a plain, serializable field.
@@ -41,7 +42,7 @@ export function buildTeamRosterColumns({
           {row.original.steamid64 ? (
             <Link
               href={`/players/${encodeURIComponent(row.original.steamid64)}`}
-              className="underline-offset-4 hover:underline"
+              className={`underline-offset-4 hover:underline ${isNetlightTeam(teamName) ? "netlight-name font-semibold" : ""}`}
             >
               {row.original.inGameName ?? row.original.nickname}
             </Link>
