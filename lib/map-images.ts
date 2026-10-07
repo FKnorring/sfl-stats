@@ -28,11 +28,47 @@ export type MapRadar = {
 }
 
 const MAP_RADARS: Record<string, MapRadar> = {
+  de_ancient: {
+    url: "/maps/de_ancient_radar.webp",
+    originX: -2953,
+    originY: 2164,
+    scale: 5,
+  },
+  de_anubis: {
+    url: "/maps/de_anubis_radar.webp",
+    originX: -2796,
+    originY: 3328,
+    scale: 5.22,
+  },
+  de_cache: {
+    url: "/maps/de_cache_radar.webp",
+    originX: -2000,
+    originY: 3250,
+    scale: 5.5,
+  },
+  de_dust2: {
+    url: "/maps/de_dust2_radar.png",
+    originX: -2476,
+    originY: 3239,
+    scale: 4.4,
+  },
   de_inferno: {
     url: "/maps/de_inferno_radar.png",
     originX: -2087,
     originY: 3870,
     scale: 4.9,
+  },
+  de_mirage: {
+    url: "/maps/de_mirage_radar.png",
+    originX: -3230,
+    originY: 1713,
+    scale: 5.0,
+  },
+  de_nuke: {
+    url: "/maps/de_nuke_radar.webp",
+    originX: -3453,
+    originY: 2887,
+    scale: 7.0,
   },
 }
 

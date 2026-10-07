@@ -14,6 +14,7 @@ export function MatchHistoryTable({ rows }: { rows: PlayerMatchHistoryRow[] }) {
       columns={matchHistoryColumns}
       data={rows}
       emptyMessage="No match history found."
+      getRowHref={(row) => `/matches/demo/${row.matchId}`}
     />
   )
 }

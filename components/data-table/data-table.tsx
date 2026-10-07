@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import {
   type ColumnDef,
   flexRender,
@@ -45,11 +46,13 @@ export function DataTable<TData, TValue>({
   data,
   emptyMessage = "No results found.",
   globalFilterPlaceholder,
+  getRowHref,
 }: {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   emptyMessage?: string
   globalFilterPlaceholder?: string
+  getRowHref?: (row: TData) => string
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = React.useState("")
@@ -100,13 +103,29 @@ export function DataTable<TData, TValue>({
         <TableBody>
           {rows.length ? (
             rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
+              <TableRow
+                key={row.id}
+                className={getRowHref ? "relative" : undefined}
+              >
+                {row.getVisibleCells().map((cell, index) => (
                   <TableCell
                     key={cell.id}
                     className={cell.column.columnDef.meta?.className}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    {getRowHref && index === 0 ? (
+                      // Stretched link: the ::after covers the whole <tr>.
+                      <Link
+                        href={getRowHref(row.original)}
+                        className="after:absolute after:inset-0"
+                      >
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </Link>
+                    ) : (
+                      flexRender(cell.column.columnDef.cell, cell.getContext())
+                    )}
                   </TableCell>
                 ))}
               </TableRow>
