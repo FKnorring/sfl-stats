@@ -124,13 +124,6 @@ export default async function DemoMatchPage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <Link
-        href="/leaderboard"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to leaderboard
-      </Link>
-
       <div className="relative flex flex-col items-center justify-center gap-2 overflow-hidden rounded-md border border-border py-20 text-center">
         {mapImageUrl ? (
           <>

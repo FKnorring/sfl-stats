@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { notFound } from "next/navigation"
 import {
   getLeagueAverageStats,
@@ -51,13 +50,6 @@ export default async function PlayerPage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <Link
-        href="/leaderboard"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to leaderboard
-      </Link>
-
       <div className="flex flex-wrap items-stretch gap-4">
         <div className="flex w-72 shrink-0 flex-col gap-4">
           <div
