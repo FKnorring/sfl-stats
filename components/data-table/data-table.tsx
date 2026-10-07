@@ -48,6 +48,8 @@ export function DataTable<TData, TValue>({
   globalFilterPlaceholder,
   getRowHref,
   getRowClassName,
+  tableClassName,
+  onRowClick,
 }: {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -55,6 +57,8 @@ export function DataTable<TData, TValue>({
   globalFilterPlaceholder?: string
   getRowHref?: (row: TData) => string
   getRowClassName?: (row: TData) => string | undefined
+  tableClassName?: string
+  onRowClick?: (row: TData) => void
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = React.useState("")
@@ -82,7 +86,7 @@ export function DataTable<TData, TValue>({
           className="max-w-sm"
         />
       ) : null}
-      <Table>
+      <Table className={tableClassName}>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -107,9 +111,22 @@ export function DataTable<TData, TValue>({
             rows.map((row) => (
               <TableRow
                 key={row.id}
+                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault()
+                          onRowClick(row.original)
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={onRowClick ? 0 : undefined}
                 className={
                   [
                     getRowHref ? "relative" : undefined,
+                    onRowClick ? "cursor-pointer" : undefined,
                     getRowClassName?.(row.original),
                   ]
                     .filter(Boolean)

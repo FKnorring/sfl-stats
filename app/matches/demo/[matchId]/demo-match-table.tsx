@@ -7,12 +7,25 @@ import { demoMatchPlayerColumns, type DemoMatchPlayerRow } from "./columns"
 // column defs contain function values, so they're built here on the
 // client side rather than in the Server Component page and passed down
 // as a prop.
-export function DemoMatchTable({ rows }: { rows: DemoMatchPlayerRow[] }) {
+export function DemoMatchTable({
+  rows,
+  selectedSteamid64,
+  onSelect,
+}: {
+  rows: DemoMatchPlayerRow[]
+  selectedSteamid64: string | null
+  onSelect: (steamid64: string) => void
+}) {
   return (
     <DataTable
       columns={demoMatchPlayerColumns}
       data={rows}
+      tableClassName="table-fixed"
       emptyMessage="No player stats found for this match."
+      onRowClick={(row) => onSelect(row.steamid64)}
+      getRowClassName={(row) =>
+        row.steamid64 === selectedSteamid64 ? "bg-muted" : undefined
+      }
     />
   )
 }

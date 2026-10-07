@@ -9,28 +9,11 @@ import {
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
 import { Badge } from "@/components/ui/badge"
-import { DemoMatchTable } from "./demo-match-table"
-import { PlayerHeatmaps } from "./player-heatmaps"
+import { DemoMatchView } from "./demo-match-view"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
 export const dynamic = "force-dynamic"
-
-function TeamHeading({ name, score }: { name: string; score: number | null }) {
-  return (
-    <div className="flex items-center justify-between">
-      <Link
-        href={`/teams/${encodeURIComponent(name)}`}
-        className="text-sm font-medium underline-offset-4 hover:underline"
-      >
-        {name}
-      </Link>
-      {score != null ? (
-        <span className="text-sm font-medium tabular-nums">{score}</span>
-      ) : null}
-    </div>
-  )
-}
 
 export default async function DemoMatchPage({
   params,
@@ -207,28 +190,13 @@ export default async function DemoMatchPage({
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <TeamHeading name={teamAName} score={teamAScore} />
-        <DemoMatchTable rows={sideAPlayers} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <TeamHeading name={teamBName} score={teamBScore} />
-        <DemoMatchTable rows={sideBPlayers} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">Player heatmaps</h2>
-        <PlayerHeatmaps
-          players={players.map((p) => ({
-            steamid64: p.steamid64,
-            name: p.inGameName,
-          }))}
-          kills={kills}
-          mapImageUrl={mapImageUrl}
-          radar={radar}
-        />
-      </div>
+      <DemoMatchView
+        teamA={{ name: teamAName, score: teamAScore, players: sideAPlayers }}
+        teamB={{ name: teamBName, score: teamBScore, players: sideBPlayers }}
+        kills={kills}
+        mapImageUrl={mapImageUrl}
+        radar={radar}
+      />
     </div>
   )
 }

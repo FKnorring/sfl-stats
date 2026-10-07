@@ -1,11 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import type { MatchKillRow } from "@/lib/db"
 import type { MapRadar } from "@/lib/map-images"
 
-type PlayerTab = { steamid64: string; name: string }
 type Mode = "kills" | "deaths"
 type SideFilter = "all" | "T" | "CT"
 type Point = { x: number; y: number }
@@ -172,14 +170,14 @@ export function ToggleGroup<T extends string>({
   label: (option: T) => string
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="inline-flex gap-0.5 rounded-lg border border-border bg-muted p-0.5">
       {options.map((o) => (
         <button
           key={o}
           type="button"
           onClick={() => onChange(o)}
           aria-pressed={value === o}
-          className={`px-3 py-1 capitalize ${value === o ? "bg-muted font-medium" : "text-muted-foreground hover:bg-muted"}`}
+          className={`rounded-md px-3 py-1 text-sm capitalize transition-colors ${value === o ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
         >
           {label(o)}
         </button>
@@ -189,19 +187,21 @@ export function ToggleGroup<T extends string>({
 }
 
 export function PlayerHeatmaps({
-  players,
+  steamid64,
+  playerName,
   kills,
   mapImageUrl,
   radar,
 }: {
-  players: PlayerTab[]
+  steamid64: string | null
+  playerName: string | null
   kills: MatchKillRow[]
   mapImageUrl: string | null
   radar: MapRadar | null
 }) {
   const [mode, setMode] = useState<Mode>("kills")
   const [side, setSide] = useState<SideFilter>("all")
-  if (players.length === 0 || kills.length === 0) {
+  if (!steamid64 || kills.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No kill positions for this match.
@@ -209,7 +209,6 @@ export function PlayerHeatmaps({
     )
   }
   const fit = makeProjector(kills, radar)
-
   function pointsFor(steamid64: string): Point[] {
     const out: Point[] = []
     for (const k of kills) {
@@ -230,9 +229,11 @@ export function PlayerHeatmaps({
     return out
   }
 
+  const points = pointsFor(steamid64)
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+      <div className="flex flex-wrap items-center gap-3">
         <ToggleGroup
           options={["kills", "deaths"] as const}
           value={mode}
@@ -246,33 +247,18 @@ export function PlayerHeatmaps({
           label={(s) => (s === "all" ? "Both sides" : `${s}-side`)}
         />
       </div>
-      <Tabs defaultValue={players[0].steamid64}>
-        <TabsList className="h-auto flex-wrap">
-          {players.map((p) => (
-            <TabsTrigger key={p.steamid64} value={p.steamid64}>
-              {p.name}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {players.map((p) => {
-          const points = pointsFor(p.steamid64)
-          return (
-            <TabsContent key={p.steamid64} value={p.steamid64}>
-              <div className="flex flex-col gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {points.length} {mode}
-                  {side === "all" ? "" : ` as ${side}`}
-                </span>
-                <Heatmap
-                  points={points}
-                  imageUrl={radar?.url ?? mapImageUrl}
-                  isRadar={radar != null}
-                />
-              </div>
-            </TabsContent>
-          )
-        })}
-      </Tabs>
+      <div className="flex flex-col gap-2">
+        <span className="text-sm text-muted-foreground">
+          {playerName ? `${playerName}: ` : ""}
+          {points.length} {mode}
+          {side === "all" ? "" : ` as ${side}`}
+        </span>
+        <Heatmap
+          points={points}
+          imageUrl={radar?.url ?? mapImageUrl}
+          isRadar={radar != null}
+        />
+      </div>
     </div>
   )
 }
