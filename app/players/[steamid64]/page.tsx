@@ -17,6 +17,7 @@ import {
   NetlightName,
 } from "@/components/netlight-flames"
 import { MatchHistoryTable } from "./player-history-tables"
+import { isLocalEnv } from "@/lib/env"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/map-images"
 
@@ -191,16 +192,22 @@ export default async function PlayerPage({
           </div>
         </div>
 
-        <PlayerMapHeatmap
-          steamid64={steamid64}
-          kills={playerKills.filter((k) => getMapRadar(k.mapName) != null)}
-          radars={Object.fromEntries(
-            [...new Set(playerKills.map((k) => k.mapName))].flatMap((m) => {
-              const r = getMapRadar(m)
-              return r ? [[m, r]] : []
-            })
-          )}
-        />
+        {isNetlight && !isLocalEnv ? (
+          <p className="text-sm text-muted-foreground">
+            Det här vill du veta va? 😉
+          </p>
+        ) : (
+          <PlayerMapHeatmap
+            steamid64={steamid64}
+            kills={playerKills.filter((k) => getMapRadar(k.mapName) != null)}
+            radars={Object.fromEntries(
+              [...new Set(playerKills.map((k) => k.mapName))].flatMap((m) => {
+                const r = getMapRadar(m)
+                return r ? [[m, r]] : []
+              })
+            )}
+          />
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

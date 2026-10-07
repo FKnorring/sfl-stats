@@ -9,6 +9,8 @@ import {
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
 import { Badge } from "@/components/ui/badge"
+import { isNetlightTeam } from "@/components/netlight-flames"
+import { isLocalEnv } from "@/lib/env"
 import { DemoMatchView } from "./demo-match-view"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
@@ -28,10 +30,28 @@ export default async function DemoMatchPage({
   if (!match) notFound()
 
   const players = await getDemoMatchPlayerStats(matchId)
-  const kills = await getMatchKills(matchId)
+  const rawKills = await getMatchKills(matchId)
   const steamSummaries = await getPlayerSummaries(
     players.map((p) => p.steamid64)
   )
+
+  // Netlight heatmap data stays server-side outside ENV=local: positions of
+  // their players are blanked before anything is serialized to the client.
+  const hiddenSteamids = isLocalEnv
+    ? []
+    : players
+        .filter((p) => isNetlightTeam(p.rosterTeamName))
+        .map((p) => p.steamid64)
+  const hidden = new Set(hiddenSteamids)
+  const kills = rawKills.map((k) => ({
+    ...k,
+    ...(k.attackerSteamid64 && hidden.has(k.attackerSteamid64)
+      ? { attackerX: null, attackerY: null }
+      : null),
+    ...(hidden.has(k.victimSteamid64)
+      ? { victimX: null, victimY: null }
+      : null),
+  }))
 
   // Pre-join Steam avatars into a plain, serializable field — the lookup
   // Map itself can't cross the server/client boundary into DemoMatchTable.
@@ -194,6 +214,7 @@ export default async function DemoMatchPage({
         teamA={{ name: teamAName, score: teamAScore, players: sideAPlayers }}
         teamB={{ name: teamBName, score: teamBScore, players: sideBPlayers }}
         kills={kills}
+        hiddenSteamids={hiddenSteamids}
         mapImageUrl={mapImageUrl}
         radar={radar}
       />
