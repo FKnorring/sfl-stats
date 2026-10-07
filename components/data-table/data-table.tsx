@@ -111,7 +111,9 @@ export function DataTable<TData, TValue>({
             rows.map((row) => (
               <TableRow
                 key={row.id}
-                onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                onClick={
+                  onRowClick ? () => onRowClick(row.original) : undefined
+                }
                 onKeyDown={
                   onRowClick
                     ? (e) => {

@@ -50,23 +50,33 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   },
   {
     accessorKey: "kills",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="K" className={numHeader} />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="K" className={numHeader} />
+    ),
     meta: rightAlign,
   },
   {
     accessorKey: "deaths",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="D" className={numHeader} />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="D" className={numHeader} />
+    ),
     meta: rightAlign,
   },
   {
     accessorKey: "assists",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="A" className={numHeader} />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="A" className={numHeader} />
+    ),
     meta: rightAlign,
   },
   {
     accessorKey: "adr",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="ADR" className={numHeader} />
+      <DataTableColumnHeader
+        column={column}
+        title="ADR"
+        className={numHeader}
+      />
     ),
     meta: rightAlign,
     cell: ({ row }) =>
@@ -75,7 +85,11 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   {
     accessorKey: "hsPct",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="HS%" className={numHeader} />
+      <DataTableColumnHeader
+        column={column}
+        title="HS%"
+        className={numHeader}
+      />
     ),
     meta: rightAlign,
     cell: ({ row }) =>
@@ -86,7 +100,11 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
   {
     accessorKey: "mvps",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="MVPs" className={numHeader} />
+      <DataTableColumnHeader
+        column={column}
+        title="MVPs"
+        className={numHeader}
+      />
     ),
     meta: rightAlign,
     cell: ({ row }) => row.original.mvps ?? "—",
