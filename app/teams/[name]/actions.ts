@@ -32,8 +32,7 @@ function loadOverridesFile(): Record<
 }
 
 export type CorrectRosterMatchResult =
-  | { ok: true; message: string }
-  | { ok: false; error: string }
+  { ok: true; message: string } | { ok: false; error: string }
 
 /**
  * Writes a manual steamid64 correction into the git-tracked
@@ -50,7 +49,10 @@ export async function correctRosterMatch(
 ): Promise<CorrectRosterMatchResult> {
   const parsed = steamid64Schema.safeParse(steamid64Raw)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid Steam64 ID" }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid Steam64 ID",
+    }
   }
   const steamid64 = parsed.data
 

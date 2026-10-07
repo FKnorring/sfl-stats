@@ -77,9 +77,7 @@ type ConfirmedPlayer = { steamid64: string }
  * "Confirmed" steamid reuses the existing resolution convention from
  * lib/db.ts / app/leaderboard: match_status manual or auto_high.
  */
-async function getConfirmedPlayers(
-  db: AppDb
-): Promise<ConfirmedPlayer[]> {
+async function getConfirmedPlayers(db: AppDb): Promise<ConfirmedPlayer[]> {
   return (await db.all(
     sql`SELECT DISTINCT p.steamid64 AS steamid64
         FROM players p

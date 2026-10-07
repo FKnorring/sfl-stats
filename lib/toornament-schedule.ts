@@ -45,13 +45,17 @@ export function parseScheduleWidget(html: string): ScheduledMatch[] {
 
       const names = opponents
         .toArray()
-        .map((el) => $(el).find(".name").first().text().replace(/\s+/g, " ").trim())
+        .map((el) =>
+          $(el).find(".name").first().text().replace(/\s+/g, " ").trim()
+        )
       const [teamAName, teamBName] = names
       if (!teamAName || !teamBName) return
 
       const logoPaths = opponents
         .toArray()
-        .map((el) => $(el).find(".logo img").first().attr("src")?.trim() || null)
+        .map(
+          (el) => $(el).find(".logo img").first().attr("src")?.trim() || null
+        )
       const [teamALogoPath, teamBLogoPath] = logoPaths
 
       const scores = opponents.toArray().map((el) => {
@@ -63,12 +67,10 @@ export function parseScheduleWidget(html: string): ScheduledMatch[] {
       const [teamAScore, teamBScore] = scores
 
       const hasResult = match.find(".result").length > 0
-      const hasWinLossClass = opponents
-        .toArray()
-        .some((el) => {
-          const classes = $(el).find(".name").first().attr("class") ?? ""
-          return /\bwin\b|\bloss\b/.test(classes)
-        })
+      const hasWinLossClass = opponents.toArray().some((el) => {
+        const classes = $(el).find(".name").first().attr("class") ?? ""
+        return /\bwin\b|\bloss\b/.test(classes)
+      })
       const status: ScheduledMatchStatus =
         hasResult || hasWinLossClass ? "completed" : "pending"
 

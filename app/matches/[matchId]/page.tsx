@@ -21,13 +21,7 @@ function formatScheduledAt(iso: string | null): string {
   })
 }
 
-function TeamLabel({
-  name,
-  teamId,
-}: {
-  name: string
-  teamId: number | null
-}) {
+function TeamLabel({ name, teamId }: { name: string; teamId: number | null }) {
   if (teamId == null) {
     return <span className="text-xl font-medium">{name}</span>
   }
