@@ -6,7 +6,7 @@ import {
   getMatchKills,
 } from "@/lib/db"
 import { getPlayerSummaries } from "@/lib/steam-client"
-import { getMapImageUrl, getMapRadar } from "@/lib/map-images"
+import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
 import { Badge } from "@/components/ui/badge"
 import { DemoMatchTable } from "./demo-match-table"
 import { PlayerHeatmaps } from "./player-heatmaps"
@@ -118,29 +118,54 @@ export default async function DemoMatchPage({
           </>
         ) : null}
         <div className="relative flex flex-col items-center gap-2">
-          <div className="flex items-center justify-center gap-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+            {match.teamALogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the team logos on /teams: small, variable-source external images
+              <img
+                src={match.teamALogoUrl}
+                alt=""
+                className="size-16 justify-self-end rounded-md border border-border object-cover drop-shadow-sm"
+              />
+            ) : (
+              <div className="size-16 justify-self-end rounded-md border border-border bg-muted" />
+            )}
+            <div />
+            {match.teamBLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the team logos on /teams: small, variable-source external images
+              <img
+                src={match.teamBLogoUrl}
+                alt=""
+                className="size-16 justify-self-start rounded-md border border-border object-cover drop-shadow-sm"
+              />
+            ) : (
+              <div className="size-16 justify-self-start rounded-md border border-border bg-muted" />
+            )}
+          </div>
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
             <Link
               href={`/teams/${encodeURIComponent(teamAName)}`}
-              className="text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
+              className="justify-self-end text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
             >
               {teamAName}
             </Link>
             {match.teamAScore != null && match.teamBScore != null ? (
-              <span className="text-xl font-semibold tabular-nums">
+              <span className="justify-self-center text-xl font-semibold tabular-nums">
                 {match.teamAScore}–{match.teamBScore}
               </span>
             ) : (
-              <span className="text-sm text-muted-foreground">vs</span>
+              <span className="justify-self-center text-sm text-muted-foreground">
+                vs
+              </span>
             )}
             <Link
               href={`/teams/${encodeURIComponent(teamBName)}`}
-              className="text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
+              className="justify-self-start text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
             >
               {teamBName}
             </Link>
           </div>
           <h1 className="text-2xl font-semibold drop-shadow-sm">
-            {match.mapName ?? "Unknown map"}
+            {formatMapName(match.mapName) ?? "Unknown map"}
           </h1>
           {match.teamResolutionConflict ? (
             <Badge
