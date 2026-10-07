@@ -298,6 +298,75 @@ export async function getTeams(): Promise<string[]> {
   return rows.map((r) => r.name)
 }
 
+export type TeamDirectoryEntry = {
+  name: string
+  division: string
+}
+
+export async function getTeamDirectory(): Promise<TeamDirectoryEntry[]> {
+  return (await db.all(
+    sql`SELECT DISTINCT name, division FROM teams t WHERE ${SEASON_CUTOFF_SQL}`
+  )) as TeamDirectoryEntry[]
+}
+
+export type MatchHistoryRow = {
+  matchId: number
+  demoDate: string | null
+  mapName: string | null
+  teamAName: string | null
+  teamBName: string | null
+  teamAScore: number | null
+  teamBScore: number | null
+  teamADivision: string | null
+  teamBDivision: string | null
+}
+
+export async function getMatchHistory(filters: {
+  division?: string
+  teamSearch?: string
+} = {}): Promise<MatchHistoryRow[]> {
+  const conditions = []
+  if (filters.division) {
+    conditions.push(
+      sql`(teamA.division = ${filters.division} OR teamB.division = ${filters.division})`
+    )
+  }
+  const teamSearch = filters.teamSearch?.trim().toLowerCase()
+  if (teamSearch) {
+    const pattern = `%${teamSearch}%`
+    conditions.push(
+      sql`(
+        LOWER(COALESCE(teamA.name, '')) LIKE ${pattern}
+        OR LOWER(COALESCE(teamB.name, '')) LIKE ${pattern}
+      )`
+    )
+  }
+  const where =
+    conditions.length > 0
+      ? sql.join([sql`WHERE `, sql.join(conditions, sql` AND `)], sql``)
+      : sql``
+
+  return (await db.all(
+    sql`
+      SELECT
+        m.id AS matchId,
+        m.demo_date AS demoDate,
+        m.map_name AS mapName,
+        teamA.name AS teamAName,
+        teamB.name AS teamBName,
+        m.team_a_score AS teamAScore,
+        m.team_b_score AS teamBScore,
+        teamA.division AS teamADivision,
+        teamB.division AS teamBDivision
+      FROM matches m
+      LEFT JOIN teams teamA ON teamA.id = m.team_a_id
+      LEFT JOIN teams teamB ON teamB.id = m.team_b_id
+      ${where}
+      ORDER BY m.demo_date DESC, m.id DESC
+    `
+  )) as MatchHistoryRow[]
+}
+
 export type TeamMeta = {
   teamId: number
   teamName: string
