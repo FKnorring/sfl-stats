@@ -36,7 +36,7 @@ function FaceitIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 const iconLinkClassName =
-  "text-muted-foreground transition-colors hover:text-foreground"
+  "relative z-10 text-muted-foreground transition-colors hover:text-foreground"
 
 /**
  * Steam Community / Faceit profile links, rendered as icons with a tooltip

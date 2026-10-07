@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { PlayerHoverCard } from "@/components/player-hover-card"
 
 // Lets a column opt into alignment/width classes applied to both its header
 // and cells, e.g. `meta: { className: "text-right" }` for numeric columns.
@@ -47,6 +48,7 @@ export function DataTable<TData, TValue>({
   emptyMessage = "No results found.",
   globalFilterPlaceholder,
   getRowHref,
+  getRowPlayerId,
   getRowClassName,
   tableClassName,
   onRowClick,
@@ -55,7 +57,9 @@ export function DataTable<TData, TValue>({
   data: TData[]
   emptyMessage?: string
   globalFilterPlaceholder?: string
-  getRowHref?: (row: TData) => string
+  getRowHref?: (row: TData) => string | null
+  /** Steam ID of the player a row represents; shows the player hover card over the whole row. */
+  getRowPlayerId?: (row: TData) => string | null
   getRowClassName?: (row: TData) => string | undefined
   tableClassName?: string
   onRowClick?: (row: TData) => void
@@ -108,56 +112,70 @@ export function DataTable<TData, TValue>({
         </TableHeader>
         <TableBody>
           {rows.length ? (
-            rows.map((row) => (
-              <TableRow
-                key={row.id}
-                onClick={
-                  onRowClick ? () => onRowClick(row.original) : undefined
-                }
-                onKeyDown={
-                  onRowClick
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault()
-                          onRowClick(row.original)
+            rows.map((row) => {
+              const href = getRowHref?.(row.original)
+              const playerId = getRowPlayerId?.(row.original)
+              const tableRow = (
+                <TableRow
+                  key={playerId ? undefined : row.id}
+                  onClick={
+                    onRowClick ? () => onRowClick(row.original) : undefined
+                  }
+                  onKeyDown={
+                    onRowClick
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault()
+                            onRowClick(row.original)
+                          }
                         }
-                      }
-                    : undefined
-                }
-                tabIndex={onRowClick ? 0 : undefined}
-                className={
-                  [
-                    getRowHref ? "relative" : undefined,
-                    onRowClick ? "cursor-pointer" : undefined,
-                    getRowClassName?.(row.original),
-                  ]
-                    .filter(Boolean)
-                    .join(" ") || undefined
-                }
-              >
-                {row.getVisibleCells().map((cell, index) => (
-                  <TableCell
-                    key={cell.id}
-                    className={cell.column.columnDef.meta?.className}
-                  >
-                    {getRowHref && index === 0 ? (
-                      // Stretched link: the ::after covers the whole <tr>.
-                      <Link
-                        href={getRowHref(row.original)}
-                        className="after:absolute after:inset-0"
-                      >
-                        {flexRender(
+                      : undefined
+                  }
+                  tabIndex={onRowClick ? 0 : undefined}
+                  className={
+                    [
+                      href ? "relative" : undefined,
+                      onRowClick ? "cursor-pointer" : undefined,
+                      getRowClassName?.(row.original),
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                >
+                  {row.getVisibleCells().map((cell, index) => (
+                    <TableCell
+                      key={cell.id}
+                      className={cell.column.columnDef.meta?.className}
+                    >
+                      {href && index === 0 ? (
+                        // Stretched link: the ::after covers the whole <tr>.
+                        <Link
+                          href={href}
+                          className="after:absolute after:inset-0"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </Link>
+                      ) : (
+                        flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext()
-                        )}
-                      </Link>
-                    ) : (
-                      flexRender(cell.column.columnDef.cell, cell.getContext())
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))
+                        )
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              )
+              return playerId ? (
+                <PlayerHoverCard key={row.id} steamid64={playerId}>
+                  {tableRow}
+                </PlayerHoverCard>
+              ) : (
+                tableRow
+              )
+            })
           ) : (
             <TableRow>
               <TableCell

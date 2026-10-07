@@ -30,6 +30,8 @@ export function LeaderboardTable({
       columns={columns}
       data={rows}
       globalFilterPlaceholder="Search players…"
+      getRowHref={(r) => `/players/${encodeURIComponent(r.steamid64)}`}
+      getRowPlayerId={(r) => r.steamid64}
       getRowClassName={(r) =>
         isNetlightTeam(r.teamName) ? "netlight-row" : undefined
       }

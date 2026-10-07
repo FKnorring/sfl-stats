@@ -50,6 +50,34 @@ export async function getFaceitPlayerStats(
   return new Map(rows.map((r) => [r.steamid64, r]))
 }
 
+/** Single-player variant of getFaceitPlayerStats, for the hover card. */
+export async function getFaceitPlayer(
+  steamid64: string,
+  days: number = DEFAULT_RECENT_DAYS
+): Promise<FaceitPlayerSummary | null> {
+  const daysOffset = `-${days} days`
+  const rows = (await db.all(
+    sql`
+      SELECT
+        fp.steamid64 AS steamid64,
+        fp.nickname AS faceitNickname,
+        fp.elo AS elo,
+        fp.skill_level AS skillLevel,
+        COUNT(fms.id) AS matchesRecent,
+        AVG(fms.kd_ratio) AS avgKd,
+        AVG(fms.adr) AS avgAdr,
+        AVG(fms.elo_at_match) AS avgEloRecent
+      FROM faceit_players fp
+      LEFT JOIN faceit_match_stats fms
+        ON fms.steamid64 = fp.steamid64
+        AND datetime(fms.played_at) >= datetime('now', ${daysOffset})
+      WHERE fp.steamid64 = ${steamid64}
+      GROUP BY fp.steamid64
+      `
+  )) as FaceitPlayerSummary[]
+  return rows[0] ?? null
+}
+
 export type FaceitTeamSummary = {
   playersWithFaceit: number
   avgElo: number | null

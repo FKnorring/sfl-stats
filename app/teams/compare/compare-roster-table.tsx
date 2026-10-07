@@ -17,6 +17,7 @@ export function CompareRosterTable({ rows }: { rows: TeamRosterTableRow[] }) {
     <DataTable
       columns={columns}
       data={rows}
+      getRowPlayerId={(r) => r.steamid64}
       emptyMessage="No roster entries for this team."
     />
   )
