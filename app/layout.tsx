@@ -3,6 +3,7 @@ import { Geist_Mono, Space_Grotesk, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { SideNav } from "@/components/side-nav"
 import { ThemeProvider } from "@/components/theme-provider"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
@@ -41,10 +42,10 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <TooltipProvider>
-            <div className="flex min-h-svh">
+            <SidebarProvider>
               <SideNav />
-              <div className="min-w-0 flex-1">{children}</div>
-            </div>
+              <SidebarInset className="min-w-0">{children}</SidebarInset>
+            </SidebarProvider>
           </TooltipProvider>
         </ThemeProvider>
       </body>
