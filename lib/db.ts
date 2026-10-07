@@ -609,6 +609,9 @@ export type DemoMatchPlayerStatsRow = {
   // The player's actual roster team name (most recently scraped), used
   // to resolve a real display name for each side.
   rosterTeamName: string | null
+  // That same roster team's logo, for when `matches.team_a/b_id` wasn't
+  // resolved at ingestion time and the page falls back to the roster name.
+  rosterTeamLogoUrl: string | null
   kills: number
   deaths: number
   assists: number
@@ -635,6 +638,14 @@ export async function getDemoMatchPlayerStats(
           ORDER BY re.scraped_at DESC
           LIMIT 1
         ) AS rosterTeamName,
+        (
+          SELECT t.logo_url
+          FROM roster_entries re
+          JOIN teams t ON t.id = re.team_id
+          WHERE re.matched_steamid64 = pms.steamid64
+          ORDER BY re.scraped_at DESC
+          LIMIT 1
+        ) AS rosterTeamLogoUrl,
         pms.kills AS kills,
         pms.deaths AS deaths,
         pms.assists AS assists,

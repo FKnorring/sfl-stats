@@ -69,30 +69,44 @@ export default async function DemoMatchPage({
     ? playersWithAvatars.filter((p) => p.side === sideB)
     : []
 
-  // Prefer the resolved roster team names on `matches` (set when ingestion
-  // could pin exactly two distinct roster teams); otherwise fall back to
-  // whichever roster team name is most common among this side's players.
-  function majorityRosterTeamName(rows: typeof players): string | null {
-    const counts = new Map<string, number>()
+  // Prefer the resolved roster team on `matches` (set when ingestion could
+  // pin exactly two distinct roster teams); otherwise fall back to
+  // whichever roster team is most common among this side's players. Also
+  // resolves that team's logo, since `matches.team_a/b_id` not being
+  // resolved means `getDemoMatchById`'s team-logo join comes back null too.
+  function majorityRosterTeam(
+    rows: typeof players
+  ): { name: string; logoUrl: string | null } | null {
+    const counts = new Map<string, { count: number; logoUrl: string | null }>()
     for (const row of rows) {
       if (!row.rosterTeamName) continue
-      counts.set(row.rosterTeamName, (counts.get(row.rosterTeamName) ?? 0) + 1)
-    }
-    let best: string | null = null
-    let bestCount = 0
-    for (const [name, count] of counts) {
-      if (count > bestCount) {
-        best = name
-        bestCount = count
+      const entry = counts.get(row.rosterTeamName)
+      if (entry) {
+        entry.count++
+      } else {
+        counts.set(row.rosterTeamName, {
+          count: 1,
+          logoUrl: row.rosterTeamLogoUrl,
+        })
       }
     }
-    return best
+    let best: string | null = null
+    let bestEntry: { count: number; logoUrl: string | null } | null = null
+    for (const [name, entry] of counts) {
+      if (!bestEntry || entry.count > bestEntry.count) {
+        best = name
+        bestEntry = entry
+      }
+    }
+    return best ? { name: best, logoUrl: bestEntry!.logoUrl } : null
   }
 
-  const teamAName =
-    match.teamAName ?? majorityRosterTeamName(sideAPlayers) ?? "Team A"
-  const teamBName =
-    match.teamBName ?? majorityRosterTeamName(sideBPlayers) ?? "Team B"
+  const majorityTeamA = majorityRosterTeam(sideAPlayers)
+  const majorityTeamB = majorityRosterTeam(sideBPlayers)
+  const teamAName = match.teamAName ?? majorityTeamA?.name ?? "Team A"
+  const teamBName = match.teamBName ?? majorityTeamB?.name ?? "Team B"
+  const teamALogoUrl = match.teamALogoUrl ?? majorityTeamA?.logoUrl ?? null
+  const teamBLogoUrl = match.teamBLogoUrl ?? majorityTeamB?.logoUrl ?? null
   const mapImageUrl = getMapImageUrl(match.mapName)
   const radar = getMapRadar(match.mapName)
 
@@ -119,10 +133,10 @@ export default async function DemoMatchPage({
         ) : null}
         <div className="relative flex flex-col items-center gap-2">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-            {match.teamALogoUrl ? (
+            {teamALogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the team logos on /teams: small, variable-source external images
               <img
-                src={match.teamALogoUrl}
+                src={teamALogoUrl}
                 alt=""
                 className="size-16 justify-self-end rounded-md border border-border object-cover drop-shadow-sm"
               />
@@ -130,10 +144,10 @@ export default async function DemoMatchPage({
               <div className="size-16 justify-self-end rounded-md border border-border bg-muted" />
             )}
             <div />
-            {match.teamBLogoUrl ? (
+            {teamBLogoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- same tradeoff as the team logos on /teams: small, variable-source external images
               <img
-                src={match.teamBLogoUrl}
+                src={teamBLogoUrl}
                 alt=""
                 className="size-16 justify-self-start rounded-md border border-border object-cover drop-shadow-sm"
               />
