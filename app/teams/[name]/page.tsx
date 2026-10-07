@@ -6,12 +6,14 @@ import {
   getTeamRoster,
   getFutureOpponents,
   getTeamMapStats,
+  getTeamDemoMatches,
   getRecentResults,
 } from "@/lib/db"
 import { getFaceitPlayerStats } from "@/lib/faceit"
 import { TeamRosterTable } from "@/components/team-roster-table"
 import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"
+import { TeamDemoMatches } from "@/components/team-demo-matches"
 import { TeamRecentForm } from "@/components/team-recent-form"
 
 // Same reasoning as app/teams/page.tsx and app/teams/compare/page.tsx — DB
@@ -30,14 +32,21 @@ export default async function TeamPage({
   const meta = await getTeamByName(teamName, season)
   if (!meta) notFound()
 
-  const [roster, faceitStats, futureOpponents, mapStats, recentResults] =
-    await Promise.all([
-      getTeamRoster(meta.teamId),
-      getFaceitPlayerStats(),
-      getFutureOpponents(meta.teamId),
-      getTeamMapStats(meta.teamId),
-      getRecentResults(meta.teamId),
-    ])
+  const [
+    roster,
+    faceitStats,
+    futureOpponents,
+    mapStats,
+    demoMatches,
+    recentResults,
+  ] = await Promise.all([
+    getTeamRoster(meta.teamId),
+    getFaceitPlayerStats(),
+    getFutureOpponents(meta.teamId),
+    getTeamMapStats(meta.teamId),
+    getTeamDemoMatches(meta.teamId),
+    getRecentResults(meta.teamId),
+  ])
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
@@ -78,6 +87,8 @@ export default async function TeamPage({
       />
 
       <TeamMapStats maps={mapStats} />
+
+      <TeamDemoMatches matches={demoMatches} />
     </div>
   )
 }
