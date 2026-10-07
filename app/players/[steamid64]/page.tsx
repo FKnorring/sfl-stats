@@ -93,6 +93,15 @@ export default async function PlayerPage({
                 {faceit?.elo != null ? (
                   <Badge variant="outline">{faceit.elo} elo</Badge>
                 ) : null}
+                {faceit?.skillLevel != null ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- tiny static SVGs from /public
+                  <img
+                    src={`/faceit-levels/${faceit.skillLevel}.svg`}
+                    alt={`Faceit level ${faceit.skillLevel}`}
+                    title={`Faceit level ${faceit.skillLevel}`}
+                    className="size-6"
+                  />
+                ) : null}
               </div>
             </div>
           </div>
