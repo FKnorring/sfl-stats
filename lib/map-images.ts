@@ -16,6 +16,15 @@ export function getMapImageUrl(mapName: string | null): string | null {
   return MAP_IMAGES[mapName] ?? null
 }
 
+// Drops the console "de_" prefix and capitalizes what's left, e.g.
+// "de_inferno" -> "Inferno". Falls through unchanged for anything that
+// doesn't match the de_<name> console format.
+export function formatMapName(mapName: string | null): string | null {
+  if (!mapName) return null
+  const bare = mapName.replace(/^de_/, "")
+  return bare.charAt(0).toUpperCase() + bare.slice(1)
+}
+
 // Top-down radar overviews (1024x1024) plus the calibration from the game's
 // resource/overviews/<map>.txt: world position of the image's top-left
 // corner (pos_x, pos_y) and world units per pixel (scale). Pixel position of

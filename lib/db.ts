@@ -562,9 +562,11 @@ export type DemoMatchDetail = {
   demoDate: string | null
   teamAId: number | null
   teamAName: string | null
+  teamALogoUrl: string | null
   teamAScore: number | null
   teamBId: number | null
   teamBName: string | null
+  teamBLogoUrl: string | null
   teamBScore: number | null
   teamResolutionConflict: string | null
 }
@@ -581,9 +583,11 @@ export async function getDemoMatchById(
         m.demo_date AS demoDate,
         m.team_a_id AS teamAId,
         ta.name AS teamAName,
+        ta.logo_url AS teamALogoUrl,
         m.team_a_score AS teamAScore,
         m.team_b_id AS teamBId,
         tb.name AS teamBName,
+        tb.logo_url AS teamBLogoUrl,
         m.team_b_score AS teamBScore,
         m.team_resolution_conflict AS teamResolutionConflict
       FROM matches m
