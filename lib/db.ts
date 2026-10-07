@@ -258,6 +258,32 @@ export async function getUnmatchedRosterEntries(): Promise<
   )) as UnmatchedRosterEntry[]
 }
 
+export type MatchNeedingReview = {
+  matchId: number
+  fileName: string
+  demoDate: string | null
+  teamResolutionConflict: string
+}
+
+/** Demo-ingested matches whose team identity disagrees between a prior
+ * Toornament-inferred guess and a later player-matched result (see
+ * lib/team-anchoring.ts) — surfaced the same way getUnmatchedRosterEntries
+ * surfaces roster review, i.e. no dedicated queue UI, just a read query. */
+export async function getMatchesNeedingReview(): Promise<MatchNeedingReview[]> {
+  return (await db.all(
+    sql`
+      SELECT
+        m.id AS matchId,
+        m.file_name AS fileName,
+        m.demo_date AS demoDate,
+        m.team_resolution_conflict AS teamResolutionConflict
+      FROM matches m
+      WHERE m.team_resolution_conflict IS NOT NULL
+      ORDER BY m.demo_date DESC
+      `
+  )) as MatchNeedingReview[]
+}
+
 export async function getDivisions(): Promise<string[]> {
   const rows = (await db.all(
     sql`SELECT DISTINCT division FROM teams t WHERE ${SEASON_CUTOFF_SQL} ORDER BY division`
@@ -540,6 +566,7 @@ export type DemoMatchDetail = {
   teamBId: number | null
   teamBName: string | null
   teamBScore: number | null
+  teamResolutionConflict: string | null
 }
 
 /** Match header info (map, date, resolved team names/scores) for a single demo-ingested match. */
@@ -557,7 +584,8 @@ export async function getDemoMatchById(
         m.team_a_score AS teamAScore,
         m.team_b_id AS teamBId,
         tb.name AS teamBName,
-        m.team_b_score AS teamBScore
+        m.team_b_score AS teamBScore,
+        m.team_resolution_conflict AS teamResolutionConflict
       FROM matches m
       LEFT JOIN teams ta ON ta.id = m.team_a_id
       LEFT JOIN teams tb ON tb.id = m.team_b_id

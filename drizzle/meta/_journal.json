@@ -36,6 +36,13 @@
       "when": 1791358392855,
       "tag": "0004_left_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791363353934,
+      "tag": "0005_friendly_post",
+      "breakpoints": true
     }
   ]
 }

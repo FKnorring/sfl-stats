@@ -51,15 +51,33 @@ export const roundEndRowSchema = z.object({
 export type RoundEndRow = z.infer<typeof roundEndRowSchema>
 
 /**
+ * Whether the side-agnostic "A" bucket is CT for the round at `roundIndex`
+ * (0-based, in winner-decided-round order), given CS2's half-swap schedule —
+ * regulation is MR12 (halves swap after round 12, i.e. index 11), overtime
+ * is MR3 (sides swap every 3 rounds, alternating which bucket starts CT each
+ * OT period). This is the single place encoding that schedule; both
+ * reconstructFinalScore below and lib/team-anchoring.ts's stableSideForRound
+ * call it so there's exactly one definition of "which half/OT period are we
+ * in and who's CT".
+ */
+export function stableBucketAIsCTForRoundIndex(roundIndex: number): boolean {
+  if (roundIndex < 12) return true
+  if (roundIndex < 24) return false
+  const ot = roundIndex - 24
+  const period = Math.floor(ot / 6)
+  const firstHalfOfPeriod = ot % 6 < 3
+  return period % 2 === 0 ? !firstHalfOfPeriod : firstHalfOfPeriod
+}
+
+/**
  * Reconstructs the final score from round_end winners alone (no player/team
  * data needed), by tracking two side-agnostic buckets ("A"/"B") through
- * CS2's half-swap schedule — regulation is MR12 (halves swap after round 12,
- * i.e. index 11), overtime is MR3 (sides swap every 3 rounds, alternating
- * which bucket starts CT each OT period). Used to decide whether a demo
- * represents a genuinely finished match, independent of whether its players
- * could be resolved to roster teams (see computeTeamScore in
- * scripts/ingest-demos.ts, which needs that resolution and can legitimately
- * return null for a complete match played against a non-roster opponent).
+ * CS2's half-swap schedule (see stableBucketAIsCTForRoundIndex). Used to
+ * decide whether a demo represents a genuinely finished match, independent
+ * of whether its players could be resolved to roster teams (see
+ * computeTeamScore in scripts/ingest-demos.ts, which needs that resolution
+ * and can legitimately return null for a complete match played against a
+ * non-roster opponent).
  */
 export function reconstructFinalScore(
   rounds: RoundEndRow[]
@@ -71,17 +89,7 @@ export function reconstructFinalScore(
   let scoreB = 0
   for (let i = 0; i < decided.length; i++) {
     const winnerSide = decided[i].winner![0]
-    let bucketIsCT: boolean
-    if (i < 12) {
-      bucketIsCT = true
-    } else if (i < 24) {
-      bucketIsCT = false
-    } else {
-      const ot = i - 24
-      const period = Math.floor(ot / 6)
-      const firstHalfOfPeriod = ot % 6 < 3
-      bucketIsCT = period % 2 === 0 ? !firstHalfOfPeriod : firstHalfOfPeriod
-    }
+    const bucketIsCT = stableBucketAIsCTForRoundIndex(i)
     const bucketAWon =
       (winnerSide === "C" && bucketIsCT) || (winnerSide === "T" && !bucketIsCT)
     if (bucketAWon) scoreA++
