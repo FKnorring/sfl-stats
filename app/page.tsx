@@ -5,8 +5,10 @@ export default function Page() {
         <div>
           <h1 className="font-medium">Svenska Företagsligan</h1>
           <p>
-            Leaderboards built from parsed CS2 demos by team Netlight, matched to scraped league
-            rosters. Anything off in your team? Likely! Demoparsing isn't perfect, we'll see if we can fix it manually. Contact @Knorring or @Bralle on discord.
+            Leaderboards built from parsed CS2 demos by team Netlight, matched
+            to scraped league rosters. Anything off in your team? Likely!
+            Demoparsing isn&apos;t perfect, we&apos;ll see if we can fix it
+            manually. Contact @Knorring or @Bralle on discord.
           </p>
         </div>
         <div className="font-mono text-xs text-muted-foreground">
