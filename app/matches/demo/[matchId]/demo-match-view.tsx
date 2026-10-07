@@ -30,12 +30,14 @@ export function DemoMatchView({
   teamA,
   teamB,
   kills,
+  hiddenSteamids,
   mapImageUrl,
   radar,
 }: {
   teamA: { name: string; score: number | null; players: DemoMatchPlayerRow[] }
   teamB: { name: string; score: number | null; players: DemoMatchPlayerRow[] }
   kills: MatchKillRow[]
+  hiddenSteamids: string[]
   mapImageUrl: string | null
   radar: MapRadar | null
 }) {
@@ -66,6 +68,7 @@ export function DemoMatchView({
           steamid64={current?.steamid64 ?? null}
           playerName={current?.inGameName ?? null}
           kills={kills}
+          hidden={current != null && hiddenSteamids.includes(current.steamid64)}
           mapImageUrl={mapImageUrl}
           radar={radar}
         />

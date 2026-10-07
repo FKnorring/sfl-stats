@@ -190,17 +190,26 @@ export function PlayerHeatmaps({
   steamid64,
   playerName,
   kills,
+  hidden = false,
   mapImageUrl,
   radar,
 }: {
   steamid64: string | null
   playerName: string | null
   kills: MatchKillRow[]
+  hidden?: boolean
   mapImageUrl: string | null
   radar: MapRadar | null
 }) {
   const [mode, setMode] = useState<Mode>("kills")
   const [side, setSide] = useState<SideFilter>("all")
+  if (hidden) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Det här hade du velat veta va? 😉
+      </p>
+    )
+  }
   if (!steamid64 || kills.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">

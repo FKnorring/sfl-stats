@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { isLocalEnv } from "@/lib/env"
 import { readMapZones } from "@/lib/map-zones"
 import { getMapRadar } from "@/lib/map-images"
 import { ZoneEditor } from "./zone-editor"
@@ -15,9 +16,9 @@ const MAPS = [
   "de_nuke",
 ]
 
-// Local-only authoring tool (ADR-0002): 404s anywhere but `next dev`.
+// Local-only authoring tool (ADR-0002): 404s unless ENV=local.
 export default async function ZonesPage() {
-  if (process.env.NODE_ENV !== "development") notFound()
+  if (!isLocalEnv) notFound()
 
   const zones = await readMapZones()
   const radars = Object.fromEntries(
