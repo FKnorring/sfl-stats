@@ -16,27 +16,32 @@ export function LeaderboardTable({
   rows,
   stat,
   statLabel,
+  compact = false,
 }: {
   rows: LeaderboardTableRow[]
   stat: LeaderboardStat
   statLabel: string | undefined
+  compact?: boolean
 }) {
   const rowClass = useFollowRowClass()
   const columns = React.useMemo(
-    () => buildLeaderboardColumns(stat, statLabel),
-    [stat, statLabel]
+    () => buildLeaderboardColumns(stat, statLabel, compact),
+    [stat, statLabel, compact]
   )
 
   return (
     <DataTable
       columns={columns}
       data={rows}
-      globalFilterPlaceholder="Search players…"
+      globalFilterPlaceholder={compact ? undefined : "Search players…"}
       getRowHref={(r) => `/players/${encodeURIComponent(r.steamid64)}`}
       getRowPlayerId={(r) => r.steamid64}
       getRowClassName={(r) =>
         rowClass(r.teamId) ??
         (isNetlightTeam(r.teamName) ? "netlight-row" : undefined)
+      }
+      tableClassName={
+        compact ? "[&_td]:px-1 [&_td]:py-1 [&_th]:h-8 [&_th]:px-1" : undefined
       }
       emptyMessage="No matches found for this filter combination."
     />

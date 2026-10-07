@@ -107,6 +107,38 @@ export function parseStandingsWidget(html: string): OfficialStanding[] {
   return rows
 }
 
+function nameTokens(name: string): string[] {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+}
+
+/**
+ * Fallbacks for names the fuzzy score misses, each only accepted when
+ * exactly one team qualifies:
+ * - same words in a different order ("Hong Kong Boulder AB" vs
+ *   "Boulder AB Hong Kong");
+ * - every word of the official name appears in the roster name ("NODAF"
+ *   vs "NODAF AB", "Atlas Copco" vs "Atlas Copco ITBA Tierp AB").
+ */
+function resolveByTokens(name: string, teams: MatchTeam[]): MatchTeam | null {
+  const tokens = nameTokens(name)
+  if (!tokens.length) return null
+  const key = [...tokens].sort().join(" ")
+  const reordered = teams.filter(
+    (team) => [...nameTokens(team.teamName)].sort().join(" ") === key
+  )
+  if (reordered.length) return reordered.length === 1 ? reordered[0] : null
+  const contained = teams.filter((team) => {
+    const teamTokens = new Set(nameTokens(team.teamName))
+    return tokens.every((token) => teamTokens.has(token))
+  })
+  return contained.length === 1 ? contained[0] : null
+}
+
 export function resolveOfficialTeam(
   name: string,
   teams: MatchTeam[]
@@ -120,7 +152,7 @@ export function resolveOfficialTeam(
     .map((team) => ({ team, score: scoreSimilarity(name, team.teamName) }))
     .filter(({ score }) => score >= MATCH_THRESHOLD_HIGH)
     .sort((a, b) => b.score - a.score)
-  if (!candidates.length || candidates[0].score === candidates[1]?.score)
-    return null
+  if (!candidates.length) return resolveByTokens(name, teams)
+  if (candidates[0].score === candidates[1]?.score) return null
   return candidates[0].team
 }

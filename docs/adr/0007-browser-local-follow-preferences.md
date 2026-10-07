@@ -19,9 +19,9 @@ Malformed or unsupported saved preferences are not overwritten without an
 explicit reset. A cookie mirror was rejected because server personalization
 is unnecessary for these browser-specific preferences.
 
-The favorite controls a client redirect from `/` after hydration and
-replaces the Home navigation entry. Without a resolvable favorite, Home
-remains usable rather than redirecting to an unavailable dashboard.
+The favorite no longer redirects `/` or replaces the Home navigation entry;
+Home is a landing page with league-wide standings, players and matches. The
+favorite is reached through `/followed` and its team dashboard.
 
 Official division rank comes from Toornament's public stage widget, not
 from reconstructing ranking rules from ingested results. The current-season

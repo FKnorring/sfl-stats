@@ -123,6 +123,21 @@ test("official team matching rejects normalized/fuzzy ties and unknown teams", (
   assert.equal(resolveOfficialTeam("Unrelated", [team]), null)
 })
 
+test("official team matching handles reordered and shortened names", () => {
+  const teams = [
+    { ...team, teamId: 1, teamName: "Boulder AB Hong Kong" },
+    { ...team, teamId: 2, teamName: "Boulder AB Golden" },
+    { ...team, teamId: 3, teamName: "Atlas Copco ITBA Tierp AB" },
+    { ...team, teamId: 4, teamName: "Telia Sverige AB 1" },
+    { ...team, teamId: 5, teamName: "Telia Sverige AB Verket" },
+  ]
+  assert.equal(resolveOfficialTeam("Hong Kong Boulder AB", teams)?.teamId, 1)
+  assert.equal(resolveOfficialTeam("Golden Boulder AB", teams)?.teamId, 2)
+  assert.equal(resolveOfficialTeam("Atlas Copco", teams)?.teamId, 3)
+  // Contained in two teams: refuse to guess.
+  assert.equal(resolveOfficialTeam("Telia", teams), null)
+})
+
 test("live ranking fetch uses discovered stage, retains official rank and unresolved names", async (t) => {
   const page = `RootComponent, ${JSON.stringify({ pageContent: { fields: { contentArea: content } } })}`
   const fetch = t.mock.method(
