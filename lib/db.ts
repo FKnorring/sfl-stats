@@ -76,6 +76,7 @@ export type LeaderboardFilters = {
   division?: string
   team?: string
   season?: string
+  limit?: number
 }
 
 /**
@@ -174,6 +175,7 @@ export async function getLeaderboard(
       ORDER BY ${filters.stat === "rating" ? sql`${statExpr} IS NULL ASC,` : sql``}
         ${statExpr} ${direction}
         ${filters.stat === "rating" ? sql`, p.steamid64, t.id` : sql``}
+      ${filters.limit === undefined ? sql`` : sql`LIMIT ${filters.limit}`}
       `
   )) as LeaderboardRow[]
 }
@@ -206,10 +208,12 @@ export type TeamStandingRow = {
 export async function getTeamStandings(
   filters: {
     season?: string
+    division?: string
   } = {}
 ): Promise<TeamStandingRow[]> {
   const conditions = [SEASON_CUTOFF_SQL]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
+  if (filters.division) conditions.push(sql`t.division = ${filters.division}`)
   const where = sql.join([sql`WHERE `, sql.join(conditions, sql` AND `)], sql``)
 
   return (await db.all(
@@ -351,6 +355,16 @@ export async function getCurrentTeamCatalog(): Promise<TeamMeta[]> {
     SELECT t.id AS teamId, t.name AS teamName, t.season, t.division,
       t.logo_url AS logoUrl
     FROM teams t WHERE t.season = ${season} AND ${SEASON_CUTOFF_SQL}
+    ORDER BY t.name, t.id
+  `)) as TeamMeta[]
+}
+
+/** Every eligible team-season, for the compare page's selector options. */
+export async function getTeamOptions(): Promise<TeamMeta[]> {
+  return (await db.all(sql`
+    SELECT t.id AS teamId, t.name AS teamName, t.season, t.division,
+      t.logo_url AS logoUrl
+    FROM teams t WHERE ${SEASON_CUTOFF_SQL}
     ORDER BY t.name, t.id
   `)) as TeamMeta[]
 }
@@ -632,7 +646,12 @@ export async function getPlayerMatchHistory(
       `
   )) as PlayerMatchHistoryRow[]
   const identities = new Map(
-    (await getDemoMatches(database)).map((match) => [match.matchId, match])
+    (
+      await getDemoMatches(
+        database,
+        rows.map((row) => row.matchId)
+      )
+    ).map((match) => [match.matchId, match])
   )
   return rows.map((row) => {
     const match = identities.get(row.matchId)
@@ -691,11 +710,16 @@ function serverNameTeams(
   return found
 }
 
-/** All eligible demos, including those without resolved teams or player stats. */
+/** All eligible demos, including those without resolved teams or player stats.
+ * `matchIds` scopes the work to those demos; each demo's resolution only uses
+ * its own evidence, so scoped rows equal the corresponding unscoped rows. */
 export async function getDemoMatches(
   database: AppDb = db,
-  matchId?: number
+  matchIds?: number | number[]
 ): Promise<DemoMatchDetail[]> {
+  const ids = matchIds === undefined ? undefined : [matchIds].flat()
+  if (ids?.length === 0) return []
+  const idList = ids && sql.join(ids, sql`, `)
   type Source = Omit<
     DemoMatchDetail,
     "teamASide" | "teamBSide" | "scoreSource"
@@ -724,7 +748,7 @@ export async function getDemoMatches(
       FROM matches m
       LEFT JOIN teams ta ON ta.id = m.team_a_id
       LEFT JOIN teams tb ON tb.id = m.team_b_id
-      ${matchId === undefined ? sql`` : sql`WHERE m.id = ${matchId}`}
+      ${idList === undefined ? sql`` : sql`WHERE m.id IN (${idList})`}
     `),
     database.all<RosterTeam>(sql`
       WITH latest_roster AS (
@@ -744,7 +768,7 @@ export async function getDemoMatches(
       FROM player_match_stats pms
       JOIN matches m ON m.id = pms.match_id
       JOIN latest_roster r ON r.matched_steamid64 = pms.steamid64 AND r.rank = 1
-      ${matchId === undefined ? sql`` : sql`WHERE m.id = ${matchId}`}
+      ${idList === undefined ? sql`` : sql`WHERE m.id IN (${idList})`}
       GROUP BY pms.match_id, pms.team_name, r.teamId
       ORDER BY pms.match_id, pms.team_name, votes DESC, r.teamId
     `),
@@ -752,7 +776,7 @@ export async function getDemoMatches(
       SELECT DISTINCT pms.match_id AS matchId, pms.team_name AS side
       FROM player_match_stats pms
       WHERE pms.team_name IS NOT NULL
-        ${matchId === undefined ? sql`` : sql`AND pms.match_id = ${matchId}`}
+        ${idList === undefined ? sql`` : sql`AND pms.match_id IN (${idList})`}
       ORDER BY pms.match_id, pms.team_name
     `),
     database.all<TeamMeta>(sql`
@@ -1347,7 +1371,12 @@ export async function getTeamDemoMatches(
   )) as TeamDemoMatchRow[]
 
   const identities = new Map(
-    (await getDemoMatches(database)).map((match) => [match.matchId, match])
+    (
+      await getDemoMatches(
+        database,
+        rows.map((row) => row.matchId)
+      )
+    ).map((match) => [match.matchId, match])
   )
   for (const row of rows) {
     const match = identities.get(row.matchId)

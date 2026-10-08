@@ -21,6 +21,7 @@
     "rate:demos": "node --env-file-if-exists=.env --import tsx scripts/rate-demos.ts",
     "faceit:sync": "node --env-file-if-exists=.env --import tsx scripts/faceit-sync.ts",
     "cache:revalidate": "node --env-file-if-exists=.env --import tsx scripts/revalidate-cache.ts",
+    "perf:queries": "node --env-file-if-exists=.env --import tsx scripts/perf-queries.ts",
     "test:cache": "node --expose-gc --import tsx scripts/cache-integration.mjs"
   },
   "dependencies": {

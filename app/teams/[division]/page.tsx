@@ -45,12 +45,12 @@ export default async function TeamsPage({
     ? query.season[0]
     : query.season
 
+  const filterData = Promise.all([getSeasons(), getDivisions()])
   const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
 
-  const [standingRows, seasons, divisions, faceitStats] = await Promise.all([
-    getTeamStandings({ season }),
-    getSeasons(),
-    getDivisions(),
+  const [standingRows, [seasons, divisions], faceitStats] = await Promise.all([
+    getTeamStandings({ season, division: activeDivision }),
+    filterData,
     getFaceitTeamStats(),
   ])
   if (!divisions.includes(activeDivision)) {
@@ -89,7 +89,7 @@ export default async function TeamsPage({
         <DivisionTabs divisions={divisions} value={activeDivision}>
           <TabsContent value={activeDivision}>
             <TeamStandingsTable
-              rows={rows.filter((row) => row.division === activeDivision)}
+              rows={rows}
               emptyMessage="No teams found for this division."
             />
           </TabsContent>

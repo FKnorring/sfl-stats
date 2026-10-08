@@ -18,15 +18,18 @@ export type FaceitPlayerSummary = {
 }
 
 /**
- * Current Faceit snapshot + recent-window aggregates for every player we
- * have Faceit data for, keyed by steamid64 for cheap lookup from the
- * leaderboard. `avgEloRecent` is almost always null today — Faceit's match
+ * Current Faceit snapshot + recent-window aggregates keyed by steamid64 for
+ * cheap lookup from the leaderboard. Pass `steamid64s` to load only those
+ * players (an empty list returns an empty map); omit it for every player.
+ * `avgEloRecent` is almost always null today — Faceit's match
  * stats endpoint doesn't expose elo-at-time-of-match (see faceit-client.ts),
  * so it falls back to the player's current elo at the call site instead.
  */
 export async function getFaceitPlayerStats(
-  days: number = DEFAULT_RECENT_DAYS
+  days: number = DEFAULT_RECENT_DAYS,
+  steamid64s?: string[]
 ): Promise<Map<string, FaceitPlayerSummary>> {
+  if (steamid64s?.length === 0) return new Map()
   const daysOffset = `-${days} days`
   const rows = (await db.all(
     sql`
@@ -43,6 +46,7 @@ export async function getFaceitPlayerStats(
       LEFT JOIN faceit_match_stats fms
         ON fms.steamid64 = fp.steamid64
         AND datetime(fms.played_at) >= datetime('now', ${daysOffset})
+      ${steamid64s ? sql`WHERE fp.steamid64 IN (${sql.join(steamid64s, sql`, `)})` : sql``}
       GROUP BY fp.steamid64
       `
   )) as FaceitPlayerSummary[]

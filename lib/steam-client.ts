@@ -61,17 +61,19 @@ export async function getPlayerSummaries(
   await connection()
   const uniqueIds = Array.from(new Set(steamid64s))
   uniqueIds.sort()
-  for (let i = 0; i < uniqueIds.length; i += 100) {
-    try {
-      const players = await cachedBatch(
-        cacheScope(),
-        uniqueIds.slice(i, i + 100)
-      )
-      for (const player of players) result.set(player.steamid64, player)
-    } catch (err) {
-      console.warn("[steam-client] failed to fetch player summaries:", err)
-    }
-  }
+  const batches: string[][] = []
+  for (let i = 0; i < uniqueIds.length; i += 100)
+    batches.push(uniqueIds.slice(i, i + 100))
+  const scope = cacheScope()
+  const results = await Promise.all(
+    batches.map((ids) =>
+      cachedBatch(scope, ids).catch((err) => {
+        console.warn("[steam-client] failed to fetch player summaries:", err)
+        return []
+      })
+    )
+  )
+  for (const player of results.flat()) result.set(player.steamid64, player)
   return result
 }
 

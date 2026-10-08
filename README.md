@@ -233,6 +233,11 @@ This intentionally replaces ADR-0009's stronger post-ingestion guarantee.
 5. Deploy with a read-only Turso credential; keep the writable credential
    only on the ingestion machine. Run ingestion normally.
 
+`vercel.json` pins Functions to `arn1` (Stockholm), next to the Turso database
+in `aws-eu-north-1` (ADR-0011). If the database moves, move `regions` with it.
+Run `pnpm perf:queries [runs]` to time the app's raw queries and payload sizes
+against `DATABASE_URL`.
+
 All five ingestion/enrichment commands load `.env` if present; already-exported
 environment variables take precedence. They notify the protected endpoint
 after the write phase, marking DB tags stale with `revalidateTag(tag, "max")`

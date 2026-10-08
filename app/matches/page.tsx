@@ -8,12 +8,11 @@ import { getLivePendingMatches } from "@/lib/cached-toornament"
 import { MatchesView } from "./matches-view"
 
 export default async function MatchesPage() {
-  const [history, live, season] = await Promise.all([
+  const [history, live, teams] = await Promise.all([
     getDemoMatches(),
     getLivePendingMatches(),
-    getCurrentSeason(),
+    getCurrentSeason().then((season) => (season ? getMatchTeams(season) : [])),
   ])
-  const teams = season ? await getMatchTeams(season) : []
   const divisions = [
     ...new Set([
       ...teams.map((team) => team.division),

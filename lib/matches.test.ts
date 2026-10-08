@@ -337,6 +337,15 @@ test("history and detail share eligible teams, side alignment, and sourced resul
       },
     ])
     const history = await getDemoMatches(database)
+    const ids = history.map((match) => match.matchId)
+    assert.deepEqual(await getDemoMatches(database, ids), history)
+    assert.deepEqual(await getDemoMatches(database, []), [])
+    for (const id of ids) {
+      assert.deepEqual(
+        await getDemoMatches(database, [id]),
+        history.filter((match) => match.matchId === id)
+      )
+    }
     const row = (id: number) => {
       const match = history.find((match) => match.matchId === id)
       assert.ok(match)
