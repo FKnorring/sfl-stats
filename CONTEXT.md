@@ -24,6 +24,21 @@ _Avoid_: Ambiguous, low-confidence match, pending.
 One parsed `.dem` file. Currently the unit the pipeline actually ingests and stores (one row per file in the `matches` table) — not necessarily the same thing as a Match (see gap below).
 _Avoid_: Match (when specifically meaning the file), replay.
 
+**SFL Rating**:
+A versioned, provisional custom performance score for one verified Player in
+one eligible Demo. Derived from retained competitive player-round facts,
+with combat, damage, KAST, survival, impact, and support normalized against
+a frozen SFL reference corpus. Not an official HLTV rating. Unreliable or
+incomplete Demos are unrated; profile/roster averages are participated-round
+weighted and show rated-Demo coverage.
+_Avoid_: HLTV rating, Elo (SFL Rating measures performance, not competitive rank).
+
+**Participated Round**:
+A validated competitive round in which an identified human Player is alive
+on T/CT at freeze end. This is the SFL Rating denominator, distinct from
+legacy demo-wide round totals. Leavers/substitutes may participate in fewer
+rounds than their teammates.
+
 **Match** _(relationship to Demo unconfirmed — see Open Gaps)_:
 A single game of CS2 between two teams within the league structure: one map, in a Bo1 (group stage) or as one game within a Bo3 (playoffs). Whether one Demo always equals one Match, or a Match/series can span or be split across multiple Demos, is not yet confirmed.
 _Avoid_: Series, round (reserve "round" for an in-game round within a match).

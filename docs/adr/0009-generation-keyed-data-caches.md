@@ -52,7 +52,7 @@ not provide an atomic whole-ingestion snapshot or recall in-flight pages.
 
 ## Operational invalidation
 
-All four ingestion entry points use a shared write-phase wrapper. It
+All five ingestion/enrichment entry points use a shared write-phase wrapper. It
 advances the generation after writes and calls an authenticated, bounded
 POST endpoint with an allowlisted source and hashed project/database scope.
 The local-only admin editor uses this wrapper too, so its committed roster
@@ -74,7 +74,13 @@ The marker protects DB consistency even if a callback fails, but callbacks
 remain useful for provider invalidation/cleanup. Errors after committed
 writes are nonzero and preserve both ingestion and notification failures.
 The standalone retry command advances the generation and notifies without
-reingesting. Read-only Faceit probes do neither.
+reingesting. Read-only Faceit probes and rating dry runs do neither.
+
+The rating feature merged through #72 is covered by the existing aggregate
+caches and a new cached demo-rating-detail read. Cache version 2 prevents
+reuse of pre-rating result shapes. Rating enrichment/recomputation uses
+the existing `demos` source. Its `0006` migration remains unchanged; the
+generation table follows it as `0007_cache_generation.sql`.
 
 Apply migrations before deploying this version. ADR-0002 is preserved:
 the public app never writes to Turso, including the generation row, and

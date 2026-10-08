@@ -2,6 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import type { PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { FollowIndicator } from "@/components/follow-indicator"
+import { RatingValue } from "@/components/player-rating"
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -46,6 +47,21 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
         {row.original.opponentTeamName ?? "—"}
         <FollowIndicator teamId={row.original.opponentTeamId} />
       </div>
+    ),
+  },
+  {
+    id: "rating",
+    accessorFn: (row) => row.rating ?? undefined,
+    sortUndefined: "last",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="SFL Rating" />
+    ),
+    meta: rightAlign,
+    cell: ({ row }) => (
+      <RatingValue
+        rating={row.original.rating}
+        reason={row.original.ratingUnavailableReason}
+      />
     ),
   },
   {

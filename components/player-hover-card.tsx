@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileLinks } from "@/components/profile-links"
+import { RatingValue } from "@/components/player-rating"
 
 // Module-level so re-hovering (or the same player in several tables) doesn't
 // refetch within a page session.
@@ -111,6 +112,11 @@ function CardBody({ data }: { data: PlayerCardData }) {
                   </span>
                   <span className="tabular-nums">
                     {g.kills}/{g.deaths}/{g.assists}
+                    {" · SFL "}
+                    <RatingValue
+                      rating={g.rating}
+                      reason={g.ratingUnavailableReason}
+                    />
                   </span>
                 </Link>
               </li>

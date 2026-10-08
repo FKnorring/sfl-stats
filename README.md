@@ -188,7 +188,8 @@ The public app only **reads** this marker with its read-only credential.
 
 ### Production setup
 
-1. Apply the new migration with `pnpm db:migrate` against the target Turso
+1. Apply `0007_cache_generation.sql` (after the ratings migration `0006`)
+   with `pnpm db:migrate` against the target Turso
    database using the maintainer's full-access credential **before deploying
    this app version or running the updated ingestion scripts**.
 2. Set a strong random `CACHE_REVALIDATION_SECRET` in the Vercel production
@@ -204,7 +205,7 @@ The public app only **reads** this marker with its read-only credential.
 5. Deploy with a read-only Turso credential; keep the writable credential
    only on the ingestion machine. Run ingestion normally.
 
-All four ingestion commands load `.env` if present; already-exported
+All five ingestion/enrichment commands load `.env` if present; already-exported
 environment variables take precedence. They notify the protected endpoint
 after the write phase, expiring DB tags immediately and also Toornament
 tags for roster/schedule runs. The generation change independently
@@ -256,7 +257,8 @@ pnpm test:cache   # production-mode integration using an isolated fixture
 ```
 
 `test:cache` starts temporary loopback servers and an in-memory database,
-measures 13 routes (including the home page), checks cache sizes/lifetimes, performs authenticated CLI
+measures 14 routes (including home and rating-filtered leaderboard),
+checks cache sizes/lifetimes, performs authenticated CLI
 invalidation, and reproduces a query finishing after invalidation. It also
 checks source-outage recovery and Faceit serialization. No production DB
 or external API is used. Reported timings use a simulated 40 ms upstream
@@ -322,6 +324,59 @@ pnpm ingest:demos -- --dir ./demos
   `data/player-overrides.json`, the git-tracked manual-correction file the
   script reads back in on subsequent runs).
 
+### Player ratings
+
+Demo scoreboards, player profiles/history, leaderboards, shared team rosters,
+and recent-game hover cards show **SFL Rating v1**, a custom provisional model,
+**not an official HLTV rating**. Select SFL Rating in the leaderboard filter
+to rank by it; existing defaults and ADR-based team MVP selection are unchanged.
+Demo detail includes the selected player's component breakdown, KAST, openings,
+clutches, flash assists, and utility damage.
+
+The rating combines combat (25%), damage (20%), KAST consistency (20%),
+survival (10%), impact (15%), and support (10%), relative to a frozen SFL09
+reference corpus. A reference-average performance is 1.00. Profile/roster
+averages are weighted by participated rounds; `rated/all` shows demo coverage.
+Unreliable or incomplete recordings remain visible but unrated with an
+explanation. Faceit statistics and series results are not rated.
+
+Apply the generated migration before running the new code. New demo ingestion
+automatically calculates ratings. To enrich already-ingested demos, download
+the originals and run:
+
+```powershell
+pnpm db:migrate
+pnpm rate:demos --dir "C:\path\to\SFL09_DEMOS" --dry-run
+pnpm rate:demos --dir "C:\path\to\SFL09_DEMOS"
+pnpm rate:demos --recompute
+```
+
+`--match-id <id>` limits either operation to one existing demo.
+`--dry-run` parses/calculates without writing. `--recompute` needs only stored
+round facts, not original files. The CLI reads `.env` and uses the same
+`DATABASE_URL` as the other scripts. Back up the selected database first.
+Duplicate normalized demo basenames are rejected; Unicode filename composition
+differences are normalized for lookup. Re-enrichment is atomic per demo and
+idempotent, and never replays roster matching or duplicates heatmap events.
+Missing originals, invalid recordings, and enrichment failures are explicitly
+reported; unexpected failures produce a failing exit status.
+
+Ratings use validated competitive rounds, not legacy `matches.total_rounds`:
+some demos contain an initial synthetic round-end event with no winner.
+Existing aggregate stats/heatmaps remain unchanged. Verified players absent
+from the final scoreboard can be added from their participated-round facts.
+Economy snapshots are retained but not weighted.
+
+See [the rating decision](docs/adr/0006-versioned-sfl-player-rating.md) for
+definitions, calibration limitations, and the frozen reference inventory.
+Focused tests, with optional reproduction against original demos:
+
+```powershell
+node --import tsx --test lib\player-rating.test.ts lib\rating-db.test.ts
+$env:SFL_RATING_DEMOS = "C:\path\to\SFL09_DEMOS"
+node --import tsx --test lib\player-rating.test.ts
+```
+
 ### `pnpm faceit:sync`
 
 Fetches Faceit lifetime stats and recent match history for players already
@@ -345,6 +400,10 @@ pnpm faceit:sync -- --probe <steamid64>
 
 This script requires `FACEIT_API_KEY` to be set in `.env` or the environment.
 Its read-only `--probe` does not advance the generation or notify caches.
+
+`rate:demos` enrichment and `--recompute` use the same invalidation wrapper
+and `demos` notification source, including partially failed runs.
+`rate:demos --dry-run` neither advances the generation nor notifies caches.
 
 ## Other useful commands
 

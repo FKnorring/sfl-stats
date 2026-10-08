@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url"
 import { createClient } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 import { migrate } from "drizzle-orm/libsql/migrator"
+import { persistRatingExtraction } from "../lib/rating-db.ts"
 
 const baseline = process.argv.includes("--baseline")
 const outputIndex = process.argv.indexOf("--output")
@@ -78,6 +79,44 @@ await database.execute(`
     CAST(76561198000000000 + (m.team_b_id-1)*5 + t.n%5+1 AS TEXT),
     0,0,10,10,'CT','T','ak47',1 FROM matches m CROSS JOIN ticks t
 `)
+const ratingRounds = Array.from({ length: 20 }, (_, ordinal) => ({
+  ordinal,
+  rawRound: ordinal,
+  startTick: ordinal * 1000,
+  freezeTick: ordinal * 1000 + 10,
+  endTick: ordinal * 1000 + 900,
+  winner: ordinal < 13 ? 3 : 2,
+}))
+await persistRatingExtraction(drizzle(database), 1, {
+  rounds: ratingRounds,
+  facts: ratingRounds.flatMap((round) =>
+    Array.from({ length: 10 }, (_, index) => {
+      const side = index < 5 ? 3 : 2
+      const won = side === round.winner
+      return {
+        ordinal: round.ordinal,
+        steamid64: steamid(index + 1),
+        name: `Player ${index + 1}`,
+        side,
+        kills: Number(won),
+        deaths: Number(!won),
+        assists: 0,
+        flashAssists: 0,
+        headshotKills: Number(won),
+        damage: won ? 100 : 0,
+        utilityDamage: 0,
+        survived: won,
+        traded: false,
+        openingKills: won && index % 5 === 0 ? 1 : 0,
+        openingDeaths: !won && index % 5 === 0 ? 1 : 0,
+        clutchWins: 0,
+        clutchOpponents: 0,
+        equipmentValue: 3000,
+      }
+    })
+  ),
+  unavailableReason: null,
+})
 console.log("Isolated fixture: 12 teams, 60 players, 200 demos, 60,000 kills")
 
 function decode(value) {
@@ -330,6 +369,7 @@ const routes = [
   "/matches/official",
   `/api/players/${steamid(1)}/card`,
   "/leaderboard?stat=adr&team=Alpha",
+  "/leaderboard?stat=rating",
   "/players/missing",
 ]
 const report = { mode: baseline ? "baseline" : "cached", routes: [] }
@@ -376,6 +416,11 @@ try {
       assert.ok(
         cold.text.includes(steamid(1)),
         "Fixture demos must qualify for the leaderboard"
+      )
+    if (route === "/matches/demo/1")
+      assert.ok(
+        cold.text.replaceAll('\\"', '"').includes('"damage":1300'),
+        "Demo rating details must round-trip through the shared cache"
       )
     const before = { ...counters }
     const warm = []
@@ -439,6 +484,10 @@ try {
       sql: "UPDATE roster_entries SET nickname='Updated fixture' WHERE matched_steamid64=?",
       args: [steamid(1)],
     })
+    await database.execute({
+      sql: "UPDATE player_match_round_stats SET damage=damage+25 WHERE match_id=1 AND steamid64=?",
+      args: [steamid(1)],
+    })
     await database.execute(
       "UPDATE teams SET logo_url='https://example.invalid/new-logo.png' WHERE id=1"
     )
@@ -462,6 +511,11 @@ try {
         `${route}: updated player must be visible after invalidation; ${logs}`
       )
       assert.ok(fresh.text.includes("new-logo.png"), route)
+      if (route === "/matches/demo/1")
+        assert.ok(
+          fresh.text.replaceAll('\\"', '"').includes('"damage":1800'),
+          "Ingestion must invalidate cached rating explanations too"
+        )
     }
     await load("/matches")
     const before = { ...counters }

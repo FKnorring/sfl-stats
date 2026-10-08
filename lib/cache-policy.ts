@@ -4,7 +4,7 @@ import { z } from "zod"
 
 export const CURRENT_DATA_SECONDS = 21600
 export const STABLE_DATA_SECONDS = 86400
-export const CACHE_VERSION = "1"
+export const CACHE_VERSION = "2"
 export const DEFAULT_DATABASE_URL = "file:data/sfl.db"
 
 export const revalidationSourceSchema = z.enum([

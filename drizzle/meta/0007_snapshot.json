@@ -1,9 +1,38 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5036334e-353b-404a-82e7-3de9fcb31165",
-  "prevId": "471b9d32-679f-4532-b319-5484ccf0d597",
+  "id": "bfa8bbd2-fecd-48fd-a156-8ea0c63bd694",
+  "prevId": "5036334e-353b-404a-82e7-3de9fcb31165",
   "tables": {
+    "cache_generation": {
+      "name": "cache_generation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generation": {
+          "name": "generation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cache_generation_singleton": {
+          "name": "cache_generation_singleton",
+          "value": "\"cache_generation\".\"id\" = 1"
+        }
+      }
+    },
     "faceit_match_stats": {
       "name": "faceit_match_stats",
       "columns": {
@@ -95,12 +124,17 @@
       "indexes": {
         "faceit_match_stats_steamid_match_unique": {
           "name": "faceit_match_stats_steamid_match_unique",
-          "columns": ["steamid64", "faceit_match_id"],
+          "columns": [
+            "steamid64",
+            "faceit_match_id"
+          ],
           "isUnique": true
         },
         "idx_faceit_match_stats_steamid": {
           "name": "idx_faceit_match_stats_steamid",
-          "columns": ["steamid64"],
+          "columns": [
+            "steamid64"
+          ],
           "isUnique": false
         }
       },
@@ -109,8 +143,12 @@
           "name": "faceit_match_stats_steamid64_players_steamid64_fk",
           "tableFrom": "faceit_match_stats",
           "tableTo": "players",
-          "columnsFrom": ["steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -168,7 +206,9 @@
       "indexes": {
         "idx_faceit_players_player_id": {
           "name": "idx_faceit_players_player_id",
-          "columns": ["faceit_player_id"],
+          "columns": [
+            "faceit_player_id"
+          ],
           "isUnique": false
         }
       },
@@ -177,8 +217,12 @@
           "name": "faceit_players_steamid64_players_steamid64_fk",
           "tableFrom": "faceit_players",
           "tableTo": "players",
-          "columnsFrom": ["steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -292,7 +336,9 @@
       "indexes": {
         "idx_match_kills_match": {
           "name": "idx_match_kills_match",
-          "columns": ["match_id"],
+          "columns": [
+            "match_id"
+          ],
           "isUnique": false
         }
       },
@@ -301,8 +347,12 @@
           "name": "match_kills_match_id_matches_id_fk",
           "tableFrom": "match_kills",
           "tableTo": "matches",
-          "columnsFrom": ["match_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -374,7 +424,10 @@
       "indexes": {
         "match_rounds_match_ordinal": {
           "name": "match_rounds_match_ordinal",
-          "columns": ["match_id", "ordinal"],
+          "columns": [
+            "match_id",
+            "ordinal"
+          ],
           "isUnique": true
         }
       },
@@ -383,8 +436,12 @@
           "name": "match_rounds_match_id_matches_id_fk",
           "tableFrom": "match_rounds",
           "tableTo": "matches",
-          "columnsFrom": ["match_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -498,7 +555,9 @@
       "indexes": {
         "matches_file_name_unique": {
           "name": "matches_file_name_unique",
-          "columns": ["file_name"],
+          "columns": [
+            "file_name"
+          ],
           "isUnique": true
         }
       },
@@ -507,8 +566,12 @@
           "name": "matches_team_a_id_teams_id_fk",
           "tableFrom": "matches",
           "tableTo": "teams",
-          "columnsFrom": ["team_a_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_a_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -516,8 +579,12 @@
           "name": "matches_team_b_id_teams_id_fk",
           "tableFrom": "matches",
           "tableTo": "teams",
-          "columnsFrom": ["team_b_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_b_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -675,12 +742,18 @@
       "indexes": {
         "player_round_stats_round_player": {
           "name": "player_round_stats_round_player",
-          "columns": ["round_id", "steamid64"],
+          "columns": [
+            "round_id",
+            "steamid64"
+          ],
           "isUnique": true
         },
         "player_round_stats_match_player": {
           "name": "player_round_stats_match_player",
-          "columns": ["match_id", "steamid64"],
+          "columns": [
+            "match_id",
+            "steamid64"
+          ],
           "isUnique": false
         }
       },
@@ -689,8 +762,12 @@
           "name": "player_match_round_stats_match_id_matches_id_fk",
           "tableFrom": "player_match_round_stats",
           "tableTo": "matches",
-          "columnsFrom": ["match_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -698,8 +775,12 @@
           "name": "player_match_round_stats_round_id_match_rounds_id_fk",
           "tableFrom": "player_match_round_stats",
           "tableTo": "match_rounds",
-          "columnsFrom": ["round_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "round_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -707,8 +788,12 @@
           "name": "player_match_round_stats_steamid64_players_steamid64_fk",
           "tableFrom": "player_match_round_stats",
           "tableTo": "players",
-          "columnsFrom": ["steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -886,12 +971,17 @@
       "indexes": {
         "player_match_stats_match_steamid_unique": {
           "name": "player_match_stats_match_steamid_unique",
-          "columns": ["match_id", "steamid64"],
+          "columns": [
+            "match_id",
+            "steamid64"
+          ],
           "isUnique": true
         },
         "idx_pms_steamid": {
           "name": "idx_pms_steamid",
-          "columns": ["steamid64"],
+          "columns": [
+            "steamid64"
+          ],
           "isUnique": false
         }
       },
@@ -900,8 +990,12 @@
           "name": "player_match_stats_match_id_matches_id_fk",
           "tableFrom": "player_match_stats",
           "tableTo": "matches",
-          "columnsFrom": ["match_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "match_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -909,8 +1003,12 @@
           "name": "player_match_stats_steamid64_players_steamid64_fk",
           "tableFrom": "player_match_stats",
           "tableTo": "players",
-          "columnsFrom": ["steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -957,8 +1055,12 @@
           "name": "player_name_overrides_steamid64_players_steamid64_fk",
           "tableFrom": "player_name_overrides",
           "tableTo": "players",
-          "columnsFrom": ["steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -966,8 +1068,12 @@
           "name": "player_name_overrides_roster_entry_id_roster_entries_id_fk",
           "tableFrom": "player_name_overrides",
           "tableTo": "roster_entries",
-          "columnsFrom": ["roster_entry_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "roster_entry_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1078,7 +1184,9 @@
       "indexes": {
         "idx_roster_team": {
           "name": "idx_roster_team",
-          "columns": ["team_id"],
+          "columns": [
+            "team_id"
+          ],
           "isUnique": false
         }
       },
@@ -1087,8 +1195,12 @@
           "name": "roster_entries_team_id_teams_id_fk",
           "tableFrom": "roster_entries",
           "tableTo": "teams",
-          "columnsFrom": ["team_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1096,8 +1208,12 @@
           "name": "roster_entries_matched_steamid64_players_steamid64_fk",
           "tableFrom": "roster_entries",
           "tableTo": "players",
-          "columnsFrom": ["matched_steamid64"],
-          "columnsTo": ["steamid64"],
+          "columnsFrom": [
+            "matched_steamid64"
+          ],
+          "columnsTo": [
+            "steamid64"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1153,7 +1269,11 @@
       "indexes": {
         "teams_name_season_division_unique": {
           "name": "teams_name_season_division_unique",
-          "columns": ["name", "season", "division"],
+          "columns": [
+            "name",
+            "season",
+            "division"
+          ],
           "isUnique": true
         }
       },
@@ -1253,17 +1373,23 @@
       "indexes": {
         "toornament_matches_toornament_match_id_unique": {
           "name": "toornament_matches_toornament_match_id_unique",
-          "columns": ["toornament_match_id"],
+          "columns": [
+            "toornament_match_id"
+          ],
           "isUnique": true
         },
         "idx_toornament_matches_team_a": {
           "name": "idx_toornament_matches_team_a",
-          "columns": ["team_a_id"],
+          "columns": [
+            "team_a_id"
+          ],
           "isUnique": false
         },
         "idx_toornament_matches_team_b": {
           "name": "idx_toornament_matches_team_b",
-          "columns": ["team_b_id"],
+          "columns": [
+            "team_b_id"
+          ],
           "isUnique": false
         }
       },
@@ -1272,8 +1398,12 @@
           "name": "toornament_matches_team_a_id_teams_id_fk",
           "tableFrom": "toornament_matches",
           "tableTo": "teams",
-          "columnsFrom": ["team_a_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_a_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1281,8 +1411,12 @@
           "name": "toornament_matches_team_b_id_teams_id_fk",
           "tableFrom": "toornament_matches",
           "tableTo": "teams",
-          "columnsFrom": ["team_b_id"],
-          "columnsTo": ["id"],
+          "columnsFrom": [
+            "team_b_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

@@ -5,6 +5,7 @@ import {
   getDemoMatchById,
   getDemoMatchPlayerStats,
   getMatchKills,
+  getDemoRatingDetails,
 } from "@/lib/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
@@ -26,8 +27,9 @@ export default async function DemoMatchPage({
   const match = await getDemoMatchById(matchId)
   if (!match) notFound()
 
-  const [players, rawKills] = await Promise.all([
+  const [players, ratingDetails, rawKills] = await Promise.all([
     getDemoMatchPlayerStats(matchId),
+    getDemoRatingDetails(matchId),
     getMatchKills(matchId),
   ])
   const steamSummaries = await getPlayerSummaries(
@@ -169,6 +171,7 @@ export default async function DemoMatchPage({
       </div>
 
       <DemoMatchView
+        ratingDetails={ratingDetails}
         teamA={{ name: teamAName, score: teamAScore, players: sideAPlayers }}
         teamB={{ name: teamBName, score: teamBScore, players: sideBPlayers }}
         unassignedPlayers={unassignedPlayers}

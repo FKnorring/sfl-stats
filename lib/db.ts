@@ -3,6 +3,12 @@ import { db, type AppDb } from "@/lib/db/client"
 import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
 import { teamDemoScope } from "@/lib/follow-stats"
 import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
+import {
+  ratingAverageSql,
+  ratedGamesSql,
+  getMatchRatingSummaries,
+} from "@/lib/rating-db"
+import { RATING_VERSION } from "@/lib/player-rating"
 import { resolveOfficialTeam } from "@/lib/toornament-standings"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
@@ -20,12 +26,19 @@ const SEASON_CUTOFF_SQL = sql.raw(
 )
 
 export type LeaderboardStat =
-  "matches" | "kills" | "deaths" | "adr" | "hs_pct" | "mvps" | "assists"
+  | "matches"
+  | "kills"
+  | "deaths"
+  | "adr"
+  | "hs_pct"
+  | "mvps"
+  | "assists"
+  | "rating"
 
 // kills/deaths/assists sort by their per-match average (matching how they're
 // displayed), not by career total, so clicking the "Avg K"/"Avg D"/"Avg A"
 // column headers sorts by what the column actually shows.
-const STAT_COLUMNS: Record<LeaderboardStat, string> = {
+const STAT_COLUMNS: Record<Exclude<LeaderboardStat, "rating">, string> = {
   matches: "COUNT(DISTINCT pms.match_id)",
   kills: "SUM(pms.kills) * 1.0 / COUNT(DISTINCT pms.match_id)",
   deaths: "SUM(pms.deaths) * 1.0 / COUNT(DISTINCT pms.match_id)",
@@ -38,6 +51,8 @@ const STAT_COLUMNS: Record<LeaderboardStat, string> = {
 export type SortDirection = "asc" | "desc"
 
 export type LeaderboardRow = {
+  rating: number | null
+  ratedGames: number
   teamId: number | null
   steamid64: string
   inGameName: string
@@ -104,9 +119,13 @@ export async function getSeasons(): Promise<string[]> {
  * players aren't silently dropped from the board.
  */
 export async function getLeaderboard(
-  filters: LeaderboardFilters
+  filters: LeaderboardFilters,
+  database: AppDb = db
 ): Promise<LeaderboardRow[]> {
-  const statExpr = sql.raw(STAT_COLUMNS[filters.stat])
+  const statExpr =
+    filters.stat === "rating"
+      ? ratingAverageSql
+      : sql.raw(STAT_COLUMNS[filters.stat])
   const direction = filters.direction === "asc" ? sql`ASC` : sql`DESC`
 
   // Unmatched players (no roster_entries row, so t.season is NULL via the
@@ -125,7 +144,7 @@ export async function getLeaderboard(
   if (filters.team) conditions.push(sql`t.name = ${filters.team}`)
   const where = sql.join([sql`WHERE `, sql.join(conditions, sql` AND `)], sql``)
 
-  return (await db.all(
+  return (await database.all(
     sql`
       SELECT
         p.steamid64 AS steamid64,
@@ -142,7 +161,9 @@ export async function getLeaderboard(
         SUM(pms.assists) AS assists,
         AVG(pms.adr) AS adr,
         AVG(pms.hs_pct) AS hsPct,
-        SUM(pms.mvps) AS mvps
+        SUM(pms.mvps) AS mvps,
+        ${ratingAverageSql} AS rating,
+        ${ratedGamesSql} AS ratedGames
       FROM player_match_stats pms
       JOIN players p ON p.steamid64 = pms.steamid64
       JOIN matches m ON m.id = pms.match_id
@@ -150,7 +171,9 @@ export async function getLeaderboard(
       LEFT JOIN teams t ON t.id = re.team_id
       ${where}
       GROUP BY p.steamid64, t.id
-      ORDER BY ${statExpr} ${direction}
+      ORDER BY ${filters.stat === "rating" ? sql`${statExpr} IS NULL ASC,` : sql``}
+        ${statExpr} ${direction}
+        ${filters.stat === "rating" ? sql`, p.steamid64, t.id` : sql``}
       `
   )) as LeaderboardRow[]
 }
@@ -364,6 +387,8 @@ export async function getTeamByName(
 }
 
 export type TeamRosterPlayerRow = {
+  rating: number | null
+  ratedGames: number
   rosterEntryId: number
   steamid64: string | null
   nickname: string
@@ -403,7 +428,9 @@ export async function getTeamRoster(
         COALESCE(SUM(pms.assists), 0) AS assists,
         AVG(pms.adr) AS adr,
         AVG(pms.hs_pct) AS hsPct,
-        COALESCE(SUM(pms.mvps), 0) AS mvps
+        COALESCE(SUM(pms.mvps), 0) AS mvps,
+        ${ratingAverageSql} AS rating,
+        ${ratedGamesSql} AS ratedGames
       FROM roster_entries re
       LEFT JOIN players p ON p.steamid64 = re.matched_steamid64
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
@@ -416,6 +443,8 @@ export async function getTeamRoster(
 }
 
 export type PlayerSummaryRow = {
+  rating: number | null
+  ratedGames: number
   steamid64: string
   inGameName: string
   realName: string | null
@@ -435,9 +464,10 @@ export type PlayerSummaryRow = {
  * team-season via its `GROUP BY p.steamid64, t.id`).
  */
 export async function getPlayerBySteamId64(
-  steamid64: string
+  steamid64: string,
+  database: AppDb = db
 ): Promise<PlayerSummaryRow | null> {
-  const rows = (await db.all(
+  const rows = (await database.all(
     sql`
       SELECT
         p.steamid64 AS steamid64,
@@ -457,7 +487,9 @@ export async function getPlayerBySteamId64(
         AVG(pms.hs_pct) AS hsPct,
         COALESCE(SUM(pms.mvps), 0) AS mvps,
         (COALESCE(SUM(pms.kills), 0) + COALESCE(SUM(pms.assists), 0)) * 1.0
-          / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kda
+          / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kda,
+        ${ratingAverageSql} AS rating,
+        ${ratedGamesSql} AS ratedGames
       FROM players p
       LEFT JOIN player_match_stats pms ON pms.steamid64 = p.steamid64
       WHERE p.steamid64 = ${steamid64}
@@ -516,6 +548,9 @@ export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
 }
 
 export type PlayerMatchHistoryRow = {
+  rating: number | null
+  ratingRounds: number | null
+  ratingUnavailableReason: string | null
   teamId: number | null
   opponentTeamId: number | null
   matchId: number
@@ -533,12 +568,13 @@ export type PlayerMatchHistoryRow = {
 
 /** Per-match stat lines for one player, most recent demo first. */
 export async function getPlayerMatchHistory(
-  steamid64: string
+  steamid64: string,
+  database: AppDb = db
 ): Promise<PlayerMatchHistoryRow[]> {
   // Opponent = most common roster team among players on the other CT/T side
   // of the same demo (same fallback the demo page uses), since
   // matches.team_a_id/team_b_id are often unresolved.
-  const rows = (await db.all(
+  const rows = (await database.all(
     sql`
       SELECT
         m.id AS matchId,
@@ -583,7 +619,12 @@ export async function getPlayerMatchHistory(
         pms.assists AS assists,
         pms.adr AS adr,
         pms.hs_pct AS hsPct,
-        pms.mvps AS mvps
+        pms.mvps AS mvps,
+        CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating END AS rating,
+        CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating_rounds END AS ratingRounds,
+        CASE WHEN pms.rating_version IS NOT NULL AND pms.rating_version != ${RATING_VERSION}
+            THEN 'Rating version requires recomputation'
+            ELSE pms.rating_unavailable_reason END AS ratingUnavailableReason
       FROM player_match_stats pms
       JOIN matches m ON m.id = pms.match_id
       WHERE pms.steamid64 = ${steamid64}
@@ -591,7 +632,7 @@ export async function getPlayerMatchHistory(
       `
   )) as PlayerMatchHistoryRow[]
   const identities = new Map(
-    (await getDemoMatches()).map((match) => [match.matchId, match])
+    (await getDemoMatches(database)).map((match) => [match.matchId, match])
   )
   return rows.map((row) => {
     const match = identities.get(row.matchId)
@@ -941,6 +982,9 @@ export async function getDemoMatchById(
 }
 
 export type DemoMatchPlayerStatsRow = {
+  rating: number | null
+  ratingRounds: number | null
+  ratingUnavailableReason: string | null
   rosterTeamId: number | null
   steamid64: string
   inGameName: string
@@ -1003,13 +1047,25 @@ export async function getDemoMatchPlayerStats(
         pms.assists AS assists,
         pms.adr AS adr,
         pms.hs_pct AS hsPct,
-        pms.mvps AS mvps
+        pms.mvps AS mvps,
+        CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating END AS rating,
+        CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating_rounds END AS ratingRounds,
+        CASE WHEN pms.rating_version IS NOT NULL AND pms.rating_version != ${RATING_VERSION}
+            THEN 'Rating version requires recomputation'
+            ELSE pms.rating_unavailable_reason END AS ratingUnavailableReason
       FROM player_match_stats pms
       JOIN players p ON p.steamid64 = pms.steamid64
       WHERE pms.match_id = ${matchId}
       ORDER BY pms.kills DESC
       `
   )) as DemoMatchPlayerStatsRow[]
+}
+
+export async function getDemoRatingDetails(
+  matchId: number,
+  database: AppDb = db
+) {
+  return Object.fromEntries(await getMatchRatingSummaries(database, matchId))
 }
 
 export type MatchKillRow = {

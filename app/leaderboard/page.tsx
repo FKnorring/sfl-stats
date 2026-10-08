@@ -17,8 +17,10 @@ import {
   StatFilter,
 } from "@/components/leaderboard-filters"
 import { LeaderboardTable } from "./leaderboard-table"
+import { RatingExplanation } from "@/components/player-rating"
 
 const STAT_OPTIONS: { value: LeaderboardStat; label: string }[] = [
+  { value: "rating", label: "SFL Rating" },
   { value: "kills", label: "Kills" },
   { value: "deaths", label: "Deaths" },
   { value: "adr", label: "ADR" },
@@ -110,6 +112,7 @@ export default async function LeaderboardPage({
       </div>
 
       <LeaderboardTable rows={rows} stat={stat} statLabel={statLabel} />
+      <RatingExplanation />
     </div>
   )
 }

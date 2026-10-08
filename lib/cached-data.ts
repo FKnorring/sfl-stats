@@ -132,6 +132,10 @@ export const getDemoMatchPlayerStats = cachedQuery(
   "demo-players",
   (matchId: number) => queries.getDemoMatchPlayerStats(matchId)
 )
+export const getDemoRatingDetails = cachedQuery(
+  "demo-rating-details",
+  (matchId: number) => queries.getDemoRatingDetails(matchId)
+)
 const recentResults = cachedQuery(
   "recent-results",
   (teamId: number, limit: number) => queries.getRecentResults(teamId, limit)

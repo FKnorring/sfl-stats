@@ -119,6 +119,8 @@ test("follow queries share demo membership and exclude anchored conflicting team
 
 test("MVP ignores missing stats, handles zero deaths, and has deterministic tie breaks", () => {
   const player: TeamRosterPlayerRow = {
+    rating: null,
+    ratedGames: 0,
     rosterEntryId: 1,
     steamid64: "p1",
     nickname: "p1",
