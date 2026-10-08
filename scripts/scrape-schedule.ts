@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm"
 
 import { openWritableDb, type AppDb } from "@/lib/db/client"
+import { withCacheInvalidation } from "./revalidate-cache"
 import {
   parseScheduleWidget,
   type ScheduledMatch,
@@ -155,28 +156,31 @@ async function upsertMatches(
 }
 
 async function main() {
-  const { tournamentId, locale } = parseArgs(process.argv.slice(2))
+  await withCacheInvalidation("schedule", async (markWritePhase) => {
+    const { tournamentId, locale } = parseArgs(process.argv.slice(2))
 
-  console.log(
-    `[scrape-schedule] fetching schedule widget for tournament ${tournamentId}`
-  )
-  const html = await fetchScheduleWidget(tournamentId, locale)
+    console.log(
+      `[scrape-schedule] fetching schedule widget for tournament ${tournamentId}`
+    )
+    const html = await fetchScheduleWidget(tournamentId, locale)
 
-  const matches = parseScheduleWidget(html)
-  console.log(`[scrape-schedule] parsed ${matches.length} matches`)
+    const matches = parseScheduleWidget(html)
+    console.log(`[scrape-schedule] parsed ${matches.length} matches`)
 
-  const db = openWritableDb()
-  const teams = await getCurrentSeasonTeams(db)
-  console.log(
-    `[scrape-schedule] resolving opponents against ${teams.length} current-season team(s)`
-  )
-  const summary = await upsertMatches(db, matches, teams)
-  console.log(
-    `[scrape-schedule] upserted ${matches.length} matches ` +
-      `(${summary.pending} pending, ${summary.completed} completed); ` +
-      `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}; ` +
-      `logos captured: ${summary.logosCaptured}`
-  )
+    const db = openWritableDb()
+    const teams = await getCurrentSeasonTeams(db)
+    console.log(
+      `[scrape-schedule] resolving opponents against ${teams.length} current-season team(s)`
+    )
+    markWritePhase()
+    const summary = await upsertMatches(db, matches, teams)
+    console.log(
+      `[scrape-schedule] upserted ${matches.length} matches ` +
+        `(${summary.pending} pending, ${summary.completed} completed); ` +
+        `opponents resolved: both sides ${summary.resolvedBoth}, one side ${summary.resolvedOne}, neither ${summary.resolvedNone}; ` +
+        `logos captured: ${summary.logosCaptured}`
+    )
+  })
 }
 
 main().catch((err) => {

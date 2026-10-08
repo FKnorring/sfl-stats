@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import {
   getLeaderboard,
   getCurrentSeason,
@@ -6,8 +7,8 @@ import {
   getDivisions,
   getTeams,
   type LeaderboardStat,
-} from "@/lib/db"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import {
   SeasonFilter,
@@ -16,11 +17,6 @@ import {
   StatFilter,
 } from "@/components/leaderboard-filters"
 import { LeaderboardTable } from "./leaderboard-table"
-
-// DB reads aren't `fetch`-cached requests, so without this the leaderboard
-// could get frozen at build time until the next deploy. force-dynamic keeps
-// it fresh on every request, picking up the latest `pnpm ingest:demos` run.
-export const dynamic = "force-dynamic"
 
 const STAT_OPTIONS: { value: LeaderboardStat; label: string }[] = [
   { value: "kills", label: "Kills" },
@@ -44,6 +40,7 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  await connection()
   const params = await searchParams
   const statParam = Array.isArray(params.stat) ? params.stat[0] : params.stat
   const stat: LeaderboardStat = isLeaderboardStat(statParam)

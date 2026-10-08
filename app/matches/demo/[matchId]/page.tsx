@@ -1,10 +1,11 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getDemoMatchById,
   getDemoMatchPlayerStats,
   getMatchKills,
-} from "@/lib/db"
+} from "@/lib/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
 import { Badge } from "@/components/ui/badge"
@@ -12,15 +13,12 @@ import { isNetlightTeam } from "@/components/netlight-flames"
 import { isLocalEnv } from "@/lib/env"
 import { DemoMatchView } from "./demo-match-view"
 
-// Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
-// freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
-
 export default async function DemoMatchPage({
   params,
 }: {
   params: Promise<{ matchId: string }>
 }) {
+  await connection()
   const { matchId: matchIdParam } = await params
   const matchId = Number(matchIdParam)
   if (!Number.isInteger(matchId)) notFound()
@@ -28,8 +26,10 @@ export default async function DemoMatchPage({
   const match = await getDemoMatchById(matchId)
   if (!match) notFound()
 
-  const players = await getDemoMatchPlayerStats(matchId)
-  const rawKills = await getMatchKills(matchId)
+  const [players, rawKills] = await Promise.all([
+    getDemoMatchPlayerStats(matchId),
+    getMatchKills(matchId),
+  ])
   const steamSummaries = await getPlayerSummaries(
     players.map((p) => p.steamid64)
   )

@@ -1,11 +1,12 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import {
   getTeamStandings,
   getCurrentSeason,
   getSeasons,
   getDivisions,
-} from "@/lib/db"
-import { getFaceitTeamStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitTeamStats } from "@/lib/cached-data"
 import { SeasonFilter } from "@/components/leaderboard-filters"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
 import {
@@ -15,15 +16,12 @@ import {
 import type { TeamStandingTableRow } from "./columns"
 import { TeamStandingsTable } from "./team-standings-table"
 
-// Same reasoning as app/leaderboard/page.tsx — DB reads need per-request
-// freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
-
 export default async function TeamsPage({
   searchParams,
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  await connection()
   const params = await searchParams
   const seasonParam = Array.isArray(params.season)
     ? params.season[0]

@@ -604,7 +604,7 @@ const widget = `<div data-role="sch-event" data-time="2026-10-07T18:00:00Z">
   </div>
 </div>`
 
-test("live schedule fetch keeps five-minute cache options and excludes completed matches", async (t) => {
+test("raw schedule fetch avoids a second cache layer and excludes completed matches", async (t) => {
   const fetch = t.mock.method(
     globalThis,
     "fetch",
@@ -615,7 +615,7 @@ test("live schedule fetch keeps five-minute cache options and excludes completed
     rows?.map((row) => row.toornamentMatchId),
     ["pending"]
   )
-  assert.deepEqual(fetch.mock.calls[0].arguments[1]?.next, { revalidate: 300 })
+  assert.equal(fetch.mock.calls[0].arguments[1]?.cache, "no-store")
   assert.ok(fetch.mock.calls[0].arguments[1]?.signal instanceof AbortSignal)
 })
 

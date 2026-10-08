@@ -1,19 +1,16 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import {
   getTeamStandings,
   getTeamMeta,
   getTeamRoster,
   type TeamMeta,
   type TeamRosterPlayerRow,
-} from "@/lib/db"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { TeamSelect, type TeamOption } from "@/components/team-select"
 import { CompareRosterTable } from "./compare-roster-table"
 import type { TeamRosterTableRow } from "@/components/team-roster-columns"
-
-// Same reasoning as app/teams/page.tsx and app/leaderboard/page.tsx — DB
-// reads need per-request freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
 
 function parseTeamId(value: string | string[] | undefined): number | undefined {
   const raw = Array.isArray(value) ? value[0] : value
@@ -94,6 +91,7 @@ export default async function TeamComparePage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+  await connection()
   const params = await searchParams
   const teamAId = parseTeamId(params.teamA)
   const teamBId = parseTeamId(params.teamB)

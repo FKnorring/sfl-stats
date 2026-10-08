@@ -10,13 +10,16 @@
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "node --import tsx --test lib/*.test.ts scripts/*.test.ts",
     "db:generate": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs migrate",
-    "scrape:roster": "tsx scripts/scrape-roster.ts",
-    "scrape:schedule": "tsx scripts/scrape-schedule.ts",
-    "ingest:demos": "tsx scripts/ingest-demos.ts",
-    "faceit:sync": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/faceit-sync.ts"
+    "scrape:roster": "node --env-file-if-exists=.env --import tsx scripts/scrape-roster.ts",
+    "scrape:schedule": "node --env-file-if-exists=.env --import tsx scripts/scrape-schedule.ts",
+    "ingest:demos": "node --env-file-if-exists=.env --import tsx scripts/ingest-demos.ts",
+    "faceit:sync": "node --env-file-if-exists=.env --import tsx scripts/faceit-sync.ts",
+    "cache:revalidate": "node --env-file-if-exists=.env --import tsx scripts/revalidate-cache.ts",
+    "test:cache": "node --import tsx scripts/cache-integration.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

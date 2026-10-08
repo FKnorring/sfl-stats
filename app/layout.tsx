@@ -7,7 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FollowProvider } from "@/components/follow-provider"
-import { getCurrentTeamCatalog } from "@/lib/db"
+import { getCurrentTeamCatalog } from "@/lib/cached-data"
 import { connection } from "next/server"
 
 const jetbrainsMonoHeading = JetBrains_Mono({

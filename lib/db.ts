@@ -967,6 +967,33 @@ export type PlayerKillRow = MatchKillRow & { mapName: string }
 export async function getPlayerKills(
   steamid64: string
 ): Promise<PlayerKillRow[]> {
+  return queryPlayerKills(steamid64)
+}
+
+export async function getPlayerKillMatchIds(
+  steamid64: string
+): Promise<number[]> {
+  const rows = await db.all<{ matchId: number }>(sql`
+    SELECT DISTINCT mk.match_id AS matchId
+    FROM match_kills mk JOIN matches m ON m.id = mk.match_id
+    WHERE m.map_name IS NOT NULL
+      AND (mk.attacker_steamid64 = ${steamid64} OR mk.victim_steamid64 = ${steamid64})
+    ORDER BY mk.match_id
+  `)
+  return rows.map((row) => row.matchId)
+}
+
+export async function getPlayerKillsInMatch(
+  steamid64: string,
+  matchId: number
+): Promise<PlayerKillRow[]> {
+  return queryPlayerKills(steamid64, matchId)
+}
+
+async function queryPlayerKills(
+  steamid64: string,
+  matchId?: number
+): Promise<PlayerKillRow[]> {
   return (await db.all(
     sql`
       SELECT
@@ -986,6 +1013,7 @@ export async function getPlayerKills(
       WHERE m.map_name IS NOT NULL
         AND (mk.attacker_steamid64 = ${steamid64}
           OR mk.victim_steamid64 = ${steamid64})
+        ${matchId === undefined ? sql`` : sql`AND mk.match_id = ${matchId}`}
       `
   )) as PlayerKillRow[]
 }

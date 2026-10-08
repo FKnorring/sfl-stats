@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getTeamByName,
@@ -8,8 +9,8 @@ import {
   getTeamMapStats,
   getTeamDemoMatches,
   getRecentResults,
-} from "@/lib/db"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { TeamRosterTable } from "@/components/team-roster-table"
 import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"
@@ -22,15 +23,12 @@ import {
   NetlightName,
 } from "@/components/netlight-flames"
 
-// Same reasoning as app/teams/page.tsx and app/teams/compare/page.tsx — DB
-// reads need per-request freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
-
 export default async function TeamPage({
   params,
 }: {
   params: Promise<{ name: string }>
 }) {
+  await connection()
   const { name } = await params
   const teamName = decodeURIComponent(name)
 

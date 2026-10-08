@@ -1,11 +1,8 @@
 import Link from "next/link"
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
-import { getMatchById } from "@/lib/db"
+import { getMatchById } from "@/lib/cached-data"
 import { Badge } from "@/components/ui/badge"
-
-// Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
-// freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
 
 function formatScheduledAt(iso: string | null): string {
   if (!iso) return "TBD"
@@ -40,6 +37,7 @@ export default async function MatchPage({
 }: {
   params: Promise<{ matchId: string }>
 }) {
+  await connection()
   const { matchId } = await params
   const match = await getMatchById(decodeURIComponent(matchId))
   if (!match) notFound()
