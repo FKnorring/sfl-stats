@@ -10,6 +10,7 @@ import { FollowProvider } from "@/components/follow-provider"
 import { getCurrentTeamCatalog } from "@/lib/cached-data"
 import { isLocalEnv } from "@/lib/env"
 import { connection } from "next/server"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 const jetbrainsMonoHeading = JetBrains_Mono({
   subsets: ["latin"],
@@ -56,6 +57,7 @@ export default async function RootLayout({
             </FollowProvider>
           </TooltipProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   )
