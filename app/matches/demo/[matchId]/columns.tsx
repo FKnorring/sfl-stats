@@ -67,6 +67,7 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
       <RatingValue
         rating={row.original.rating}
         reason={row.original.ratingUnavailableReason}
+        teamName={row.original.rosterTeamName}
       />
     ),
   },

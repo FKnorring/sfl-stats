@@ -107,6 +107,7 @@ export default async function PlayerPage({
                   rating={player.rating}
                   ratedGames={player.ratedGames}
                   matchesPlayed={player.matchesPlayed}
+                  teamName={matchHistory[0]?.teamName}
                 />
               </span>
               <RatingExplanation />

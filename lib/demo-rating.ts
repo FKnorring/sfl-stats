@@ -51,6 +51,10 @@ export type PlayerRoundFact = {
   name: string
   side: RatingSide
   kills: number
+  // Enemy kills discounted when the victim's team was poorer than the killer's.
+  weightedKills: number
+  // Enemy kills where the victim's team was on an eco (see ECO_EQUIPMENT) against a non-eco team.
+  ecoKills: number
   deaths: number
   assists: number
   flashAssists: number
@@ -72,6 +76,30 @@ export type RatingExtraction = {
 }
 
 export const TRADE_SECONDS = 3
+// Kills on a poorer team count for less, but never below this share.
+export const MIN_KILL_WEIGHT = 0.6
+// Team average round-start equipment at or below this is an eco; above it is a force/full buy.
+export const ECO_EQUIPMENT = 2000
+
+export function isEcoKill(
+  killerTeamEquip: number | null,
+  victimTeamEquip: number | null
+) {
+  if (killerTeamEquip == null || victimTeamEquip == null) return false
+  // Both teams on eco (e.g. pistol rounds) is not an eco kill.
+  return victimTeamEquip <= ECO_EQUIPMENT && killerTeamEquip > ECO_EQUIPMENT
+}
+
+export function killWeight(
+  killerTeamEquip: number | null,
+  victimTeamEquip: number | null
+) {
+  if (!killerTeamEquip || victimTeamEquip == null) return 1
+  return Math.min(
+    1,
+    Math.max(MIN_KILL_WEIGHT, victimTeamEquip / killerTeamEquip)
+  )
+}
 
 function isPlayer(id: string | null | undefined): id is string {
   return !!id && /^\d{17}$/.test(id) && id !== "00000000000000000"
@@ -173,6 +201,8 @@ export function deriveRatingFacts(
         name: row.player_name,
         side: row.team_num,
         kills: 0,
+        weightedKills: 0,
+        ecoKills: 0,
         deaths: 0,
         assists: 0,
         flashAssists: 0,
@@ -202,6 +232,18 @@ export function deriveRatingFacts(
         .filter((p) => isPlayer(p.player_steamid))
         .map((p) => [p.player_steamid, p])
     )
+    const teamEquip = new Map<number, number | null>()
+    for (const side of [2, 3]) {
+      const values = [...players.values()]
+        .filter((p) => p.side === side)
+        .map((p) => p.equipmentValue)
+      teamEquip.set(
+        side,
+        values.length && values.every((v) => v != null)
+          ? values.reduce((sum, v) => sum + v!, 0) / values.length
+          : null
+      )
+    }
     const deaths: { killer: string; victim: PlayerRoundFact; time: number }[] =
       []
     const clutch = new Map<string, number>()
@@ -273,6 +315,17 @@ export function deriveRatingFacts(
           return failed("Missing trade-time or assist metadata")
         }
         attacker.kills++
+        if (
+          isEcoKill(
+            teamEquip.get(attacker.side) ?? null,
+            teamEquip.get(victim.side) ?? null
+          )
+        )
+          attacker.ecoKills++
+        attacker.weightedKills += killWeight(
+          teamEquip.get(attacker.side) ?? null,
+          teamEquip.get(victim.side) ?? null
+        )
         if (event.headshot) attacker.headshotKills++
         if (!opened) {
           attacker.openingKills = 1

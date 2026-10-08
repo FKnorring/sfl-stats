@@ -94,6 +94,7 @@ export function buildTeamRosterColumns({
           rating={row.original.rating}
           ratedGames={row.original.ratedGames}
           matchesPlayed={row.original.matchesPlayed}
+          teamName={teamName}
         />
       ),
     },
