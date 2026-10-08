@@ -22,6 +22,8 @@ test("rating CLI invalidates writes and partial runs, but never dry runs", async
     steamid64,
     side: 2,
     kills: 1,
+    weightedKills: 1,
+    ecoKills: 0,
     deaths: 0,
     assists: 0,
     flashAssists: 0,
