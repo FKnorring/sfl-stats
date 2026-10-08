@@ -310,7 +310,11 @@ export async function getPlayerKills(steamid64: string) {
   ).flat()
 }
 
-async function faceitPlayers(scope: string, days: number, ids: string[] | null) {
+async function faceitPlayers(
+  scope: string,
+  days: number,
+  ids: string[] | null
+) {
   "use cache: remote"
   cacheLife("current")
   cacheTag(scopedCacheTag("db", scope))
