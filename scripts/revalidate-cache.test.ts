@@ -93,7 +93,6 @@ test("notification retries transient failures and verifies the acknowledgement",
 
 test("write phases notify on no-op/partial failure; probes do not; errors retain both failures", async () => {
   let calls = 0
-  let generations = 0
   let status = 200
   const server = http.createServer(async (request, response) => {
     calls++
@@ -119,31 +118,19 @@ test("write phases notify on no-op/partial failure; probes do not; errors retain
   process.env.CACHE_REVALIDATION_SECRET = env.CACHE_REVALIDATION_SECRET
   delete process.env.CACHE_NAMESPACE
   try {
-    const advance = async () => {
-      generations++
-    }
-    await withCacheInvalidation("faceit", async () => {}, advance)
+    await withCacheInvalidation("faceit", async () => {})
     assert.equal(calls, 0)
-    assert.equal(generations, 0)
-    const result = await withCacheInvalidation(
-      "demos",
-      async (mark) => {
-        mark()
-        return { ok: true, message: "Saved" }
-      },
-      advance
-    )
+    const result = await withCacheInvalidation("demos", async (mark) => {
+      mark()
+      return { ok: true, message: "Saved" }
+    })
     assert.deepEqual(result, { ok: true, message: "Saved" })
     assert.equal(calls, 1)
     await assert.rejects(
-      withCacheInvalidation(
-        "demos",
-        async (mark) => {
-          mark()
-          throw new Error("partial ingestion")
-        },
-        advance
-      ),
+      withCacheInvalidation("demos", async (mark) => {
+        mark()
+        throw new Error("partial ingestion")
+      }),
       (error: unknown) => {
         assert.ok(error instanceof AggregateError)
         assert.match(String(error.errors[0]), /partial ingestion/)
@@ -153,14 +140,10 @@ test("write phases notify on no-op/partial failure; probes do not; errors retain
     assert.equal(calls, 2)
     status = 401
     await assert.rejects(
-      withCacheInvalidation(
-        "roster",
-        async (mark) => {
-          mark()
-          throw new Error("original failure")
-        },
-        advance
-      ),
+      withCacheInvalidation("roster", async (mark) => {
+        mark()
+        throw new Error("original failure")
+      }),
       (error: unknown) => {
         assert.ok(error instanceof AggregateError)
         assert.equal(error.errors.length, 2)
@@ -181,35 +164,12 @@ test("write phases notify on no-op/partial failure; probes do not; errors retain
       /both/
     )
     assert.equal(ran, false)
-    assert.equal(generations, 3)
     delete process.env.CACHE_REVALIDATION_URL
     delete process.env.CACHE_REVALIDATION_SECRET
-    await withCacheInvalidation(
-      "schedule",
-      async (mark) => {
-        mark()
-      },
-      advance
-    )
-    assert.equal(generations, 4)
+    await withCacheInvalidation("schedule", async (mark) => {
+      mark()
+    })
     assert.equal(calls, 3, "Disabled callbacks must not notify")
-    await assert.rejects(
-      withCacheInvalidation(
-        "demos",
-        async (mark) => {
-          mark()
-        },
-        async () => {
-          throw new Error("generation write failed")
-        }
-      ),
-      (error: unknown) => {
-        assert.ok(error instanceof AggregateError)
-        assert.match(String(error.errors[0]), /generation update failed/)
-        assert.match(String(error.errors[0].cause), /generation write failed/)
-        return true
-      }
-    )
   } finally {
     keys.forEach((key, index) => {
       if (original[index] === undefined) delete process.env[key]

@@ -1,7 +1,6 @@
 import { getPlayerBySteamId64, getPlayerMatchHistory } from "@/lib/cached-data"
 import { getFaceitPlayer } from "@/lib/cached-data"
 import { getPlayerSummary } from "@/lib/steam-client"
-import { withCacheGeneration } from "@/lib/cache-generation"
 
 const RECENT_GAMES = 5
 
@@ -39,51 +38,49 @@ export async function GET(
   _req: Request,
   ctx: RouteContext<"/api/players/[steamid64]/card">
 ) {
-  return withCacheGeneration(async () => {
-    const { steamid64 } = await ctx.params
-    const player = await getPlayerBySteamId64(steamid64)
-    if (!player)
-      return Response.json(
-        { error: "not found" },
-        { status: 404, headers: { "Cache-Control": "no-store" } }
-      )
+  const { steamid64 } = await ctx.params
+  const player = await getPlayerBySteamId64(steamid64)
+  if (!player)
+    return Response.json(
+      { error: "not found" },
+      { status: 404, headers: { "Cache-Control": "no-store" } }
+    )
 
-    const [steam, faceit, history] = await Promise.all([
-      getPlayerSummary(steamid64),
-      getFaceitPlayer(steamid64),
-      getPlayerMatchHistory(steamid64),
-    ])
+  const [steam, faceit, history] = await Promise.all([
+    getPlayerSummary(steamid64),
+    getFaceitPlayer(steamid64),
+    getPlayerMatchHistory(steamid64),
+  ])
 
-    const data: PlayerCardData = {
-      steamid64,
-      inGameName: player.inGameName,
-      realName: player.realName,
-      teamName: history.find((h) => h.teamName)?.teamName ?? null,
-      avatarUrl: steam?.avatarUrl ?? null,
-      steamPersonaName: steam?.personaName ?? null,
-      faceit: faceit
-        ? {
-            nickname: faceit.faceitNickname,
-            elo: faceit.elo,
-            skillLevel: faceit.skillLevel,
-          }
-        : null,
-      recentGames: history.slice(0, RECENT_GAMES).map((h) => ({
-        matchId: h.matchId,
-        mapName: h.mapName,
-        demoDate: h.demoDate,
-        opponentTeamName: h.opponentTeamName,
-        kills: h.kills,
-        deaths: h.deaths,
-        assists: h.assists,
-        adr: h.adr,
-        rating: h.rating,
-        ratingUnavailableReason: h.ratingUnavailableReason,
-      })),
-    }
+  const data: PlayerCardData = {
+    steamid64,
+    inGameName: player.inGameName,
+    realName: player.realName,
+    teamName: history.find((h) => h.teamName)?.teamName ?? null,
+    avatarUrl: steam?.avatarUrl ?? null,
+    steamPersonaName: steam?.personaName ?? null,
+    faceit: faceit
+      ? {
+          nickname: faceit.faceitNickname,
+          elo: faceit.elo,
+          skillLevel: faceit.skillLevel,
+        }
+      : null,
+    recentGames: history.slice(0, RECENT_GAMES).map((h) => ({
+      matchId: h.matchId,
+      mapName: h.mapName,
+      demoDate: h.demoDate,
+      opponentTeamName: h.opponentTeamName,
+      kills: h.kills,
+      deaths: h.deaths,
+      assists: h.assists,
+      adr: h.adr,
+      rating: h.rating,
+      ratingUnavailableReason: h.ratingUnavailableReason,
+    })),
+  }
 
-    return Response.json(data, {
-      headers: { "Cache-Control": "no-store" },
-    })
+  return Response.json(data, {
+    headers: { "Cache-Control": "no-store" },
   })
 }

@@ -42,3 +42,4 @@ data/sfl.db
 data/sfl.db-shm
 data/sfl.db-wal
 demos/
+.next-cache-test-*/

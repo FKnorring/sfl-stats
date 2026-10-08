@@ -4,8 +4,6 @@ import { getAdminRosterEntries } from "@/lib/db"
 import { isLocalEnv } from "@/lib/env"
 import { SteamIdEditor } from "./steamid-editor"
 
-export const dynamic = "force-dynamic"
-
 // Local-only maintenance tool (ADR-0002): 404s unless ENV=local.
 export default async function AdminPage({
   searchParams,

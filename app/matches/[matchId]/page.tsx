@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import { getMatchById } from "@/lib/cached-data"
 import { Badge } from "@/components/ui/badge"
@@ -37,7 +36,6 @@ export default async function MatchPage({
 }: {
   params: Promise<{ matchId: string }>
 }) {
-  await connection()
   const { matchId } = await params
   const match = await getMatchById(decodeURIComponent(matchId))
   if (!match) notFound()

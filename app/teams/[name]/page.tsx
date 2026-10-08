@@ -1,4 +1,3 @@
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getTeamByName,
@@ -27,7 +26,6 @@ export default async function TeamPage({
 }: {
   params: Promise<{ name: string }>
 }) {
-  await connection()
   const { name } = await params
   const teamName = decodeURIComponent(name)
 

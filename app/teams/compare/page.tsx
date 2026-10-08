@@ -1,4 +1,3 @@
-import { connection } from "next/server"
 import {
   getTeamStandings,
   getTeamMeta,
@@ -90,7 +89,6 @@ export default async function TeamComparePage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  await connection()
   const params = await searchParams
   const teamAId = parseTeamId(params.teamA)
   const teamBId = parseTeamId(params.teamB)

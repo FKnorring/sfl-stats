@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Suspense } from "react"
 import { usePathname } from "next/navigation"
 import {
   CalendarDaysIcon,
@@ -36,7 +37,25 @@ const ITEMS = [
 ]
 
 export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
+  return (
+    <Suspense fallback={<Navigation showAdmin={showAdmin} />}>
+      <ActiveNavigation showAdmin={showAdmin} />
+    </Suspense>
+  )
+}
+
+function ActiveNavigation({ showAdmin }: { showAdmin: boolean }) {
   const pathname = usePathname()
+  return <Navigation showAdmin={showAdmin} pathname={pathname} />
+}
+
+function Navigation({
+  showAdmin,
+  pathname,
+}: {
+  showAdmin: boolean
+  pathname?: string
+}) {
   const items = showAdmin
     ? [...ITEMS, { href: "/admin", label: "Admin", icon: WrenchIcon }]
     : ITEMS
@@ -45,7 +64,7 @@ export function SideNav({ showAdmin = false }: { showAdmin?: boolean }) {
     .filter(({ href }) =>
       href === "/"
         ? pathname === "/"
-        : pathname === href || pathname.startsWith(`${href}/`)
+        : pathname === href || pathname?.startsWith(`${href}/`)
     )
     .sort((a, b) => b.href.length - a.href.length)[0]?.href
 

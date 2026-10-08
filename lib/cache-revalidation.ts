@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto"
 import { z } from "zod"
 import {
   cacheScope,
-  cacheTag,
+  scopedCacheTag,
   revalidationSourceSchema,
   sourceCacheGroups,
 } from "@/lib/cache-policy"
@@ -71,6 +71,6 @@ export async function handleCacheRevalidation(
     )
   }
   const groups = sourceCacheGroups(payload.data.source)
-  invalidate(groups.map(cacheTag))
+  invalidate(groups.map((group) => scopedCacheTag(group)))
   return json({ revalidated: true, scope: cacheScope(), groups })
 }

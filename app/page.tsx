@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { connection } from "next/server"
 import {
   getCurrentSeason,
   getCurrentTeamCatalog,
@@ -25,8 +24,6 @@ const LINKS = [
 ]
 
 export default async function Page() {
-  // Request-time DB reads, same as the other data pages.
-  await connection()
   const season = (await getCurrentSeason()) ?? undefined
   const [catalog, players, faceitStats] = await Promise.all([
     getCurrentTeamCatalog(),

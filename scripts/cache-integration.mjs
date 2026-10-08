@@ -2,9 +2,10 @@ import assert from "node:assert/strict"
 import { randomUUID } from "node:crypto"
 import { spawn } from "node:child_process"
 import { once } from "node:events"
-import { readdir, readFile, writeFile } from "node:fs/promises"
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import http from "node:http"
 import path from "node:path"
+import os from "node:os"
 import { setTimeout as sleep } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 import { createClient } from "@libsql/client"
@@ -14,11 +15,22 @@ import { persistRatingExtraction } from "../lib/rating-db.ts"
 
 const baseline = process.argv.includes("--baseline")
 const outputIndex = process.argv.indexOf("--output")
-const database = createClient({ url: "file::memory:" })
+const browserIndex = process.argv.indexOf("--browser")
+assert.equal(
+  typeof globalThis.gc,
+  "function",
+  "Run with pnpm test:cache (requires --expose-gc for native SQLite cleanup)"
+)
+const fixtureFolder = await mkdtemp(path.join(os.tmpdir(), "sfl-cache-data-"))
+const fixtureDatabaseUrl = pathToFileURL(
+  path.join(fixtureFolder, "fixture.db")
+).href
+const database = createClient({ url: fixtureDatabaseUrl })
 await migrate(drizzle(database), { migrationsFolder: "drizzle" })
 const now = new Date().toISOString()
 const steamid = (id) => String(76561198000000000n + BigInt(id))
-const counters = { db: 0, generation: 0, steam: 0, toornament: 0 }
+const counters = { db: 0, steam: 0, toornament: 0 }
+let largestQueryResultBytes = 0
 let steamFailure = false
 let scheduleFailure = false
 let heldRead = null
@@ -237,13 +249,16 @@ const fixture = http.createServer(async (request, response) => {
         continue
       }
       assert.equal(operation.type, "execute")
-      if (operation.stmt.sql.includes("FROM cache_generation"))
-        counters.generation++
-      else counters.db++
+      assert.ok(!operation.stmt.sql.includes("cache_generation"))
+      if (/^\s*(SELECT|WITH)\b/i.test(operation.stmt.sql)) counters.db++
       const result = await database.execute({
         sql: operation.stmt.sql,
         args: operation.stmt.args.map(decode),
       })
+      largestQueryResultBytes = Math.max(
+        largestQueryResultBytes,
+        Buffer.byteLength(JSON.stringify(result.rows))
+      )
       if (
         heldRead &&
         operation.stmt.sql.includes("WHERE p.steamid64") &&
@@ -291,37 +306,46 @@ const port = portProbe.address().port
 await new Promise((resolve) => portProbe.close(resolve))
 const secret = "cache-integration-fixture-only"
 const namespace = `sfl-stats-test-${randomUUID()}`
-const child = spawn(
-  process.execPath,
-  [
-    "--import",
-    pathToFileURL(path.resolve("scripts/cache-upstream-fixture.mjs")).href,
-    path.resolve("node_modules/next/dist/bin/next"),
-    "start",
-    "-p",
-    String(port),
-  ],
-  {
-    env: {
-      ...process.env,
-      DATABASE_URL: upstream,
-      DATABASE_AUTH_TOKEN: "",
-      STEAM_API_KEY: "fixture-only",
-      CACHE_TEST_UPSTREAM: upstream,
-      CACHE_NAMESPACE: namespace,
-      CACHE_REVALIDATION_SECRET: secret,
-      ENV: "prod",
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  }
+const buildDirectory = await mkdtemp(
+  path.join(process.cwd(), ".next-cache-test-")
 )
+const nextEnv = await readFile("next-env.d.ts", "utf8")
+const tsconfig = await readFile("tsconfig.json", "utf8")
+const serverEnv = {
+  ...process.env,
+  DATABASE_URL: upstream,
+  DATABASE_AUTH_TOKEN: "",
+  STEAM_API_KEY: "fixture-only",
+  CACHE_TEST_UPSTREAM: upstream,
+  CACHE_NAMESPACE: namespace,
+  CACHE_REVALIDATION_SECRET: secret,
+  ENV: "prod",
+  CACHE_TEST_BUILD_DIR: path.relative(process.cwd(), buildDirectory),
+}
+function runNext(args, env = serverEnv) {
+  const process = spawn(
+    globalThis.process.execPath,
+    [
+      "--import",
+      pathToFileURL(path.resolve("scripts/cache-upstream-fixture.mjs")).href,
+      path.resolve("node_modules/next/dist/bin/next"),
+      ...args,
+    ],
+    {
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    }
+  )
+  process.stdout.on("data", (chunk) => {
+    logs += chunk
+  })
+  process.stderr.on("data", (chunk) => {
+    logs += chunk
+  })
+  return process
+}
+let child
 let logs = ""
-child.stdout.on("data", (chunk) => {
-  logs += chunk
-})
-child.stderr.on("data", (chunk) => {
-  logs += chunk
-})
 const origin = `http://127.0.0.1:${port}`
 async function retryNotification(source) {
   const notifier = spawn(
@@ -372,17 +396,23 @@ const routes = [
   "/leaderboard?stat=rating",
   "/players/missing",
 ]
-const report = { mode: baseline ? "baseline" : "cached", routes: [] }
+const report = { mode: baseline ? "baseline" : "cache-components", routes: [] }
 function median(values) {
   return [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)]
 }
-async function load(route) {
+async function load(route, timeout = 20000) {
   const start = performance.now()
   const response = await fetch(`${origin}${route}`, {
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(timeout),
   })
   const ttfb = performance.now() - start
   const text = await response.text()
+  assert.ok(
+    !/NEXT_PRERENDER_INTERRUPTED|data-next-error|\\?"digest\\?":\\?"[0-9]+/.test(
+      text
+    ),
+    `${route}: streamed rendering failed: ${logs}`
+  )
   return {
     status: response.status,
     ttfb,
@@ -390,23 +420,48 @@ async function load(route) {
     text,
   }
 }
-try {
-  let ready = false
+async function eventually(route, predicate) {
+  const deadline = performance.now() + 15000
+  let sample
+  do {
+    sample = await load(route)
+    if (predicate(sample)) return sample
+    await sleep(100)
+  } while (performance.now() < deadline)
+  assert.fail(`${route}: did not converge after revalidation; ${logs}`)
+}
+async function waitUntilReady(route) {
   for (let attempt = 0; attempt < 100; attempt++) {
-    if (child.exitCode !== null) throw new Error(`Server exited: ${logs}`)
+    assert.equal(child.exitCode, null, `Server exited: ${logs}`)
     try {
-      await load("/api/players/missing/card")
-      ready = true
-      break
-    } catch {
+      return await load(route, 60000)
+    } catch (error) {
+      if (!(error instanceof TypeError) || error.cause?.code !== "ECONNREFUSED")
+        throw error
       await sleep(200)
     }
   }
-  assert.ok(ready, `Server did not start: ${logs}`)
+  assert.fail(`Server did not start: ${logs}`)
+}
+try {
+  console.log("Building Cache Components against the isolated fixture")
+  child = runNext(["build"])
+  const [buildCode] = await once(child, "exit")
+  assert.equal(buildCode, 0, logs)
+  console.log(logs)
+  logs = ""
+  child = runNext(["start", "-p", String(port)])
+  await waitUntilReady("/api/players/missing/card")
   for (const route of routes) {
     console.log(`Measuring ${route}`)
     const cold = await load(route)
-    assert.equal(cold.status, route === "/players/missing" ? 404 : 200, logs)
+    if (route === "/players/missing") {
+      assert.ok(
+        cold.status === 404 ||
+          cold.text.includes("NEXT_HTTP_ERROR_FALLBACK;404"),
+        "Missing player must retain the native not-found response"
+      )
+    } else assert.equal(cold.status, 200, logs)
     if (route === "/")
       assert.ok(
         cold.text.includes("13-7"),
@@ -440,25 +495,21 @@ try {
       warmCalls: calls,
     })
     if (!baseline)
-      assert.deepEqual(
-        calls,
-        { db: 0, generation: 5, steam: 0, toornament: 0 },
-        route
-      )
+      assert.deepEqual(calls, { db: 0, steam: 0, toornament: 0 }, route)
+  }
+  if (browserIndex !== -1) {
+    const executable = process.argv[browserIndex + 1]
+    assert.ok(executable, "--browser requires an installed Chromium executable")
+    const { checkCacheNavigation } = await import("./cache-browser-fixture.mjs")
+    console.log(
+      "Checking browser navigation, URL filters and follows hydration"
+    )
+    await checkCacheNavigation(executable, origin)
+    report.browser = "passed"
   }
   if (!baseline) {
     const endpoint = `${origin}/api/revalidate`
     const notify = async (body, token = secret) => {
-      if (
-        token === secret &&
-        typeof body.scope === "string" &&
-        body.scope !== "wrong"
-      ) {
-        await database.execute({
-          sql: "UPDATE cache_generation SET generation=? WHERE id=1",
-          args: [randomUUID()],
-        })
-      }
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -496,7 +547,10 @@ try {
       409
     )
     await retryNotification("demos")
-    const after = await load(`/api/players/${steamid(1)}/card`)
+    const after = await eventually(
+      `/api/players/${steamid(1)}/card`,
+      (sample) => JSON.parse(sample.text).inGameName === "Updated fixture"
+    )
     assert.equal(JSON.parse(after.text).inGameName, "Updated fixture")
     for (const route of [
       "/",
@@ -504,7 +558,14 @@ try {
       "/teams/Alpha",
       "/matches/demo/1",
     ]) {
-      const fresh = await load(route)
+      const fresh = await eventually(
+        route,
+        (sample) =>
+          sample.text.includes("Updated fixture") &&
+          sample.text.includes("new-logo.png") &&
+          (route !== "/matches/demo/1" ||
+            sample.text.replaceAll('\\"', '"').includes('"damage":1800'))
+      )
       assert.equal(fresh.status, 200, `${route}: ${logs}`)
       assert.ok(
         fresh.text.includes("Updated fixture"),
@@ -520,7 +581,7 @@ try {
     await load("/matches")
     const before = { ...counters }
     await retryNotification("schedule")
-    await load("/matches")
+    await eventually("/matches", () => counters.toornament > before.toornament)
     assert.ok(counters.toornament > before.toornament)
     const card = await fetch(`${origin}/api/players/${steamid(1)}/card`)
     assert.equal(card.headers.get("cache-control"), "no-store")
@@ -541,9 +602,10 @@ try {
     await notify({ source: "schedule", scope: target })
     scheduleFailure = true
     await load("/matches")
+    await sleep(200)
     const failedCalls = counters.toornament
     scheduleFailure = false
-    await load("/matches")
+    await eventually("/matches", () => counters.toornament > failedCalls)
     assert.ok(
       counters.toornament > failedCalls,
       "Schedule failures must not be pinned"
@@ -573,11 +635,14 @@ try {
     await retryNotification("demos")
     release()
     await inFlight
-    const afterRace = await load(`/api/players/${steamid(62)}/card`)
+    const afterRace = await eventually(
+      `/api/players/${steamid(62)}/card`,
+      (sample) => JSON.parse(sample.text).inGameName === "Race fresh"
+    )
     assert.equal(
       JSON.parse(afterRace.text).inGameName,
       "Race fresh",
-      "A late cache fill must not republish a pre-invalidation snapshot"
+      "Native revalidation must eventually converge after a late cache fill"
     )
     const missing = await fetch(`${origin}/api/players/${steamid(63)}/card`)
     assert.equal(missing.status, 404)
@@ -591,16 +656,22 @@ try {
       "UPDATE teams SET name='Netlight fixture' WHERE id=3"
     )
     await retryNotification("roster")
-    assert.equal((await load(`/api/players/${steamid(63)}/card`)).status, 200)
-    const hiddenPlayer = await load(`/players/${steamid(11)}`)
+    await eventually(
+      `/api/players/${steamid(63)}/card`,
+      (sample) => sample.status === 200
+    )
+    const hiddenPlayer = await eventually(`/players/${steamid(11)}`, (sample) =>
+      sample.text.includes("Netlight fixture")
+    )
     assert.ok(
       !hiddenPlayer.text.includes("attackerX"),
       "Public player page must not serialize hidden heatmap data"
     )
-    const hiddenDemo = (await load("/matches/demo/2")).text.replaceAll(
-      '\\"',
-      '"'
-    )
+    const hiddenDemo = (
+      await eventually("/matches/demo/2", (sample) =>
+        sample.text.includes("Netlight fixture")
+      )
+    ).text.replaceAll('\\"', '"')
     assert.ok(
       hiddenDemo.includes('"attackerX":null'),
       "Hidden demo positions must be redacted after cache reads"
@@ -613,30 +684,95 @@ try {
       hiddenDemo.includes('"victimX":10'),
       "Other team's public positions must be preserved"
     )
-    const sizes = []
-    const lifetimes = new Set()
-    for (const name of await readdir(".next/cache/fetch-cache")) {
-      if (!/^[0-9a-f]+$/.test(name)) continue
-      const entry = await readFile(
-        path.join(".next", "cache", "fetch-cache", name),
-        "utf8"
-      )
-      const cached = JSON.parse(entry)
-      if (!cached.tags?.some((tag) => tag.startsWith(`${target}:`))) continue
-      sizes.push(Buffer.byteLength(entry))
-      lifetimes.add(cached.revalidate)
-    }
-    assert.ok(sizes.length > 0, "Persistent cache entries must exist")
     assert.ok(
-      Math.max(...sizes) < 1800000,
-      "Cache entries need headroom below the 2 MB provider limit"
+      largestQueryResultBytes < 1800000,
+      "Query payloads need headroom below the 2 MB provider limit"
     )
-    assert.deepEqual([...lifetimes].sort(), [21600, 86400])
-    report.cacheEntries = sizes.length
-    report.largestCacheEntryBytes = Math.max(...sizes)
+    report.largestQueryResultBytes = largestQueryResultBytes
+    report.storage =
+      "local in-memory handler; Vercel sharing requires preview validation"
     report.invalidation = "passed"
   }
   assert.ok(!/items over 2MB|Failed to set Next.js data cache/.test(logs), logs)
+
+  console.log(
+    "Checking local-only Server Action and partial-write invalidation"
+  )
+  child.kill()
+  await once(child, "exit")
+  logs = ""
+  const overridesPath = path.join(fixtureFolder, "overrides.json")
+  child = runNext(["dev", "-p", String(port)], {
+    ...serverEnv,
+    ENV: "local",
+    DATABASE_URL: fixtureDatabaseUrl,
+    CACHE_REVALIDATION_URL: "",
+    CACHE_REVALIDATION_SECRET: "",
+    CACHE_TEST_OVERRIDES_PATH: overridesPath,
+  })
+  const adminPage = await waitUntilReady("/admin")
+  assert.equal(adminPage.status, 200, logs)
+  assert.ok(adminPage.text.includes("Overwrite a roster"), logs)
+  const actions = JSON.parse(
+    await readFile(
+      path.join(
+        buildDirectory,
+        "dev",
+        "server",
+        "server-reference-manifest.json"
+      ),
+      "utf8"
+    )
+  )
+  const actionId = Object.entries(actions.node).find(
+    ([, entry]) => entry.exportedName === "overrideSteamId"
+  )?.[0]
+  assert.ok(actionId, "Local admin Server Action must be registered")
+  const save = async (steamid64) => {
+    const response = await fetch(`${origin}/admin`, {
+      method: "POST",
+      headers: {
+        "Next-Action": actionId,
+        "Content-Type": "text/plain;charset=UTF-8",
+        Origin: origin,
+      },
+      body: JSON.stringify([1, steamid64]),
+      signal: AbortSignal.timeout(30000),
+    })
+    return { status: response.status, text: await response.text() }
+  }
+  assert.equal((await load(`/api/players/${steamid(64)}/card`)).status, 404)
+  const saved = await save(steamid(64))
+  assert.equal(saved.status, 200, `${saved.text}: ${logs}`)
+  assert.ok(saved.text.includes('"ok":true'), saved.text)
+  assert.equal(
+    (await load(`/api/players/${steamid(64)}/card`)).status,
+    200,
+    "updateTag must immediately expire a cached missing player after the action"
+  )
+  assert.equal(
+    JSON.parse(await readFile(overridesPath, "utf8"))[steamid(64)]
+      .rosterEntryId,
+    1
+  )
+  assert.equal((await load(`/api/players/${steamid(65)}/card`)).status, 404)
+  await writeFile(`${overridesPath}.fail`, "")
+  const partial = await save(steamid(65))
+  assert.equal(partial.status, 500, partial.text)
+  assert.equal(
+    (
+      await database.execute(
+        "SELECT matched_steamid64 FROM roster_entries WHERE id=1"
+      )
+    ).rows[0].matched_steamid64,
+    steamid(65)
+  )
+  assert.equal(
+    (await load(`/api/players/${steamid(65)}/card`)).status,
+    200,
+    "Committed data must be invalidated even when override-file persistence fails"
+  )
+  report.localAdmin = "passed"
   console.log(JSON.stringify(report, null, 2))
   if (outputIndex !== -1)
     await writeFile(
@@ -644,11 +780,27 @@ try {
       JSON.stringify(report, null, 2)
     )
 } finally {
-  if (child.exitCode === null) {
+  if (child?.exitCode === null) {
     child.kill()
     await once(child, "exit")
   }
   fixture.closeAllConnections()
   await new Promise((resolve) => fixture.close(resolve))
   database.close()
+  await writeFile("next-env.d.ts", nextEnv)
+  await writeFile("tsconfig.json", tsconfig)
+  // Native statement handles can outlive client.close() until garbage collection.
+  globalThis.gc()
+  await rm(fixtureFolder, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  })
+  await rm(buildDirectory, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 100,
+  })
 }

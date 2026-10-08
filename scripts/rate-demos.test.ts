@@ -12,7 +12,7 @@ import { eq, sql } from "drizzle-orm"
 import * as schema from "../lib/db/schema"
 import { calculatePlayerRating } from "../lib/player-rating"
 
-test("rating CLI invalidates writes and partial runs, but never dry runs", async () => {
+test("rating CLI writes without a generation marker and skips notification preflight for dry runs", async () => {
   const folder = await mkdtemp(path.join(os.tmpdir(), "sfl-rating-cache-"))
   const url = pathToFileURL(path.join(folder, "fixture.db")).href
   const client = createClient({ url })
@@ -57,8 +57,6 @@ test("rating CLI invalidates writes and partial runs, but never dry runs", async
     assert.ifError(result.error)
     return { status: result.status, output: result.stdout + result.stderr }
   }
-  const generation = async () =>
-    (await database.select().from(schema.cacheGeneration))[0].generation
   const rating = async () =>
     (
       await database
@@ -68,6 +66,12 @@ test("rating CLI invalidates writes and partial runs, but never dry runs", async
     )[0].rating
   try {
     await migrate(database, { migrationsFolder: "drizzle" })
+    assert.deepEqual(
+      await database.all(
+        sql`SELECT name FROM sqlite_master WHERE name = 'cache_generation'`
+      ),
+      []
+    )
     await database.insert(schema.players).values({
       steamid64,
       latestIngameName: "Fixture player",
@@ -107,16 +111,16 @@ test("rating CLI invalidates writes and partial runs, but never dry runs", async
       matchId: 1,
       roundId: round.id,
     })
-    const initial = await generation()
     const dry = run(["--recompute", "--dry-run"], true)
     assert.equal(dry.status, 0, dry.output)
-    assert.equal(await generation(), initial)
+    assert.equal(await rating(), 999)
+    const rejected = run(["--recompute"], true)
+    assert.equal(rejected.status, 1, rejected.output)
+    assert.match(rejected.output, /both/)
     assert.equal(await rating(), 999)
     const recomputed = run(["--recompute"])
     assert.equal(recomputed.status, 0, recomputed.output)
     assert.equal(await rating(), calculatePlayerRating([fact]).rating)
-    const afterRecompute = await generation()
-    assert.notEqual(afterRecompute, initial)
 
     await database.run(
       sql`UPDATE player_match_stats SET rating = 999 WHERE match_id = 1`
@@ -148,13 +152,10 @@ test("rating CLI invalidates writes and partial runs, but never dry runs", async
     assert.equal(partial.status, 1, partial.output)
     assert.match(partial.output, /Invalid rating fact damage/)
     assert.equal(await rating(), calculatePlayerRating([fact]).rating)
-    const afterPartial = await generation()
-    assert.notEqual(afterPartial, afterRecompute)
 
     const backfill = run(["--dir", folder, "--match-id", "1"])
     assert.equal(backfill.status, 0, backfill.output)
     assert.equal(await rating(), null)
-    assert.notEqual(await generation(), afterPartial)
   } finally {
     client.close()
     await rm(folder, {

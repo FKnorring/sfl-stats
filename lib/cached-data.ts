@@ -1,90 +1,162 @@
-import { unstable_cache } from "next/cache"
+import { cacheLife, cacheTag } from "next/cache"
 import * as queries from "@/lib/db"
 import * as faceit from "@/lib/faceit"
-import { getCacheGeneration } from "@/lib/cache-generation"
-import {
-  CACHE_VERSION,
-  CURRENT_DATA_SECONDS,
-  STABLE_DATA_SECONDS,
-  cacheScope,
-  cacheTag,
-} from "@/lib/cache-policy"
+import { cacheScope, scopedCacheTag } from "@/lib/cache-policy"
 
 export type * from "@/lib/db"
 
-function cachedQuery<Args extends unknown[], Result>(
-  name: string,
-  query: (...args: Args) => Promise<Result>,
-  revalidate = CURRENT_DATA_SECONDS
-) {
-  return async (...args: Args): Promise<Result> => {
-    const generation = await getCacheGeneration()
-    return unstable_cache(
-      query,
-      [cacheScope(), CACHE_VERSION, name, generation],
-      {
-        revalidate,
-        tags: [cacheTag("db")],
-      }
-    )(...args)
-  }
+async function currentSeason(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getCurrentSeason()
+}
+export function getCurrentSeason() {
+  return currentSeason(cacheScope())
 }
 
-export const getCurrentSeason = cachedQuery(
-  "current-season",
-  queries.getCurrentSeason
-)
-export const getSeasons = cachedQuery("seasons", queries.getSeasons)
-export const getDivisions = cachedQuery("divisions", queries.getDivisions)
-export const getTeams = cachedQuery("teams", queries.getTeams)
-export const getCurrentTeamCatalog = cachedQuery(
-  "team-catalog",
-  queries.getCurrentTeamCatalog
-)
-export const getTeamMeta = cachedQuery("team-meta", queries.getTeamMeta)
-export const getPlayerBySteamId64 = cachedQuery(
-  "player",
-  queries.getPlayerBySteamId64
-)
-export const getLeagueAverageStats = cachedQuery(
-  "league-averages",
-  queries.getLeagueAverageStats
-)
-export const getPlayerMatchHistory = cachedQuery(
-  "player-history",
-  queries.getPlayerMatchHistory
-)
-export const getFutureOpponents = cachedQuery(
-  "future-opponents",
-  queries.getFutureOpponents
-)
-export const getTeamMapStats = cachedQuery("team-maps", queries.getTeamMapStats)
-export const getMatchById = cachedQuery("official-match", queries.getMatchById)
-export const getMatchKills = cachedQuery(
-  "match-kills",
-  queries.getMatchKills,
-  STABLE_DATA_SECONDS
-)
+async function seasons(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getSeasons()
+}
+export function getSeasons() {
+  return seasons(cacheScope())
+}
 
-const leaderboard = cachedQuery(
-  "leaderboard",
-  (
-    stat: queries.LeaderboardStat,
-    direction: queries.SortDirection,
-    season: string,
-    division: string,
-    team: string
-  ) =>
-    queries.getLeaderboard({
-      stat,
-      direction,
-      season: season || undefined,
-      division: division || undefined,
-      team: team || undefined,
-    })
-)
+async function divisions(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getDivisions()
+}
+export function getDivisions() {
+  return divisions(cacheScope())
+}
+
+async function teams(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeams()
+}
+export function getTeams() {
+  return teams(cacheScope())
+}
+
+async function teamCatalog(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getCurrentTeamCatalog()
+}
+export function getCurrentTeamCatalog() {
+  return teamCatalog(cacheScope())
+}
+
+async function teamMeta(scope: string, teamId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamMeta(teamId)
+}
+export function getTeamMeta(teamId: number) {
+  return teamMeta(cacheScope(), teamId)
+}
+
+async function player(scope: string, steamid64: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getPlayerBySteamId64(steamid64)
+}
+export function getPlayerBySteamId64(steamid64: string) {
+  return player(cacheScope(), steamid64)
+}
+
+async function leagueAverages(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getLeagueAverageStats()
+}
+export function getLeagueAverageStats() {
+  return leagueAverages(cacheScope())
+}
+
+async function playerHistory(scope: string, steamid64: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getPlayerMatchHistory(steamid64)
+}
+export function getPlayerMatchHistory(steamid64: string) {
+  return playerHistory(cacheScope(), steamid64)
+}
+
+async function futureOpponents(scope: string, teamId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getFutureOpponents(teamId)
+}
+export function getFutureOpponents(teamId: number) {
+  return futureOpponents(cacheScope(), teamId)
+}
+
+async function teamMaps(scope: string, teamId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamMapStats(teamId)
+}
+export function getTeamMapStats(teamId: number) {
+  return teamMaps(cacheScope(), teamId)
+}
+
+async function officialMatch(scope: string, matchId: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getMatchById(matchId)
+}
+export function getMatchById(matchId: string) {
+  return officialMatch(cacheScope(), matchId)
+}
+
+async function matchKills(scope: string, matchId: number) {
+  "use cache: remote"
+  cacheLife("stable")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getMatchKills(matchId)
+}
+export function getMatchKills(matchId: number) {
+  return matchKills(cacheScope(), matchId)
+}
+
+async function leaderboard(
+  scope: string,
+  stat: queries.LeaderboardStat,
+  direction: queries.SortDirection,
+  season: string,
+  division: string,
+  team: string
+) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getLeaderboard({
+    stat,
+    direction,
+    season: season || undefined,
+    division: division || undefined,
+    team: team || undefined,
+  })
+}
 export function getLeaderboard(filters: queries.LeaderboardFilters) {
   return leaderboard(
+    cacheScope(),
     filters.stat,
     filters.direction ?? "desc",
     filters.season ?? "",
@@ -92,89 +164,160 @@ export function getLeaderboard(filters: queries.LeaderboardFilters) {
     filters.team ?? ""
   )
 }
-const standings = cachedQuery("standings", (season: string) =>
-  queries.getTeamStandings({ season: season || undefined })
-)
+
+async function standings(scope: string, season: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamStandings({ season: season || undefined })
+}
 export function getTeamStandings(filters: { season?: string } = {}) {
-  return standings(filters.season ?? "")
+  return standings(cacheScope(), filters.season ?? "")
 }
-const teamByName = cachedQuery("team-by-name", (name: string, season: string) =>
-  queries.getTeamByName(name, season || undefined)
-)
+
+async function teamByName(scope: string, name: string, season: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamByName(name, season || undefined)
+}
 export function getTeamByName(name: string, season?: string) {
-  return teamByName(name, season ?? "")
+  return teamByName(cacheScope(), name, season ?? "")
 }
-const teamRoster = cachedQuery(
-  "team-roster",
-  (teamId: number, scoped: boolean) => queries.getTeamRoster(teamId, scoped)
-)
+
+async function teamRoster(scope: string, teamId: number, scoped: boolean) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamRoster(teamId, scoped)
+}
 export function getTeamRoster(teamId: number, scoped = false) {
-  return teamRoster(teamId, scoped)
+  return teamRoster(cacheScope(), teamId, scoped)
 }
-const teamHistory = cachedQuery(
-  "team-history",
-  (teamId: number, scoped: boolean) =>
-    queries.getTeamDemoMatches(teamId, scoped)
-)
+
+async function teamHistory(scope: string, teamId: number, scoped: boolean) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamDemoMatches(teamId, scoped)
+}
 export function getTeamDemoMatches(teamId: number, scoped = false) {
-  return teamHistory(teamId, scoped)
+  return teamHistory(cacheScope(), teamId, scoped)
 }
-export const getMatchTeams = cachedQuery("match-teams", (season: string) =>
-  queries.getMatchTeams(season)
-)
-export const getDemoMatches = cachedQuery("demo-history", () =>
-  queries.getDemoMatches()
-)
-export const getDemoMatchById = cachedQuery("demo-match", (matchId: number) =>
-  queries.getDemoMatchById(matchId)
-)
-export const getDemoMatchPlayerStats = cachedQuery(
-  "demo-players",
-  (matchId: number) => queries.getDemoMatchPlayerStats(matchId)
-)
-export const getDemoRatingDetails = cachedQuery(
-  "demo-rating-details",
-  (matchId: number) => queries.getDemoRatingDetails(matchId)
-)
-const recentResults = cachedQuery(
-  "recent-results",
-  (teamId: number, limit: number) => queries.getRecentResults(teamId, limit)
-)
+
+async function matchTeams(scope: string, season: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getMatchTeams(season)
+}
+export function getMatchTeams(season: string) {
+  return matchTeams(cacheScope(), season)
+}
+
+async function demoHistory(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getDemoMatches()
+}
+export function getDemoMatches() {
+  return demoHistory(cacheScope())
+}
+
+async function demoMatch(scope: string, matchId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getDemoMatchById(matchId)
+}
+export function getDemoMatchById(matchId: number) {
+  return demoMatch(cacheScope(), matchId)
+}
+
+async function demoPlayers(scope: string, matchId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getDemoMatchPlayerStats(matchId)
+}
+export function getDemoMatchPlayerStats(matchId: number) {
+  return demoPlayers(cacheScope(), matchId)
+}
+
+async function demoRatingDetails(scope: string, matchId: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getDemoRatingDetails(matchId)
+}
+export function getDemoRatingDetails(matchId: number) {
+  return demoRatingDetails(cacheScope(), matchId)
+}
+
+async function recentResults(scope: string, teamId: number, limit: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getRecentResults(teamId, limit)
+}
 export function getRecentResults(teamId: number, limit = 5) {
-  return recentResults(teamId, limit)
+  return recentResults(cacheScope(), teamId, limit)
 }
 
 // Keep large player histories bounded by demo rather than one growing cache item.
-const playerKillMatches = cachedQuery(
-  "player-kill-matches",
-  queries.getPlayerKillMatchIds,
-  STABLE_DATA_SECONDS
-)
-const playerKillsInMatch = cachedQuery(
-  "player-kills-in-match",
-  queries.getPlayerKillsInMatch,
-  STABLE_DATA_SECONDS
-)
+async function playerKillMatches(scope: string, steamid64: string) {
+  "use cache: remote"
+  cacheLife("stable")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getPlayerKillMatchIds(steamid64)
+}
+async function playerKillsInMatch(
+  scope: string,
+  steamid64: string,
+  matchId: number
+) {
+  "use cache: remote"
+  cacheLife("stable")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getPlayerKillsInMatch(steamid64, matchId)
+}
 export async function getPlayerKills(steamid64: string) {
-  const matchIds = await playerKillMatches(steamid64)
+  const scope = cacheScope()
+  const matchIds = await playerKillMatches(scope, steamid64)
   return (
-    await Promise.all(matchIds.map((id) => playerKillsInMatch(steamid64, id)))
+    await Promise.all(
+      matchIds.map((id) => playerKillsInMatch(scope, steamid64, id))
+    )
   ).flat()
 }
 
-const faceitPlayers = cachedQuery("faceit-players", async (days: number) =>
-  Array.from((await faceit.getFaceitPlayerStats(days)).entries())
-)
+async function faceitPlayers(scope: string, days: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return Array.from((await faceit.getFaceitPlayerStats(days)).entries())
+}
 export async function getFaceitPlayerStats(days = 7) {
-  return new Map(await faceitPlayers(days))
+  return new Map(await faceitPlayers(cacheScope(), days))
 }
-const faceitTeams = cachedQuery("faceit-teams", async (days: number) =>
-  Array.from((await faceit.getFaceitTeamStats(days)).entries())
-)
+
+async function faceitTeams(scope: string, days: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return Array.from((await faceit.getFaceitTeamStats(days)).entries())
+}
 export async function getFaceitTeamStats(days = 7) {
-  return new Map(await faceitTeams(days))
+  return new Map(await faceitTeams(cacheScope(), days))
 }
-const faceitPlayer = cachedQuery("faceit-player", faceit.getFaceitPlayer)
+
+async function faceitPlayer(scope: string, steamid64: string, days: number) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return faceit.getFaceitPlayer(steamid64, days)
+}
 export function getFaceitPlayer(steamid64: string, days = 7) {
-  return faceitPlayer(steamid64, days)
+  return faceitPlayer(cacheScope(), steamid64, days)
 }

@@ -4,7 +4,10 @@ import { z } from "zod"
 
 export const CURRENT_DATA_SECONDS = 21600
 export const STABLE_DATA_SECONDS = 86400
-export const CACHE_VERSION = "2"
+export const CACHE_PROFILES = {
+  current: { stale: 300, revalidate: CURRENT_DATA_SECONDS },
+  stable: { stale: 300, revalidate: STABLE_DATA_SECONDS },
+}
 export const DEFAULT_DATABASE_URL = "file:data/sfl.db"
 
 export const revalidationSourceSchema = z.enum([
@@ -33,8 +36,11 @@ export function cacheScope(
     .slice(0, 32)}`
 }
 
-export function cacheTag(group: CacheGroup): string {
-  return `${cacheScope()}:${group}`
+export function scopedCacheTag(
+  group: CacheGroup,
+  scope = cacheScope()
+): string {
+  return `${scope}:${group}`
 }
 
 export function sourceCacheGroups(source: RevalidationSource): CacheGroup[] {

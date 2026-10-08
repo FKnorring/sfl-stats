@@ -1,4 +1,3 @@
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getLeagueAverageStats,
@@ -27,7 +26,6 @@ export default async function PlayerPage({
 }: {
   params: Promise<{ steamid64: string }>
 }) {
-  await connection()
   const { steamid64: steamid64Param } = await params
   const steamid64 = decodeURIComponent(steamid64Param)
 
