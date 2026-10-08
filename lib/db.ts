@@ -469,7 +469,7 @@ export type PlayerSummaryRow = {
   adr: number | null
   hsPct: number | null
   mvps: number
-  kda: number | null
+  kd: number | null
 }
 
 /**
@@ -500,8 +500,8 @@ export async function getPlayerBySteamId64(
         AVG(pms.adr) AS adr,
         AVG(pms.hs_pct) AS hsPct,
         COALESCE(SUM(pms.mvps), 0) AS mvps,
-        (COALESCE(SUM(pms.kills), 0) + COALESCE(SUM(pms.assists), 0)) * 1.0
-          / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kda,
+        COALESCE(SUM(pms.kills), 0) * 1.0
+          / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kd,
         ${ratingAverageSql} AS rating,
         ${ratedGamesSql} AS ratedGames
       FROM players p
@@ -520,7 +520,7 @@ export type LeagueAverageStats = {
   avgMvpsPerMatch: number
   avgAdr: number
   avgHsPct: number
-  avgKda: number
+  avgKd: number
 }
 
 /**
@@ -554,7 +554,7 @@ export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
         AVG(COALESCE(mvps, 0) * 1.0 / matches) AS avgMvpsPerMatch,
         AVG(adr) AS avgAdr,
         AVG(hsPct) AS avgHsPct,
-        AVG((kills + assists) * 1.0 / MAX(deaths, 1)) AS avgKda
+        AVG(kills * 1.0 / MAX(deaths, 1)) AS avgKd
       FROM player_rates
       `
   )) as LeagueAverageStats[]

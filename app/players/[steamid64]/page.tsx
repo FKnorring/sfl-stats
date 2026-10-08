@@ -125,11 +125,11 @@ export default async function PlayerPage({
               <span className="font-medium">{player.matchesPlayed}</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-muted-foreground">KDA</span>
+              <span className="text-muted-foreground">K/D</span>
               <span className="font-medium">
                 <StatValue
-                  value={player.kda}
-                  average={leagueAverage.avgKda}
+                  value={player.kd}
+                  average={leagueAverage.avgKd}
                   format={(v) => v.toFixed(2)}
                 />
               </span>
