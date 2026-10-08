@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import type { ColumnDef } from "@tanstack/react-table"
 import { CalendarDaysIcon, SearchIcon } from "lucide-react"
 import { DataTable } from "@/components/data-table/data-table"
@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { TeamLogo } from "@/components/recent-results-table"
 import { formatMapName } from "@/lib/map-images"
 import {
   FollowIndicator,
@@ -36,91 +37,107 @@ function divisionLabel(match: DemoMatchRow) {
   )
 }
 
-const columns: ColumnDef<DemoMatchRow>[] = [
-  {
-    id: "demoDate",
-    accessorFn: (match) => matchDateTime(match.demoDate),
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Date" />
-    ),
-    cell: ({ row }) => formatMatchDate(row.original.demoDate),
-  },
-  {
-    accessorKey: "mapName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Map" />
-    ),
-    cell: ({ row }) => formatMapName(row.original.mapName) ?? "Unknown map",
-  },
-  {
-    accessorKey: "teamAName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Team A" />
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        {row.original.teamAName ?? "Unknown team"}
-        <FollowIndicator teamId={row.original.teamAId} />
-      </div>
-    ),
-  },
-  {
-    accessorKey: "teamAScore",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Score" />
-    ),
-    meta: { className: "text-center tabular-nums" },
-    cell: ({ row }) => {
-      const match = row.original
-      return match.teamAScore !== null && match.teamBScore !== null ? (
-        <div>
-          {match.teamAScore}-{match.teamBScore}
-          <span
-            className="block text-xs text-muted-foreground"
-            title={
-              match.scoreSource === "official"
-                ? "Toornament result; may describe a series rather than this demo"
-                : undefined
-            }
-          >
-            {match.scoreSource === "official"
-              ? "Official result"
-              : "Demo score"}
-          </span>
-        </div>
-      ) : (
-        "-"
-      )
+type Logos = Record<number, string>
+
+function buildColumns(logos: Logos): ColumnDef<DemoMatchRow>[] {
+  return [
+    {
+      id: "demoDate",
+      accessorFn: (match) => matchDateTime(match.demoDate),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Date" />
+      ),
+      cell: ({ row }) => formatMatchDate(row.original.demoDate),
     },
-  },
-  {
-    accessorKey: "teamBName",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Team B" />
-    ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        {row.original.teamBName ?? "Unknown team"}
-        <FollowIndicator teamId={row.original.teamBId} />
-      </div>
-    ),
-  },
-  {
-    id: "division",
-    accessorFn: divisionLabel,
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Division" />
-    ),
-    cell: ({ row }) => divisionLabel(row.original),
-  },
-]
+    {
+      accessorKey: "mapName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Map" />
+      ),
+      cell: ({ row }) => formatMapName(row.original.mapName) ?? "Unknown map",
+    },
+    {
+      accessorKey: "teamAName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Team A" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <TeamLogo url={logoFor(logos, row.original.teamAId)} />
+          {row.original.teamAName ?? "Unknown team"}
+          <FollowIndicator teamId={row.original.teamAId} />
+        </div>
+      ),
+    },
+    {
+      accessorKey: "teamAScore",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Score" />
+      ),
+      meta: { className: "text-center tabular-nums" },
+      cell: ({ row }) => {
+        const match = row.original
+        return match.teamAScore !== null && match.teamBScore !== null ? (
+          <div>
+            {match.teamAScore}-{match.teamBScore}
+            <span
+              className="block text-xs text-muted-foreground"
+              title={
+                match.scoreSource === "official"
+                  ? "Toornament result; may describe a series rather than this demo"
+                  : undefined
+              }
+            >
+              {match.scoreSource === "official"
+                ? "Official result"
+                : "Demo score"}
+            </span>
+          </div>
+        ) : (
+          "-"
+        )
+      },
+    },
+    {
+      accessorKey: "teamBName",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Team B" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {row.original.teamBName ?? "Unknown team"}
+          <FollowIndicator teamId={row.original.teamBId} />
+          <TeamLogo url={logoFor(logos, row.original.teamBId)} />
+        </div>
+      ),
+    },
+    {
+      id: "division",
+      accessorFn: divisionLabel,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Division" />
+      ),
+      cell: ({ row }) => divisionLabel(row.original),
+    },
+  ]
+}
+
+function logoFor(logos: Logos, teamId: number | null | undefined) {
+  return teamId == null ? null : (logos[teamId] ?? null)
+}
 
 // Compact variant for the home page: drops map and division.
 const COMPACT_HIDDEN = new Set(["mapName", "division"])
 
-export function RecentMatchesTable({ rows }: { rows: DemoMatchRow[] }) {
+export function RecentMatchesTable({
+  rows,
+  logos = {},
+}: {
+  rows: DemoMatchRow[]
+  logos?: Logos
+}) {
   const rowClass = useFollowRowClass()
-  const compactColumns = columns.filter((c) => {
+  const compactColumns = buildColumns(logos).filter((c) => {
     const key = c.id ?? ("accessorKey" in c ? String(c.accessorKey) : "")
     return !COMPACT_HIDDEN.has(key)
   })
@@ -139,12 +156,15 @@ export function MatchesView({
   history,
   upcoming,
   divisions,
+  logos = {},
 }: {
   history: DemoMatchRow[]
   upcoming: UpcomingMatchRow[] | null
   divisions: string[]
+  logos?: Logos
 }) {
   const rowClass = useFollowRowClass()
+  const columns = useMemo(() => buildColumns(logos), [logos])
   const [division, setDivision] = useState("")
   const [search, setSearch] = useState("")
   const filteredHistory = history.filter((match) =>
@@ -266,12 +286,14 @@ export function MatchesView({
                   <span>{formatMatchDate(match.scheduledAt, true)}</span>
                 </div>
                 <div className="flex flex-col gap-1">
-                  <span className="font-medium wrap-break-word">
+                  <span className="flex items-center gap-2 font-medium wrap-break-word">
+                    <TeamLogo url={logoFor(logos, match.teamAId)} />
                     {match.teamAName}
                     <FollowIndicator teamId={match.teamAId} />
                   </span>
                   <span className="text-xs text-muted-foreground">vs</span>
-                  <span className="font-medium wrap-break-word">
+                  <span className="flex items-center gap-2 font-medium wrap-break-word">
+                    <TeamLogo url={logoFor(logos, match.teamBId)} />
                     {match.teamBName}
                     <FollowIndicator teamId={match.teamBId} />
                   </span>
