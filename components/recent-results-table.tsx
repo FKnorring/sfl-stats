@@ -16,15 +16,37 @@ export type RecentResultRow = {
   dateSort: number
   teamAName: string
   teamAId: number | null
+  teamALogoUrl: string | null
   teamBName: string
   teamBId: number | null
+  teamBLogoUrl: string | null
   score: string
   division: string
 }
 
-function TeamCell({ name, teamId }: { name: string; teamId: number | null }) {
+function TeamLogo({ url }: { url: string | null }) {
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element -- small, variable-source external team logos
+    <img src={url} alt="" className="size-6 shrink-0 rounded object-contain" />
+  ) : (
+    <div className="size-6 shrink-0" />
+  )
+}
+
+function TeamCell({
+  name,
+  teamId,
+  logoUrl,
+  logoSide,
+}: {
+  name: string
+  teamId: number | null
+  logoUrl: string | null
+  logoSide: "left" | "right"
+}) {
   return (
     <div className="flex items-center gap-2">
+      {logoSide === "left" ? <TeamLogo url={logoUrl} /> : null}
       {teamId !== null ? (
         <Link href={followHref(name)} className="hover:underline">
           {name}
@@ -33,6 +55,7 @@ function TeamCell({ name, teamId }: { name: string; teamId: number | null }) {
         name
       )}
       <FollowIndicator teamId={teamId} />
+      {logoSide === "right" ? <TeamLogo url={logoUrl} /> : null}
     </div>
   )
 }
@@ -51,7 +74,12 @@ const columns: ColumnDef<RecentResultRow>[] = [
       <DataTableColumnHeader column={column} title="Team A" />
     ),
     cell: ({ row }) => (
-      <TeamCell name={row.original.teamAName} teamId={row.original.teamAId} />
+      <TeamCell
+        name={row.original.teamAName}
+        teamId={row.original.teamAId}
+        logoUrl={row.original.teamALogoUrl}
+        logoSide="left"
+      />
     ),
   },
   {
@@ -66,7 +94,12 @@ const columns: ColumnDef<RecentResultRow>[] = [
       <DataTableColumnHeader column={column} title="Team B" />
     ),
     cell: ({ row }) => (
-      <TeamCell name={row.original.teamBName} teamId={row.original.teamBId} />
+      <TeamCell
+        name={row.original.teamBName}
+        teamId={row.original.teamBId}
+        logoUrl={row.original.teamBLogoUrl}
+        logoSide="right"
+      />
     ),
   },
 ]

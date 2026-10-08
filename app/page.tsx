@@ -152,6 +152,7 @@ async function TopPlayers() {
 // schedule widget. Divisions can share a tournament, so dedupe by match id.
 async function RecentMatches() {
   const catalog = await getCurrentTeamCatalog()
+  const byId = new Map(catalog.map((t) => [t.teamId, t]))
   const widgetMatches = new Map<string, ScheduledMatch>()
   for (const matches of await Promise.all(
     divisionTeams(catalog).map(([, team]) => getLiveDivisionResults(team))
@@ -168,8 +169,10 @@ async function RecentMatches() {
         dateSort: matchDateTime(m.scheduledAt) ?? 0,
         teamAName: a?.teamName ?? m.teamAName,
         teamAId: a?.teamId ?? null,
+        teamALogoUrl: a ? (byId.get(a.teamId)?.logoUrl ?? null) : null,
         teamBName: b?.teamName ?? m.teamBName,
         teamBId: b?.teamId ?? null,
+        teamBLogoUrl: b ? (byId.get(b.teamId)?.logoUrl ?? null) : null,
         score: `${m.teamAScore}-${m.teamBScore}`,
         division: a?.division ?? b?.division ?? "",
       }
