@@ -35,10 +35,11 @@ faceit-sync.ts    →  faceit_match_stats, for players already matched to a stea
 - [SFL roster page](https://publiclir.se/svenska-foeretagsligan/) — scraped
   by `pnpm scrape:roster` (default `--url`).
 - [SFL S09 demos folder](https://djsesport.sharepoint.com/sites/Publiclir/Delade%20dokument/Forms/AllItems.aspx?id=%2Fsites%2FPubliclir%2FDelade%20dokument%2FSvenska%20F%C3%B6retagsligan%2FSFL%20S09%20-%20ALL%2FSFL09_DEMOS&p=true&ga=1) —
-  SharePoint folder where match `.dem` files are published. Download into
-  the folder passed to `pnpm ingest:demos -- --dir` (see below). Requires
-  org access; see [#3](https://github.com/FKnorring/sfl-stats/issues/3) for
-  automating this.
+  SharePoint folder where match `.dem` files are published. `pnpm download:demos`
+  downloads files missing from the configured database into `./demos` by
+  default; pass `-- --dir <folder>` to choose another folder. Requires
+  Microsoft Edge and access to the public folder. Use
+  `pnpm download:demos -- --dry-run` to list missing files without downloading.
 
 ## Prerequisites
 
@@ -217,6 +218,9 @@ pnpm ingest:demos -- --dir ./demos
 - `--dir` — folder to scan recursively for `.dem` files. Defaults to
   `./demos`, or `$DEMOS_DIR` if set
   ([`scripts/ingest-demos.ts`](scripts/ingest-demos.ts)).
+- `pnpm download:demos` uses the same `--dir` / `DEMOS_DIR` destination
+  convention and checks the configured database, so downloaded demos can be
+  ingested with `pnpm ingest:demos -- --dir <folder>`.
 - Demos are matched against roster entries by nickname similarity. After a
   run, check the console summary for `auto_low` / `ambiguous` / `unmatched`
   counts — those need manual review (see
