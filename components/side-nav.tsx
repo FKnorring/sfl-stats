@@ -11,6 +11,7 @@ import {
   WrenchIcon,
   StarIcon,
   TrophyIcon,
+  TvIcon,
   UsersIcon,
 } from "lucide-react"
 
@@ -57,7 +58,11 @@ function Navigation({
   pathname?: string
 }) {
   const items = showAdmin
-    ? [...ITEMS, { href: "/admin", label: "Admin", icon: WrenchIcon }]
+    ? [
+        ...ITEMS,
+        { href: "/admin", label: "Admin", icon: WrenchIcon },
+        { href: "/admin/streams", label: "Streams", icon: TvIcon },
+      ]
     : ITEMS
   // Longest matching href wins so /teams/compare doesn't also light up /teams.
   const active = items

@@ -338,3 +338,13 @@ export const toornamentMatches = sqliteTable(
     ),
   ]
 )
+
+// Twitch stream for an upcoming match, entered by hand on the local admin page
+// from a Discord announcement. Keyed by the Toornament match id because
+// upcoming matches come from the live schedule widget, not from the DB.
+export const matchStreams = sqliteTable("match_streams", {
+  toornamentMatchId: text("toornament_match_id").primaryKey(),
+  streamUrl: text("stream_url").notNull(),
+  caster: text("caster"),
+  createdAt: text("created_at").notNull(),
+})

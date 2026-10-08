@@ -21,9 +21,12 @@ test("generation retirement upgrades an existing DB without touching league data
     const journal = JSON.parse(
       await readFile("drizzle/meta/_journal.json", "utf8")
     )
-    const retirement = journal.entries.at(-1)
-    assert.equal(retirement.tag, "0010_retire_cache_generation")
-    journal.entries.pop()
+    const retirementIndex = journal.entries.findIndex(
+      (entry: { tag: string }) => entry.tag === "0010_retire_cache_generation"
+    )
+    assert.notEqual(retirementIndex, -1)
+    // hold back the retirement and every later migration
+    journal.entries.splice(retirementIndex)
     await mkdir(path.join(folder, "meta"))
     await writeFile(
       path.join(folder, "meta", "_journal.json"),

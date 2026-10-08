@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { TeamLogo } from "@/components/recent-results-table"
+import { TwitchLink } from "@/components/twitch-link"
 import { formatMapName } from "@/lib/map-images"
 import {
   FollowIndicator,
@@ -284,6 +285,12 @@ export function MatchesView({
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <CalendarDaysIcon aria-hidden="true" className="size-4" />
                   <span>{formatMatchDate(match.scheduledAt, true)}</span>
+                  {match.streamUrl ? (
+                    <TwitchLink
+                      url={match.streamUrl}
+                      caster={match.streamCaster}
+                    />
+                  ) : null}
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="flex items-center gap-2 font-medium wrap-break-word">

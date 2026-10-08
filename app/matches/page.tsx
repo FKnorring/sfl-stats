@@ -2,6 +2,7 @@ import {
   getCurrentSeason,
   getCurrentTeamCatalog,
   getDemoMatches,
+  getMatchStreams,
   getMatchTeams,
 } from "@/lib/cached-data"
 import { enrichUpcomingMatches } from "@/lib/toornament-live"
@@ -9,11 +10,12 @@ import { getLivePendingMatches } from "@/lib/cached-toornament"
 import { MatchesView } from "./matches-view"
 
 export default async function MatchesPage() {
-  const [history, live, teams, catalog] = await Promise.all([
+  const [history, live, teams, catalog, streams] = await Promise.all([
     getDemoMatches(),
     getLivePendingMatches(),
     getCurrentSeason().then((season) => (season ? getMatchTeams(season) : [])),
     getCurrentTeamCatalog(),
+    getMatchStreams(),
   ])
   const divisions = [
     ...new Set([
@@ -33,7 +35,15 @@ export default async function MatchesPage() {
   return (
     <MatchesView
       history={history}
-      upcoming={live === null ? null : enrichUpcomingMatches(live, teams)}
+      upcoming={
+        live === null
+          ? null
+          : enrichUpcomingMatches(live, teams).map((match) => ({
+              ...match,
+              streamUrl: streams[match.matchId]?.url ?? null,
+              streamCaster: streams[match.matchId]?.caster ?? null,
+            }))
+      }
       divisions={divisions}
       logos={logos}
     />
