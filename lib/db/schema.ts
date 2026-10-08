@@ -162,6 +162,12 @@ export const playerMatchStats = sqliteTable(
     adr: real("adr"),
     hsPct: real("hs_pct"),
     clutchCount: integer("clutch_count"),
+    rating: real("rating"),
+    ratingVersion: text("rating_version"),
+    ratingRounds: integer("rating_rounds"),
+    ratingUnavailableReason: text("rating_unavailable_reason").default(
+      "Not enriched"
+    ),
   },
   (t) => [
     uniqueIndex("player_match_stats_match_steamid_unique").on(
@@ -169,6 +175,58 @@ export const playerMatchStats = sqliteTable(
       t.steamid64
     ),
     index("idx_pms_steamid").on(t.steamid64),
+  ]
+)
+
+export const matchRounds = sqliteTable(
+  "match_rounds",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id),
+    ordinal: integer("ordinal").notNull(),
+    rawRound: integer("raw_round").notNull(),
+    startTick: integer("start_tick").notNull(),
+    freezeTick: integer("freeze_tick").notNull(),
+    endTick: integer("end_tick").notNull(),
+    winner: integer("winner").notNull(),
+  },
+  (t) => [uniqueIndex("match_rounds_match_ordinal").on(t.matchId, t.ordinal)]
+)
+
+export const playerMatchRoundStats = sqliteTable(
+  "player_match_round_stats",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id),
+    roundId: integer("round_id")
+      .notNull()
+      .references(() => matchRounds.id),
+    steamid64: text("steamid64")
+      .notNull()
+      .references(() => players.steamid64),
+    side: integer("side").notNull(),
+    kills: integer("kills").notNull(),
+    deaths: integer("deaths").notNull(),
+    assists: integer("assists").notNull(),
+    flashAssists: integer("flash_assists").notNull(),
+    headshotKills: integer("headshot_kills").notNull(),
+    damage: integer("damage").notNull(),
+    utilityDamage: integer("utility_damage").notNull(),
+    survived: integer("survived", { mode: "boolean" }).notNull(),
+    traded: integer("traded", { mode: "boolean" }).notNull(),
+    openingKills: integer("opening_kills").notNull(),
+    openingDeaths: integer("opening_deaths").notNull(),
+    clutchWins: integer("clutch_wins").notNull(),
+    clutchOpponents: integer("clutch_opponents").notNull(),
+    equipmentValue: integer("equipment_value"),
+  },
+  (t) => [
+    uniqueIndex("player_round_stats_round_player").on(t.roundId, t.steamid64),
+    index("player_round_stats_match_player").on(t.matchId, t.steamid64),
   ]
 )
 

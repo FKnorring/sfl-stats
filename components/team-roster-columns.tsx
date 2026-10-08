@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { FollowIndicator } from "@/components/follow-indicator"
+import { RatingValue } from "@/components/player-rating"
 
 // Roster row as rendered by the table: the raw DB row plus Faceit elo
 // pre-joined into a plain, serializable field.
@@ -79,6 +80,22 @@ export function buildTeamRosterColumns({
         <DataTableColumnHeader column={column} title="Matches" />
       ),
       meta: rightAlign,
+    },
+    {
+      id: "rating",
+      accessorFn: (row) => row.rating ?? undefined,
+      sortUndefined: "last",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="SFL Rating" />
+      ),
+      meta: rightAlign,
+      cell: ({ row }) => (
+        <RatingValue
+          rating={row.original.rating}
+          ratedGames={row.original.ratedGames}
+          matchesPlayed={row.original.matchesPlayed}
+        />
+      ),
     },
     {
       accessorKey: "kills",
