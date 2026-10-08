@@ -16,6 +16,7 @@ import {
   StatFilter,
 } from "@/components/leaderboard-filters"
 import { LeaderboardTable } from "./leaderboard-table"
+import { RatingExplanation } from "@/components/player-rating"
 
 // DB reads aren't `fetch`-cached requests, so without this the leaderboard
 // could get frozen at build time until the next deploy. force-dynamic keeps
@@ -23,6 +24,7 @@ import { LeaderboardTable } from "./leaderboard-table"
 export const dynamic = "force-dynamic"
 
 const STAT_OPTIONS: { value: LeaderboardStat; label: string }[] = [
+  { value: "rating", label: "SFL Rating" },
   { value: "kills", label: "Kills" },
   { value: "deaths", label: "Deaths" },
   { value: "adr", label: "ADR" },
@@ -113,6 +115,7 @@ export default async function LeaderboardPage({
       </div>
 
       <LeaderboardTable rows={rows} stat={stat} statLabel={statLabel} />
+      <RatingExplanation />
     </div>
   )
 }

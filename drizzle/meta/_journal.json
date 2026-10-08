@@ -43,6 +43,13 @@
       "when": 1791363353934,
       "tag": "0005_friendly_post",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791384916962,
+      "tag": "0006_brown_sunset_bain",
+      "breakpoints": true
     }
   ]
 }

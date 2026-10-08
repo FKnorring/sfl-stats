@@ -223,6 +223,59 @@ pnpm ingest:demos -- --dir ./demos
   `data/player-overrides.json`, the git-tracked manual-correction file the
   script reads back in on subsequent runs).
 
+### Player ratings
+
+Demo scoreboards, player profiles/history, leaderboards, shared team rosters,
+and recent-game hover cards show **SFL Rating v1**, a custom provisional model,
+**not an official HLTV rating**. Select SFL Rating in the leaderboard filter
+to rank by it; existing defaults and ADR-based team MVP selection are unchanged.
+Demo detail includes the selected player's component breakdown, KAST, openings,
+clutches, flash assists, and utility damage.
+
+The rating combines combat (25%), damage (20%), KAST consistency (20%),
+survival (10%), impact (15%), and support (10%), relative to a frozen SFL09
+reference corpus. A reference-average performance is 1.00. Profile/roster
+averages are weighted by participated rounds; `rated/all` shows demo coverage.
+Unreliable or incomplete recordings remain visible but unrated with an
+explanation. Faceit statistics and series results are not rated.
+
+Apply the generated migration before running the new code. New demo ingestion
+automatically calculates ratings. To enrich already-ingested demos, download
+the originals and run:
+
+```powershell
+pnpm db:migrate
+pnpm rate:demos --dir "C:\path\to\SFL09_DEMOS" --dry-run
+pnpm rate:demos --dir "C:\path\to\SFL09_DEMOS"
+pnpm rate:demos --recompute
+```
+
+`--match-id <id>` limits either operation to one existing demo.
+`--dry-run` parses/calculates without writing. `--recompute` needs only stored
+round facts, not original files. The CLI reads `.env` and uses the same
+`DATABASE_URL` as the other scripts. Back up the selected database first.
+Duplicate normalized demo basenames are rejected; Unicode filename composition
+differences are normalized for lookup. Re-enrichment is atomic per demo and
+idempotent, and never replays roster matching or duplicates heatmap events.
+Missing originals, invalid recordings, and enrichment failures are explicitly
+reported; unexpected failures produce a failing exit status.
+
+Ratings use validated competitive rounds, not legacy `matches.total_rounds`:
+some demos contain an initial synthetic round-end event with no winner.
+Existing aggregate stats/heatmaps remain unchanged. Verified players absent
+from the final scoreboard can be added from their participated-round facts.
+Economy snapshots are retained but not weighted.
+
+See [the rating decision](docs/adr/0006-versioned-sfl-player-rating.md) for
+definitions, calibration limitations, and the frozen reference inventory.
+Focused tests, with optional reproduction against original demos:
+
+```powershell
+node --import tsx --test lib\player-rating.test.ts lib\rating-db.test.ts
+$env:SFL_RATING_DEMOS = "C:\path\to\SFL09_DEMOS"
+node --import tsx --test lib\player-rating.test.ts
+```
+
 ### `pnpm faceit:sync`
 
 Fetches Faceit lifetime stats and recent match history for players already

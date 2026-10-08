@@ -20,6 +20,7 @@ import { MatchHistoryTable } from "./player-history-tables"
 import { isLocalEnv } from "@/lib/env"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/map-images"
+import { RatingValue, RatingExplanation } from "@/components/player-rating"
 
 // Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
 // freshness, not Next's build-time fetch caching.
@@ -107,6 +108,17 @@ export default async function PlayerPage({
           </div>
 
           <div className="grid flex-1 grid-cols-2 content-center gap-6 rounded-md border border-border p-8 text-sm">
+            <div className="col-span-2 flex flex-col gap-0.5">
+              <span className="text-muted-foreground">SFL Rating</span>
+              <span className="font-medium">
+                <RatingValue
+                  rating={player.rating}
+                  ratedGames={player.ratedGames}
+                  matchesPlayed={player.matchesPlayed}
+                />
+              </span>
+              <RatingExplanation />
+            </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-muted-foreground">Matches</span>
               <span className="font-medium">{player.matchesPlayed}</span>

@@ -6,6 +6,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { FollowIndicator } from "@/components/follow-indicator"
+import { RatingValue } from "@/components/player-rating"
 
 // The leaderboard row shape as rendered by the table: the raw DB row plus
 // Faceit stats pre-joined into plain, serializable fields (the lookup Map
@@ -37,10 +38,13 @@ function statValueFor(stat: LeaderboardStat, row: LeaderboardTableRow): number {
       return row.hsPct ?? 0
     case "mvps":
       return row.mvps
+    case "rating":
+      return row.rating ?? 0
   }
 }
 
 function formatStat(stat: LeaderboardStat, value: number): string {
+  if (stat === "rating") return value.toFixed(2)
   if (stat === "hs_pct") return `${(value * 100).toFixed(1)}%`
   if (
     stat === "adr" ||
@@ -146,6 +150,22 @@ export function buildLeaderboardColumns(
       meta: rightAlign,
     },
     {
+      id: "rating",
+      accessorFn: (row) => row.rating ?? undefined,
+      sortUndefined: "last",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="SFL Rating" />
+      ),
+      meta: rightAlign,
+      cell: ({ row }) => (
+        <RatingValue
+          rating={row.original.rating}
+          ratedGames={row.original.ratedGames}
+          matchesPlayed={row.original.matchesPlayed}
+        />
+      ),
+    },
+    {
       accessorKey: "kills",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Avg K" />
@@ -200,12 +220,25 @@ export function buildLeaderboardColumns(
     },
     {
       id: "statValue",
-      accessorFn: (row) => statValueFor(stat, row),
+      accessorFn: (row) =>
+        stat === "rating" && row.rating == null
+          ? undefined
+          : statValueFor(stat, row),
+      sortUndefined: "last",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={statLabel ?? "Stat"} />
       ),
       meta: { className: "text-right font-medium" },
-      cell: ({ row }) => formatStat(stat, statValueFor(stat, row.original)),
+      cell: ({ row }) =>
+        stat === "rating" ? (
+          <RatingValue
+            rating={row.original.rating}
+            ratedGames={row.original.ratedGames}
+            matchesPlayed={row.original.matchesPlayed}
+          />
+        ) : (
+          formatStat(stat, statValueFor(stat, row.original))
+        ),
     },
     {
       accessorKey: "faceitElo",

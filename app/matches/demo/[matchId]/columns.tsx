@@ -3,6 +3,7 @@ import Link from "next/link"
 import type { DemoMatchPlayerStatsRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { FollowIndicator } from "@/components/follow-indicator"
+import { RatingValue } from "@/components/player-rating"
 
 export type DemoMatchPlayerRow = DemoMatchPlayerStatsRow & {
   avatarUrl: string | null
@@ -48,6 +49,25 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
           ↗
         </Link>
       </div>
+    ),
+  },
+  {
+    accessorKey: "rating",
+    sortUndefined: "last",
+    accessorFn: (row) => row.rating ?? undefined,
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title="SFL"
+        className={numHeader}
+      />
+    ),
+    meta: rightAlign,
+    cell: ({ row }) => (
+      <RatingValue
+        rating={row.original.rating}
+        reason={row.original.ratingUnavailableReason}
+      />
     ),
   },
   {

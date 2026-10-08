@@ -20,6 +20,8 @@ import {
 } from "@/lib/team-anchoring"
 import { z } from "zod"
 import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
+import { extractRatingFacts } from "@/lib/demo-rating"
+import { persistRatingExtraction } from "@/lib/rating-db"
 
 const DEFAULT_DIR = path.join(process.cwd(), "demos")
 const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
@@ -748,6 +750,13 @@ async function ingestDemo(
       team_resolution_conflict = ${resolved.teamResolutionConflict}
     WHERE id = ${matchId}
   `)
+  const ratingFacts = extractRatingFacts(filePath)
+  await persistRatingExtraction(db, matchId, ratingFacts)
+  if (ratingFacts.unavailableReason) {
+    console.warn(
+      `[ingest-demos] unrated demo ${matchId}: ${ratingFacts.unavailableReason}`
+    )
+  }
 }
 
 /**
