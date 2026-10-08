@@ -118,14 +118,26 @@ async function Podiums() {
   ))
 }
 
+// Best-rated player per division, one row each, in division order.
 async function TopPlayers() {
   const season = (await getCurrentSeason()) ?? undefined
-  const players = await getLeaderboard({
-    stat: "kills",
-    direction: "desc",
-    season,
-    limit: 5,
-  })
+  const catalog = await getCurrentTeamCatalog()
+  const tops = await Promise.all(
+    divisionTeams(catalog).map(async ([division]) => {
+      const [top] = await getLeaderboard({
+        stat: "rating",
+        direction: "desc",
+        season,
+        division,
+        limit: 1,
+      })
+      return top ?? null
+    })
+  )
+  // Division order from the catalog is not rating order, so sort by rating.
+  const players = tops
+    .filter((row) => row !== null)
+    .sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1))
   const ids = players.map((row) => row.steamid64)
   const [faceitStats, steamSummaries] = await Promise.all([
     getFaceitPlayerStats(7, ids),
@@ -145,7 +157,9 @@ async function TopPlayers() {
       avatarUrl: steamSummaries.get(row.steamid64)?.avatarUrl ?? null,
     }
   })
-  return <LeaderboardTable rows={rows} stat="kills" statLabel="Kills" compact />
+  return (
+    <LeaderboardTable rows={rows} stat="rating" statLabel="Rating" compact />
+  )
 }
 
 // Latest completed official matches, scraped live from the Toornament

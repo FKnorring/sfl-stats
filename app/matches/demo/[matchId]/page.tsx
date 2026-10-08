@@ -1,4 +1,6 @@
 import Link from "next/link"
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db/client"
 import { matches } from "@/lib/db/schema"
@@ -22,11 +24,26 @@ export async function generateStaticParams() {
     : [{ matchId: "__empty__" }]
 }
 
-export default async function DemoMatchPage({
-  params,
-}: {
-  params: Promise<{ matchId: string }>
-}) {
+type MatchParams = Promise<{ matchId: string }>
+
+function DemoMatchPageSkeleton() {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6" aria-busy="true">
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-96 w-full" />
+    </div>
+  )
+}
+
+export default function DemoMatchPage({ params }: { params: MatchParams }) {
+  return (
+    <Suspense fallback={<DemoMatchPageSkeleton />}>
+      <DemoMatchPageContent params={params} />
+    </Suspense>
+  )
+}
+
+async function DemoMatchPageContent({ params }: { params: MatchParams }) {
   const { matchId: matchIdParam } = await params
   const matchId = Number(matchIdParam)
   if (!Number.isInteger(matchId)) notFound()

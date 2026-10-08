@@ -10,7 +10,6 @@ export type PlayerCardData = {
   realName: string | null
   teamName: string | null
   avatarUrl: string | null
-  steamPersonaName: string | null
   faceit: {
     nickname: string
     elo: number | null
@@ -24,7 +23,6 @@ export type PlayerCardData = {
     kills: number
     deaths: number
     assists: number
-    adr: number | null
     rating: number | null
     ratingUnavailableReason: string | null
   }[]
@@ -58,7 +56,6 @@ export async function GET(
     realName: player.realName,
     teamName: history.find((h) => h.teamName)?.teamName ?? null,
     avatarUrl: steam?.avatarUrl ?? null,
-    steamPersonaName: steam?.personaName ?? null,
     faceit: faceit
       ? {
           nickname: faceit.faceitNickname,
@@ -74,7 +71,6 @@ export async function GET(
       kills: h.kills,
       deaths: h.deaths,
       assists: h.assists,
-      adr: h.adr,
       rating: h.rating,
       ratingUnavailableReason: h.ratingUnavailableReason,
     })),

@@ -1,7 +1,31 @@
+import { Suspense } from "react"
 import { redirect } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton"
 import { getDivisions } from "@/lib/cached-data"
 
-export default async function TeamsPage({
+export default function TeamsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    division?: string | string[]
+    season?: string | string[]
+  }>
+}) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex flex-col gap-3 p-6" aria-busy="true">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      }
+    >
+      <TeamRedirect searchParams={searchParams} />
+    </Suspense>
+  )
+}
+
+async function TeamRedirect({
   searchParams,
 }: {
   searchParams: Promise<{

@@ -24,6 +24,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 const ITEMS = [
@@ -56,6 +57,7 @@ function Navigation({
   showAdmin: boolean
   pathname?: string
 }) {
+  const { isMobile, setOpenMobile } = useSidebar()
   const items = showAdmin
     ? [...ITEMS, { href: "/admin", label: "Admin", icon: WrenchIcon }]
     : ITEMS
@@ -78,13 +80,22 @@ function Navigation({
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {items.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
                     isActive={href === active}
+                    aria-current={href === active ? "page" : undefined}
                     tooltip={label}
-                    render={<Link href={href} />}
+                    className="h-10 px-3 data-active:bg-sidebar-primary/10 data-active:text-sidebar-primary"
+                    render={
+                      <Link
+                        href={href}
+                        onNavigate={() => {
+                          if (isMobile) setOpenMobile(false)
+                        }}
+                      />
+                    }
                   >
                     <Icon />
                     <span>{label}</span>

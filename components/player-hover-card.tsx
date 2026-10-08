@@ -112,7 +112,7 @@ function CardBody({ data }: { data: PlayerCardData }) {
                   </span>
                   <span className="tabular-nums">
                     {g.kills}/{g.deaths}/{g.assists}
-                    {" · SFL "}
+                    {" · Rating "}
                     <RatingValue
                       rating={g.rating}
                       reason={g.ratingUnavailableReason}

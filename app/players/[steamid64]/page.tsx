@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db/client"
 import { players } from "@/lib/db/schema"
@@ -32,11 +34,32 @@ export async function generateStaticParams() {
   return sample.length ? sample : [{ steamid64: "__empty__" }]
 }
 
-export default async function PlayerPage({
-  params,
-}: {
-  params: Promise<{ steamid64: string }>
-}) {
+type PlayerParams = Promise<{ steamid64: string }>
+
+function PlayerPageSkeleton() {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6" aria-busy="true">
+      <div className="flex flex-wrap items-stretch gap-4">
+        <div className="flex w-72 shrink-0 flex-col gap-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+        <Skeleton className="min-h-96 min-w-0 flex-1" />
+      </div>
+      <Skeleton className="h-64 w-full" />
+    </div>
+  )
+}
+
+export default function PlayerPage({ params }: { params: PlayerParams }) {
+  return (
+    <Suspense fallback={<PlayerPageSkeleton />}>
+      <PlayerPageContent params={params} />
+    </Suspense>
+  )
+}
+
+async function PlayerPageContent({ params }: { params: PlayerParams }) {
   const { steamid64: steamid64Param } = await params
   const steamid64 = decodeURIComponent(steamid64Param)
 

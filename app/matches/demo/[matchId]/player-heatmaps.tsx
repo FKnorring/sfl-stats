@@ -116,12 +116,14 @@ export function Heatmap({
   points,
   imageUrl,
   isRadar,
+  label,
   className = "max-w-xl",
 }: {
   className?: string
   points: Point[]
   imageUrl: string | null
   isRadar: boolean
+  label: string
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
@@ -152,7 +154,7 @@ export function Heatmap({
         height={GRID}
         className="absolute inset-0 size-full"
         role="img"
-        aria-label="Heatmap"
+        aria-label={label}
       />
     </div>
   )
@@ -266,6 +268,7 @@ export function PlayerHeatmaps({
           points={points}
           imageUrl={radar?.url ?? mapImageUrl}
           isRadar={radar != null}
+          label={`${playerName ? `${playerName}: ` : ""}${points.length} ${mode} ${side === "all" ? "on both sides" : `as ${side}`} heatmap`}
         />
       </div>
     </div>
