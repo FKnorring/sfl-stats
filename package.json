@@ -15,6 +15,7 @@
     "db:migrate": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs migrate",
     "scrape:roster": "tsx scripts/scrape-roster.ts",
     "scrape:schedule": "tsx scripts/scrape-schedule.ts",
+    "download:demos": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/download-demos.ts",
     "ingest:demos": "tsx scripts/ingest-demos.ts",
     "rate:demos": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/rate-demos.ts",
     "faceit:sync": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/faceit-sync.ts"
