@@ -49,13 +49,6 @@ export default async function MatchPage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <Link
-        href="/teams"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to standings
-      </Link>
-
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{formatScheduledAt(match.scheduledAt)}</span>

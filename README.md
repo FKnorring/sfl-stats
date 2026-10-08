@@ -224,6 +224,11 @@ may retain older data. The player hover-card cache stays tab-local, while
 its HTTP endpoint uses `no-store` so a reload does not reuse a separate
 browser/CDN response cache.
 
+The `ENV=local` admin Steam ID editor uses the same write-phase wrapper,
+including generation advancement and optional notification after partial
+failure. Its existing local-only guard remains; production app requests
+cannot use it to write to the database.
+
 ### Failure recovery
 
 Failures after writes are explicit and return a nonzero exit code; earlier
@@ -251,7 +256,7 @@ pnpm test:cache   # production-mode integration using an isolated fixture
 ```
 
 `test:cache` starts temporary loopback servers and an in-memory database,
-measures 12 routes, checks cache sizes/lifetimes, performs authenticated CLI
+measures 13 routes (including the home page), checks cache sizes/lifetimes, performs authenticated CLI
 invalidation, and reproduces a query finishing after invalidation. It also
 checks source-outage recovery and Faceit serialization. No production DB
 or external API is used. Reported timings use a simulated 40 ms upstream

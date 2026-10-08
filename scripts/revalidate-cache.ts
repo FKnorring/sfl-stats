@@ -121,9 +121,9 @@ export async function notifyCache(
   }
 }
 
-export async function withCacheInvalidation(
+export async function withCacheInvalidation<Result>(
   source: RevalidationSource,
-  run: (markWritePhase: () => void) => Promise<void>,
+  run: (markWritePhase: () => void) => Promise<Result>,
   advance = advanceCacheGeneration
 ) {
   const config = revalidationConfig()
@@ -132,9 +132,10 @@ export async function withCacheInvalidation(
       "[cache] notification disabled; configure both revalidation settings for deployed-cache updates"
     )
   let wrote = false
+  let result!: Result
   const failures: unknown[] = []
   try {
-    await run(() => {
+    result = await run(() => {
       wrote = true
     })
   } catch (error) {
@@ -166,6 +167,7 @@ export async function withCacheInvalidation(
   }
   if (failures.length)
     throw new AggregateError(failures, "Ingestion/cache notification failed")
+  return result
 }
 
 async function main() {

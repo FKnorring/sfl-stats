@@ -13,7 +13,7 @@ type FaceitLookup = Map<string, { faceitNickname: string; elo: number | null }>
 /**
  * Single-team roster table: same demo-derived stat columns as
  * app/teams/compare/page.tsx's RosterTable, plus an Accounts column for
- * viewing/correcting the steamID match and viewing (read-only) the Faceit
+ * viewing the steamID match and viewing (read-only) the Faceit
  * link. Columns are shared with the compare view via
  * components/team-roster-columns.tsx; only the Accounts column differs.
  */

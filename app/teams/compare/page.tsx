@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { connection } from "next/server"
 import {
   getTeamStandings,
@@ -115,13 +114,6 @@ export default async function TeamComparePage({
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
-      <Link
-        href="/teams"
-        className="text-sm text-muted-foreground underline-offset-4 hover:underline"
-      >
-        ← Back to standings
-      </Link>
-
       <div className="grid gap-6 md:grid-cols-2">
         <TeamColumn
           slot="teamA"

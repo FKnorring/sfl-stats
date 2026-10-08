@@ -7,6 +7,7 @@ import {
   type ScheduledMatch,
 } from "@/lib/toornament-schedule"
 import { scoreSimilarity, MATCH_THRESHOLD_LOW } from "@/lib/matching"
+import { resolveOfficialTeam } from "@/lib/toornament-standings"
 
 const DEFAULT_TOURNAMENT_ID = "2560854090247290879"
 const DEFAULT_LOCALE = "en_US"
@@ -59,6 +60,18 @@ async function getCurrentSeasonTeams(db: AppDb): Promise<TeamRow[]> {
 }
 
 function resolveTeam(name: string, teams: TeamRow[]): number | null {
+  // Strict resolver first (handles reordered/shortened names), then the
+  // original loose best-score match so nothing that resolved before regresses.
+  const official = resolveOfficialTeam(
+    name,
+    teams.map((t) => ({
+      teamId: t.id,
+      teamName: t.name,
+      season: "",
+      division: "",
+    }))
+  )
+  if (official) return official.teamId
   let best = -Infinity
   let bestId: number | null = null
   for (const team of teams) {

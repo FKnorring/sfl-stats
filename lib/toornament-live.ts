@@ -17,7 +17,7 @@ import {
 } from "@/lib/toornament-standings"
 
 // Same default tournament as scripts/scrape-schedule.ts.
-const TOURNAMENT_ID = "2560854090247290879"
+export const TOURNAMENT_ID = "2560854090247290879"
 
 /**
  * Fetches the live schedule widget (no API key needed) and returns every
@@ -27,6 +27,14 @@ const TOURNAMENT_ID = "2560854090247290879"
  */
 export async function getLivePendingMatches(
   tournamentId = TOURNAMENT_ID
+): Promise<ScheduledMatch[] | null> {
+  const matches = await getLiveScheduleMatches(tournamentId)
+  return matches?.filter((m) => m.status === "pending") ?? null
+}
+
+/** Every match (pending and completed) in the tournament's schedule widget. */
+export async function getLiveScheduleMatches(
+  tournamentId: string
 ): Promise<ScheduledMatch[] | null> {
   let html: string
   try {
@@ -64,7 +72,7 @@ export async function getLivePendingMatches(
     console.error("[toornament] Unrecognized schedule markup")
     return null
   }
-  return matches.filter((m) => m.status === "pending")
+  return matches
 }
 
 export function enrichUpcomingMatches(
@@ -155,6 +163,29 @@ export async function getRankingRows(
   })
   if (!response.ok) throw new Error(`Ranking widget: HTTP ${response.status}`)
   return parseStandingsWidget(await response.text())
+}
+
+/** Completed official matches for the team's division, from the live widget. */
+export async function getLiveDivisionResults(
+  team: MatchTeam,
+  loadStages = getDivisionStages,
+  loadSchedule = getLiveScheduleMatches
+): Promise<ScheduledMatch[] | null> {
+  try {
+    const stage = await divisionStage(team, loadStages)
+    const matches = await loadSchedule(stage.split("/")[2])
+    return (
+      matches?.filter(
+        (m) =>
+          m.status === "completed" &&
+          m.teamAScore !== null &&
+          m.teamBScore !== null
+      ) ?? null
+    )
+  } catch (error) {
+    console.error("[toornament] Could not load division results:", error)
+    return null
+  }
 }
 
 export async function getLiveDivisionStandings(

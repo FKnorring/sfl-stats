@@ -15,16 +15,16 @@ const options = {
   tags: [cacheTag("toornament")],
 }
 class UnavailableSchedule extends Error {}
-const pendingMatches = async (tournamentId?: string) => {
+const scheduleMatches = async (tournamentId: string) => {
   const generation = await getCacheGeneration()
   return unstable_cache(
-    async (id?: string) => {
-      const matches = await source.getLivePendingMatches(id)
+    async (id: string) => {
+      const matches = await source.getLiveScheduleMatches(id)
       if (matches === null)
         throw new UnavailableSchedule("Toornament schedule unavailable")
       return matches
     },
-    [...keys, generation, "pending-matches"],
+    [...keys, generation, "schedule-matches"],
     options
   )(tournamentId)
 }
@@ -41,13 +41,28 @@ const rankingRows = async (url: string) =>
     options
   )(url)
 
-export async function getLivePendingMatches(tournamentId?: string) {
+async function getLiveScheduleMatches(tournamentId: string) {
   try {
-    return await pendingMatches(tournamentId)
+    return await scheduleMatches(tournamentId)
   } catch (error) {
     if (!(error instanceof UnavailableSchedule)) throw error
     return null
   }
+}
+
+export async function getLivePendingMatches(
+  tournamentId = source.TOURNAMENT_ID
+) {
+  const matches = await getLiveScheduleMatches(tournamentId)
+  return matches?.filter((match) => match.status === "pending") ?? null
+}
+
+export function getLiveDivisionResults(team: MatchTeam) {
+  return source.getLiveDivisionResults(
+    team,
+    divisionStages,
+    getLiveScheduleMatches
+  )
 }
 
 export function getLiveTeamPendingMatches(team: MatchTeam) {

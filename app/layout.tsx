@@ -8,6 +8,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FollowProvider } from "@/components/follow-provider"
 import { getCurrentTeamCatalog } from "@/lib/cached-data"
+import { isLocalEnv } from "@/lib/env"
 import { connection } from "next/server"
 
 const jetbrainsMonoHeading = JetBrains_Mono({
@@ -49,7 +50,7 @@ export default async function RootLayout({
           <TooltipProvider>
             <FollowProvider teams={teams}>
               <SidebarProvider>
-                <SideNav />
+                <SideNav showAdmin={isLocalEnv} />
                 <SidebarInset className="min-w-0">{children}</SidebarInset>
               </SidebarProvider>
             </FollowProvider>

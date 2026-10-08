@@ -125,13 +125,15 @@ test("write phases notify on no-op/partial failure; probes do not; errors retain
     await withCacheInvalidation("faceit", async () => {}, advance)
     assert.equal(calls, 0)
     assert.equal(generations, 0)
-    await withCacheInvalidation(
+    const result = await withCacheInvalidation(
       "demos",
       async (mark) => {
         mark()
+        return { ok: true, message: "Saved" }
       },
       advance
     )
+    assert.deepEqual(result, { ok: true, message: "Saved" })
     assert.equal(calls, 1)
     await assert.rejects(
       withCacheInvalidation(

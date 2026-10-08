@@ -51,7 +51,7 @@ for (let match = 1; match <= 200; match++) {
   const teamA = ((match - 1) % 6) * 2 + 1
   const teamB = teamA + 1
   seed.push({
-    sql: "INSERT INTO matches (id,file_name,map_name,demo_date,team_a_id,team_b_id,team_a_score,team_b_score,parsed_at) VALUES (?,?,?, ?,?,?,13,7,?)",
+    sql: "INSERT INTO matches (id,file_name,map_name,demo_date,team_a_id,team_b_id,team_a_score,team_b_score,total_rounds,parsed_at) VALUES (?,?,?, ?,?,?,13,7,20,?)",
     args: [match, `${match}.dem`, "de_nuke", now, teamA, teamB, now],
   })
   for (let offset = 0; offset < 10; offset++) {
@@ -142,7 +142,7 @@ const labels = [
   "Points",
 ]
 const ranking = `<div class="ranking format-sheet"><div class="ranking-title">${labels.map((label) => `<div class="metric"><abbr title="${label}"></abbr></div>`).join("")}</div><div class="ranking-item"><div class="rank">1</div><div class="name">Alpha</div>${[2, 2, 0, 0, 0, 26, 14, 12, 6].map((value) => `<div class="metric">${value}</div>`).join("")}</div></div>`
-const schedule = `<div data-role="sch-event" data-time="${now}"><div class="match" data-type="match" data-id="upcoming"><div class="opponent"><div class="name">Alpha</div></div><div class="opponent"><div class="name">Beta</div></div></div></div>`
+const schedule = `<div data-role="sch-event" data-time="${now}"><div class="match" data-type="match" data-id="upcoming"><div class="opponent"><div class="name">Alpha</div></div><div class="opponent"><div class="name">Beta</div></div></div><div class="match" data-type="match" data-id="completed"><div class="opponent"><div class="name win">Alpha</div><div class="result">13</div></div><div class="opponent"><div class="name loss">Beta</div><div class="result">7</div></div></div></div>`
 
 const fixture = http.createServer(async (request, response) => {
   try {
@@ -318,6 +318,7 @@ async function retryNotification(source) {
   await sleep(350)
 }
 const routes = [
+  "/",
   "/leaderboard",
   "/teams",
   "/teams/compare?teamA=1&teamB=2",
@@ -366,9 +367,23 @@ try {
     console.log(`Measuring ${route}`)
     const cold = await load(route)
     assert.equal(cold.status, route === "/players/missing" ? 404 : 200, logs)
+    if (route === "/")
+      assert.ok(
+        cold.text.includes("13-7"),
+        "Home must retain completed results"
+      )
+    if (route === "/leaderboard")
+      assert.ok(
+        cold.text.includes(steamid(1)),
+        "Fixture demos must qualify for the leaderboard"
+      )
     const before = { ...counters }
     const warm = []
-    for (let i = 0; i < 5; i++) warm.push(await load(route))
+    for (let i = 0; i < 5; i++) {
+      const sample = await load(route)
+      assert.equal(sample.status, cold.status, `${route}: ${logs}`)
+      warm.push(sample)
+    }
     const calls = Object.fromEntries(
       Object.keys(counters).map((key) => [key, counters[key] - before[key]])
     )
@@ -420,6 +435,10 @@ try {
       sql: "UPDATE players SET latest_ingame_name='Updated fixture' WHERE steamid64=?",
       args: [steamid(1)],
     })
+    await database.execute({
+      sql: "UPDATE roster_entries SET nickname='Updated fixture' WHERE matched_steamid64=?",
+      args: [steamid(1)],
+    })
     await database.execute(
       "UPDATE teams SET logo_url='https://example.invalid/new-logo.png' WHERE id=1"
     )
@@ -430,9 +449,18 @@ try {
     await retryNotification("demos")
     const after = await load(`/api/players/${steamid(1)}/card`)
     assert.equal(JSON.parse(after.text).inGameName, "Updated fixture")
-    for (const route of ["/leaderboard", "/teams/Alpha", "/matches/demo/1"]) {
+    for (const route of [
+      "/",
+      "/leaderboard",
+      "/teams/Alpha",
+      "/matches/demo/1",
+    ]) {
       const fresh = await load(route)
-      assert.ok(fresh.text.includes("Updated fixture"), route)
+      assert.equal(fresh.status, 200, `${route}: ${logs}`)
+      assert.ok(
+        fresh.text.includes("Updated fixture"),
+        `${route}: updated player must be visible after invalidation; ${logs}`
+      )
       assert.ok(fresh.text.includes("new-logo.png"), route)
     }
     await load("/matches")

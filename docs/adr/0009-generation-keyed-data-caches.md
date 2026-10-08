@@ -34,9 +34,10 @@ a DB query started before ingestion can finish after `revalidateTag()`
 and republish the old result as a new cache entry. A TTL cannot provide the
 agreed post-ingestion reload guarantee.
 
-Add a singleton `cache_generation` row populated by migration. Only CLI
-scripts update it, using a new random generation after write-capable phases,
-including partial runs. The public app reads it once per render request
+Add a singleton `cache_generation` row populated by migration. CLI scripts
+and the existing `ENV=local` admin editor update it, using a new random
+generation after write-capable phases, including partial runs. The public
+app reads it once per render request
 using React request memoization, or an AsyncLocalStorage scope for Route
 Handlers. DB and Toornament cache keys include that generation. Late
 results stay in the obsolete keyspace and are never reused by later fresh
@@ -54,6 +55,9 @@ not provide an atomic whole-ingestion snapshot or recall in-flight pages.
 All four ingestion entry points use a shared write-phase wrapper. It
 advances the generation after writes and calls an authenticated, bounded
 POST endpoint with an allowlisted source and hashed project/database scope.
+The local-only admin editor uses this wrapper too, so its committed roster
+corrections do not remain hidden behind persistent data caches. Its
+existing production write prohibition remains unchanged.
 DB tags are broadly expired; roster/schedule notifications also expire
 Toornament tags. Broad generation changes conservatively refresh
 Toornament keys after other ingestion types too. Steam retains its separate
