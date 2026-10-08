@@ -35,3 +35,8 @@ and the generic DataTable's row-class hook (ADR-0004). Persistent color
 slots and numbered markers distinguish teams without relying on color
 alone. No table engine, runtime dependency, database table, or ingestion
 pipeline change is required.
+
+ADR-0009 supersedes this decision's five-minute source-refresh interval
+with shared six-hour source caches and ingestion-triggered invalidation.
+Browser-local preference storage, official ranking provenance and explicit
+source-failure behavior remain unchanged.

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm"
 
 import { openWritableDb, type AppDb } from "@/lib/db/client"
+import { withCacheInvalidation } from "./revalidate-cache"
 import {
   getPlayerBySteamId,
   getPlayerHistory,
@@ -249,42 +250,49 @@ async function main() {
     return
   }
 
-  const db = openWritableDb()
-  let targets = args.steamid
-    ? [{ steamid64: args.steamid }]
-    : await getConfirmedPlayers(db)
-  console.log(`[faceit-sync] ${targets.length} confirmed player(s) found`)
+  await withCacheInvalidation("faceit", async (markWritePhase) => {
+    const db = openWritableDb()
+    let targets = args.steamid
+      ? [{ steamid64: args.steamid }]
+      : await getConfirmedPlayers(db)
+    console.log(`[faceit-sync] ${targets.length} confirmed player(s) found`)
 
-  const summary: Summary = {
-    synced: 0,
-    skippedFresh: 0,
-    notFound: 0,
-    failed: 0,
-    newMatchRows: 0,
-  }
-
-  if (!args.force && !args.steamid) {
-    const fresh = await getFreshSteamids(db, args.maxAgeHours)
-    const before = targets.length
-    targets = targets.filter((t) => !fresh.has(t.steamid64))
-    summary.skippedFresh = before - targets.length
-  }
-
-  for (const { steamid64 } of targets) {
-    console.log(`[faceit-sync] syncing ${steamid64}`)
-    try {
-      await syncPlayer(db, steamid64, args.days, summary)
-    } catch (err) {
-      console.error(`[faceit-sync] failed to sync ${steamid64}:`, err)
-      summary.failed++
+    const summary: Summary = {
+      synced: 0,
+      skippedFresh: 0,
+      notFound: 0,
+      failed: 0,
+      newMatchRows: 0,
     }
-    await sleep(200)
-  }
 
-  console.log(
-    `[faceit-sync] done: synced ${summary.synced}, skipped (fresh) ${summary.skippedFresh}, ` +
-      `not found ${summary.notFound}, failed ${summary.failed}, new match rows ${summary.newMatchRows}`
-  )
+    if (!args.force && !args.steamid) {
+      const fresh = await getFreshSteamids(db, args.maxAgeHours)
+      const before = targets.length
+      targets = targets.filter((t) => !fresh.has(t.steamid64))
+      summary.skippedFresh = before - targets.length
+    }
+
+    for (const { steamid64 } of targets) {
+      console.log(`[faceit-sync] syncing ${steamid64}`)
+      try {
+        markWritePhase()
+        await syncPlayer(db, steamid64, args.days, summary)
+      } catch (err) {
+        console.error(`[faceit-sync] failed to sync ${steamid64}:`, err)
+        summary.failed++
+      }
+      await sleep(200)
+    }
+
+    console.log(
+      `[faceit-sync] done: synced ${summary.synced}, skipped (fresh) ${summary.skippedFresh}, ` +
+        `not found ${summary.notFound}, failed ${summary.failed}, new match rows ${summary.newMatchRows}`
+    )
+    if (summary.failed > 0)
+      throw new Error(
+        `Faceit sync failed for ${summary.failed} player(s); earlier writes may have committed`
+      )
+  })
 }
 
 main().catch((err) => {

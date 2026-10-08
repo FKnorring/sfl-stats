@@ -5,6 +5,7 @@ import { extractRootComponentJson } from "@/lib/root-component-json"
 import { pageJsonSchema } from "@/lib/roster-types"
 import { extractCs2Rosters } from "@/lib/roster-extract"
 import type { ScrapedTeam } from "@/lib/roster-types"
+import { withCacheInvalidation } from "./revalidate-cache"
 
 const DEFAULT_URL = "https://publiclir.se/svenska-foeretagsligan/"
 
@@ -74,25 +75,28 @@ async function upsertTeamsAndRoster(db: AppDb, teams: ScrapedTeam[]) {
 }
 
 async function main() {
-  const { url } = parseArgs(process.argv.slice(2))
+  await withCacheInvalidation("roster", async (markWritePhase) => {
+    const { url } = parseArgs(process.argv.slice(2))
 
-  console.log(`[scrape-roster] fetching ${url}`)
-  const html = await fetchPage(url)
+    console.log(`[scrape-roster] fetching ${url}`)
+    const html = await fetchPage(url)
 
-  console.log(`[scrape-roster] extracting embedded page JSON`)
-  const raw = extractRootComponentJson(html)
-  const page = pageJsonSchema.parse(raw)
+    console.log(`[scrape-roster] extracting embedded page JSON`)
+    const raw = extractRootComponentJson(html)
+    const page = pageJsonSchema.parse(raw)
 
-  const teams = extractCs2Rosters(page.pageContent.fields.contentArea)
-  console.log(`[scrape-roster] found ${teams.length} CS2 team lineups`)
+    const teams = extractCs2Rosters(page.pageContent.fields.contentArea)
+    console.log(`[scrape-roster] found ${teams.length} CS2 team lineups`)
 
-  const db = openWritableDb()
-  const { teamCount, newRosterEntries, skippedExisting } =
-    await upsertTeamsAndRoster(db, teams)
-  console.log(
-    `[scrape-roster] upserted ${teamCount} teams, ${newRosterEntries} new roster entries` +
-      (skippedExisting ? ` (${skippedExisting} already present)` : "")
-  )
+    const db = openWritableDb()
+    markWritePhase()
+    const { teamCount, newRosterEntries, skippedExisting } =
+      await upsertTeamsAndRoster(db, teams)
+    console.log(
+      `[scrape-roster] upserted ${teamCount} teams, ${newRosterEntries} new roster entries` +
+        (skippedExisting ? ` (${skippedExisting} already present)` : "")
+    )
+  })
 }
 
 main().catch((err) => {

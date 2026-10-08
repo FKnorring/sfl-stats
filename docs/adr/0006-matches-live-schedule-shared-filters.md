@@ -38,6 +38,10 @@ Only stored demo scores are shown. An official series result is not a
 per-demo score, so the official-score inference used by some existing
 detail/team views is intentionally not used here. Missing identities,
 scores, dates, and division attribution stay explicit rather than guessed.
+
+ADR-0009 supersedes the five-minute fetch-cache policy with generation-keyed
+six-hour source caching and ingestion-triggered invalidation. The filtering,
+read-only and explicit source-unavailability decisions remain unchanged.
 Dates are formatted in Stockholm time to avoid server/client timezone
 differences.
 

@@ -1,4 +1,6 @@
 import { Geist_Mono, Space_Grotesk, JetBrains_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import "./globals.css"
 import { SideNav } from "@/components/side-nav"
@@ -7,7 +9,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FollowProvider } from "@/components/follow-provider"
-import { getCurrentTeamCatalog } from "@/lib/db"
+import { getCurrentTeamCatalog } from "@/lib/cached-data"
 import { isLocalEnv } from "@/lib/env"
 import { connection } from "next/server"
 
@@ -56,6 +58,8 @@ export default async function RootLayout({
             </FollowProvider>
           </TooltipProvider>
         </ThemeProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )

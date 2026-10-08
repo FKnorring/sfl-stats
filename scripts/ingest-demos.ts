@@ -20,6 +20,7 @@ import {
 } from "@/lib/team-anchoring"
 import { z } from "zod"
 import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
+import { withCacheInvalidation } from "./revalidate-cache"
 import { extractRatingFacts } from "@/lib/demo-rating"
 import { persistRatingExtraction } from "@/lib/rating-db"
 
@@ -856,122 +857,134 @@ async function reresolveTeams(
 }
 
 async function main() {
-  const { dir, toornamentWindowHours } = parseArgs(process.argv.slice(2))
-  const files = walkDemosFolder(dir)
-  console.log(`[ingest-demos] found ${files.length} .dem files under ${dir}`)
+  await withCacheInvalidation("demos", async (markWritePhase) => {
+    const { dir, toornamentWindowHours } = parseArgs(process.argv.slice(2))
+    const files = walkDemosFolder(dir)
+    console.log(`[ingest-demos] found ${files.length} .dem files under ${dir}`)
 
-  const db = openWritableDb()
-  const overrides = loadOverrides()
-  console.log(`[ingest-demos] loaded ${overrides.size} manual overrides`)
+    const db = openWritableDb()
+    const overrides = loadOverrides()
+    console.log(`[ingest-demos] loaded ${overrides.size} manual overrides`)
 
-  await applyOverrides(db, overrides)
+    markWritePhase()
+    await applyOverrides(db, overrides)
 
-  const alreadyIngested = new Set(
-    (
-      (await db.all(sql`SELECT file_name FROM matches`)) as {
-        file_name: string
-      }[]
-    ).map((r) => r.file_name)
-  )
+    const alreadyIngested = new Set(
+      (
+        (await db.all(sql`SELECT file_name FROM matches`)) as {
+          file_name: string
+        }[]
+      ).map((r) => r.file_name)
+    )
 
-  const summary: Summary = {
-    manual: 0,
-    autoHigh: 0,
-    autoLow: 0,
-    ambiguous: 0,
-    unmatched: 0,
-  }
-  let ingested = 0
-  let skipped = 0
+    const summary: Summary = {
+      manual: 0,
+      autoHigh: 0,
+      autoLow: 0,
+      ambiguous: 0,
+      unmatched: 0,
+    }
+    let ingested = 0
+    let skipped = 0
+    const failures: unknown[] = []
 
-  // Demos ingested before kill positions were stored get backfilled here.
-  const withKills = new Set(
-    (
-      (await db.all(
-        sql`SELECT DISTINCT m.file_name AS file_name FROM matches m JOIN match_kills k ON k.match_id = m.id`
-      )) as { file_name: string }[]
-    ).map((r) => r.file_name)
-  )
+    // Demos ingested before kill positions were stored get backfilled here.
+    const withKills = new Set(
+      (
+        (await db.all(
+          sql`SELECT DISTINCT m.file_name AS file_name FROM matches m JOIN match_kills k ON k.match_id = m.id`
+        )) as { file_name: string }[]
+      ).map((r) => r.file_name)
+    )
 
-  // Demos whose team identity isn't fully resolved yet (or whose stored
-  // Toornament guess previously disagreed with player matching) get
-  // reresolveTeams() re-run here, since roster_entries matches may have
-  // improved since this demo was first ingested — see plan step 4.
-  const needsTeamReresolution = new Set(
-    (
-      (await db.all(
-        sql`SELECT file_name, id FROM matches
+    // Demos whose team identity isn't fully resolved yet (or whose stored
+    // Toornament guess previously disagreed with player matching) get
+    // reresolveTeams() re-run here, since roster_entries matches may have
+    // improved since this demo was first ingested — see plan step 4.
+    const needsTeamReresolution = new Set(
+      (
+        (await db.all(
+          sql`SELECT file_name, id FROM matches
             WHERE team_a_id IS NULL OR team_b_id IS NULL OR team_resolution_conflict IS NOT NULL`
-      )) as { file_name: string; id: number }[]
-    ).map((r) => r.file_name)
-  )
-  let reresolved = 0
-
-  for (const file of files) {
-    const name = path.basename(file)
-    if (alreadyIngested.has(name)) {
-      if (!withKills.has(name)) {
-        const rows = (await db.all(
-          sql`SELECT id FROM matches WHERE file_name = ${name}`
-        )) as { id: number }[]
-        console.log(`[ingest-demos] backfilling kills for ${name}`)
-        try {
-          await insertKills(db, rows[0].id, file)
-        } catch (err) {
-          console.error(`[ingest-demos] failed to backfill ${file}:`, err)
-        }
-      }
-      if (needsTeamReresolution.has(name)) {
-        const rows = (await db.all(
-          sql`SELECT id FROM matches WHERE file_name = ${name}`
-        )) as { id: number }[]
-        console.log(`[ingest-demos] re-resolving teams for ${name}`)
-        try {
-          await reresolveTeams(
-            db,
-            rows[0].id,
-            file,
-            overrides,
-            summary,
-            toornamentWindowHours
-          )
-          reresolved++
-        } catch (err) {
-          console.error(`[ingest-demos] failed to re-resolve ${file}:`, err)
-        }
-      }
-      skipped++
-      continue
-    }
-    console.log(`[ingest-demos] parsing ${path.basename(file)}`)
-    try {
-      await ingestDemo(db, file, overrides, summary, toornamentWindowHours)
-      ingested++
-    } catch (err) {
-      console.error(`[ingest-demos] failed to parse ${file}:`, err)
-    }
-  }
-
-  console.log(
-    `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested, ${reresolved} re-resolved`
-  )
-  console.log(
-    `[ingest-demos] player-match resolution — manual: ${summary.manual}, auto_high: ${summary.autoHigh}, auto_low (review): ${summary.autoLow}, ambiguous (review): ${summary.ambiguous}, unmatched (review): ${summary.unmatched}`
-  )
-  if (summary.autoLow + summary.ambiguous + summary.unmatched > 0) {
-    console.log(
-      `[ingest-demos] run \`sqlite3 data/sfl.db "select id, nickname, team_id from roster_entries where match_status != 'manual' and match_status != 'auto_high'"\` to review, then edit data/player-overrides.json and re-run.`
+        )) as { file_name: string; id: number }[]
+      ).map((r) => r.file_name)
     )
-  }
+    let reresolved = 0
 
-  const conflictRows = (await db.all(
-    sql`SELECT COUNT(*) AS n FROM matches WHERE team_resolution_conflict IS NOT NULL`
-  )) as { n: number }[]
-  if (conflictRows[0]?.n > 0) {
+    for (const file of files) {
+      const name = path.basename(file)
+      if (alreadyIngested.has(name)) {
+        if (!withKills.has(name)) {
+          const rows = (await db.all(
+            sql`SELECT id FROM matches WHERE file_name = ${name}`
+          )) as { id: number }[]
+          console.log(`[ingest-demos] backfilling kills for ${name}`)
+          try {
+            await insertKills(db, rows[0].id, file)
+          } catch (err) {
+            console.error(`[ingest-demos] failed to backfill ${file}:`, err)
+            failures.push(err)
+          }
+        }
+        if (needsTeamReresolution.has(name)) {
+          const rows = (await db.all(
+            sql`SELECT id FROM matches WHERE file_name = ${name}`
+          )) as { id: number }[]
+          console.log(`[ingest-demos] re-resolving teams for ${name}`)
+          try {
+            await reresolveTeams(
+              db,
+              rows[0].id,
+              file,
+              overrides,
+              summary,
+              toornamentWindowHours
+            )
+            reresolved++
+          } catch (err) {
+            console.error(`[ingest-demos] failed to re-resolve ${file}:`, err)
+            failures.push(err)
+          }
+        }
+        skipped++
+        continue
+      }
+      console.log(`[ingest-demos] parsing ${path.basename(file)}`)
+      try {
+        await ingestDemo(db, file, overrides, summary, toornamentWindowHours)
+        ingested++
+      } catch (err) {
+        console.error(`[ingest-demos] failed to parse ${file}:`, err)
+        failures.push(err)
+      }
+    }
+
     console.log(
-      `[ingest-demos] ${conflictRows[0].n} match(es) have a team_resolution_conflict — run \`sqlite3 data/sfl.db "select id, file_name, team_resolution_conflict from matches where team_resolution_conflict is not null"\` to review.`
+      `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested, ${reresolved} re-resolved`
     )
-  }
+    console.log(
+      `[ingest-demos] player-match resolution — manual: ${summary.manual}, auto_high: ${summary.autoHigh}, auto_low (review): ${summary.autoLow}, ambiguous (review): ${summary.ambiguous}, unmatched (review): ${summary.unmatched}`
+    )
+    if (summary.autoLow + summary.ambiguous + summary.unmatched > 0) {
+      console.log(
+        `[ingest-demos] run \`sqlite3 data/sfl.db "select id, nickname, team_id from roster_entries where match_status != 'manual' and match_status != 'auto_high'"\` to review, then edit data/player-overrides.json and re-run.`
+      )
+    }
+
+    const conflictRows = (await db.all(
+      sql`SELECT COUNT(*) AS n FROM matches WHERE team_resolution_conflict IS NOT NULL`
+    )) as { n: number }[]
+    if (conflictRows[0]?.n > 0) {
+      console.log(
+        `[ingest-demos] ${conflictRows[0].n} match(es) have a team_resolution_conflict — run \`sqlite3 data/sfl.db "select id, file_name, team_resolution_conflict from matches where team_resolution_conflict is not null"\` to review.`
+      )
+    }
+    if (failures.length)
+      throw new AggregateError(
+        failures,
+        "Some demos failed; earlier writes may have committed"
+      )
+  })
 }
 
 main().catch((err) => {
