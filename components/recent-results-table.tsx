@@ -24,7 +24,7 @@ export type RecentResultRow = {
   division: string
 }
 
-function TeamLogo({ url }: { url: string | null }) {
+export function TeamLogo({ url }: { url: string | null }) {
   return url ? (
     // eslint-disable-next-line @next/next/no-img-element -- small, variable-source external team logos
     <img src={url} alt="" className="size-6 shrink-0 rounded object-contain" />
