@@ -1,4 +1,5 @@
 import { Geist_Mono, Space_Grotesk, JetBrains_Mono } from "next/font/google"
+import { Analytics } from "@vercel/analytics/next"
 
 import "./globals.css"
 import { SideNav } from "@/components/side-nav"
@@ -56,6 +57,7 @@ export default async function RootLayout({
             </FollowProvider>
           </TooltipProvider>
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   )
