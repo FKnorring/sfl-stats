@@ -29,6 +29,14 @@ const REVALIDATE_SECONDS = 300
 export async function getLivePendingMatches(
   tournamentId = TOURNAMENT_ID
 ): Promise<ScheduledMatch[] | null> {
+  const matches = await getLiveScheduleMatches(tournamentId)
+  return matches?.filter((m) => m.status === "pending") ?? null
+}
+
+/** Every match (pending and completed) in the tournament's schedule widget. */
+async function getLiveScheduleMatches(
+  tournamentId: string
+): Promise<ScheduledMatch[] | null> {
   let html: string
   try {
     const res = await fetch(
@@ -65,7 +73,7 @@ export async function getLivePendingMatches(
     console.error("[toornament] Unrecognized schedule markup")
     return null
   }
-  return matches.filter((m) => m.status === "pending")
+  return matches
 }
 
 export function enrichUpcomingMatches(
@@ -136,6 +144,27 @@ export async function getLiveTeamPendingMatches(
     return await getLivePendingMatches(tournamentId)
   } catch (error) {
     console.error("[toornament] Could not load current-season schedule:", error)
+    return null
+  }
+}
+
+/** Completed official matches for the team's division, from the live widget. */
+export async function getLiveDivisionResults(
+  team: MatchTeam
+): Promise<ScheduledMatch[] | null> {
+  try {
+    const stage = await divisionStage(team)
+    const matches = await getLiveScheduleMatches(stage.split("/")[2])
+    return (
+      matches?.filter(
+        (m) =>
+          m.status === "completed" &&
+          m.teamAScore !== null &&
+          m.teamBScore !== null
+      ) ?? null
+    )
+  } catch (error) {
+    console.error("[toornament] Could not load division results:", error)
     return null
   }
 }

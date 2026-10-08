@@ -129,13 +129,24 @@ type RosterRow = {
   match_status: string
 }
 
+// Only the newest season's rosters take part in matching, so a demo player
+// is never matched to an entry from a season they played in long ago.
+const CURRENT_SEASON_SQL = sql`team_id IN (
+  SELECT id FROM teams WHERE season = (
+    SELECT season FROM teams
+    ORDER BY CAST(TRIM(REPLACE(season, 'SFL Säsong', '')) AS INTEGER) DESC
+    LIMIT 1
+  )
+)`
+
 async function getUnresolvedCandidates(db: AppDb): Promise<MatchCandidate[]> {
   // Candidates still open for (re-)matching: never matched, or matched only
   // at low confidence. Manual and ambiguous entries are left alone —
   // manual always wins via the override table, and ambiguous needs a human.
   const rows = (await db.all(
     sql`SELECT id, nickname, matched_steamid64, match_status FROM roster_entries
-        WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')`
+        WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')
+          AND ${CURRENT_SEASON_SQL}`
   )) as RosterRow[]
   return rows.map((r) => ({ rosterEntryId: r.id, nickname: r.nickname }))
 }
@@ -153,7 +164,8 @@ async function getUnresolvedCandidatesForTeam(
   const rows = (await db.all(
     sql`SELECT id, nickname, matched_steamid64, match_status FROM roster_entries
         WHERE team_id = ${teamId}
-          AND match_status IN ('unmatched', 'auto_low', 'auto_high')`
+          AND match_status IN ('unmatched', 'auto_low', 'auto_high')
+          AND ${CURRENT_SEASON_SQL}`
   )) as RosterRow[]
   return rows.map((r) => ({ rosterEntryId: r.id, nickname: r.nickname }))
 }

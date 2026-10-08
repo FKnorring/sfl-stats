@@ -3,7 +3,6 @@ import Link from "next/link"
 import type { TeamRosterPlayerRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { Badge } from "@/components/ui/badge"
-import { RosterAccountEditor } from "@/components/roster-account-editor"
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { FollowIndicator } from "@/components/follow-indicator"
@@ -20,10 +19,9 @@ const rightAlign = { className: "text-right" }
 
 /**
  * Shared roster columns for both the single-team roster view (with an
- * Accounts column for correcting/viewing the steamID match) and the
+ * Accounts column for viewing the steamID match) and the
  * side-by-side compare view (without it, since that view has no reason to
- * edit matches). `teamName` is only needed when `includeAccounts` is set,
- * for RosterAccountEditor's server action call.
+ * edit matches).
  */
 export function buildTeamRosterColumns({
   teamName,
@@ -168,13 +166,6 @@ export function buildTeamRosterColumns({
             steamid64={row.original.steamid64}
             faceitNickname={row.original.faceitNickname}
           />
-          {teamName ? (
-            <RosterAccountEditor
-              teamName={teamName}
-              rosterEntryId={row.original.rosterEntryId}
-              currentSteamid64={row.original.steamid64}
-            />
-          ) : null}
         </div>
       ),
     })
