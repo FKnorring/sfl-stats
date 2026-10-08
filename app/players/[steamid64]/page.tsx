@@ -1,11 +1,12 @@
+import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getLeagueAverageStats,
   getPlayerBySteamId64,
   getPlayerKills,
   getPlayerMatchHistory,
-} from "@/lib/db"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
@@ -21,15 +22,12 @@ import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/map-images"
 import { RatingValue, RatingExplanation } from "@/components/player-rating"
 
-// Same reasoning as app/teams/[name]/page.tsx — DB reads need per-request
-// freshness, not Next's build-time fetch caching.
-export const dynamic = "force-dynamic"
-
 export default async function PlayerPage({
   params,
 }: {
   params: Promise<{ steamid64: string }>
 }) {
+  await connection()
   const { steamid64: steamid64Param } = await params
   const steamid64 = decodeURIComponent(steamid64Param)
 

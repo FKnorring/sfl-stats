@@ -10,7 +10,11 @@ import {
   matchesFilters,
   type MatchTeam,
 } from "./matches"
-import { enrichUpcomingMatches, getLivePendingMatches } from "./toornament-live"
+import {
+  enrichUpcomingMatches,
+  getLiveDivisionResults,
+  getLivePendingMatches,
+} from "./toornament-live"
 import type { ScheduledMatch } from "./toornament-schedule"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -38,6 +42,39 @@ const teams: MatchTeam[] = [
   { teamId: 4, teamName: "Old Alpha", season: "SFL Säsong 8", division: "1" },
   { teamId: 5, teamName: "Old Beta", season: "SFL Säsong 8", division: "1" },
 ]
+
+test("division results preserve completed-score filtering through cache loaders", async () => {
+  const match: ScheduledMatch = {
+    toornamentMatchId: "completed",
+    scheduledAt: null,
+    teamAName: "Alpha",
+    teamBName: "Beta",
+    teamALogoPath: null,
+    teamBLogoPath: null,
+    teamAScore: 13,
+    teamBScore: 7,
+    status: "completed",
+  }
+  const rows = await getLiveDivisionResults(
+    teams[0],
+    async () => [
+      {
+        season: teams[0].season,
+        division: teams[0].division,
+        path: "/tournaments/123/stages/456/",
+      },
+    ],
+    async (tournamentId) => {
+      assert.equal(tournamentId, "123")
+      return [
+        match,
+        { ...match, status: "pending" },
+        { ...match, teamBScore: null },
+      ]
+    }
+  )
+  assert.deepEqual(rows, [match])
+})
 
 test("all-demo query keeps unique eligible rows and aligns roster fallbacks", async () => {
   const client = createClient({ url: "file::memory:" })
@@ -604,7 +641,7 @@ const widget = `<div data-role="sch-event" data-time="2026-10-07T18:00:00Z">
   </div>
 </div>`
 
-test("live schedule fetch keeps five-minute cache options and excludes completed matches", async (t) => {
+test("raw schedule fetch avoids a second cache layer and excludes completed matches", async (t) => {
   const fetch = t.mock.method(
     globalThis,
     "fetch",
@@ -615,7 +652,7 @@ test("live schedule fetch keeps five-minute cache options and excludes completed
     rows?.map((row) => row.toornamentMatchId),
     ["pending"]
   )
-  assert.deepEqual(fetch.mock.calls[0].arguments[1]?.next, { revalidate: 300 })
+  assert.equal(fetch.mock.calls[0].arguments[1]?.cache, "no-store")
   assert.ok(fetch.mock.calls[0].arguments[1]?.signal instanceof AbortSignal)
 })
 

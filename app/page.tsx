@@ -4,14 +4,14 @@ import {
   getCurrentSeason,
   getCurrentTeamCatalog,
   getLeaderboard,
-} from "@/lib/db"
+} from "@/lib/cached-data"
 import {
   getLiveDivisionResults,
   getLiveDivisionStandings,
-} from "@/lib/toornament-live"
+} from "@/lib/cached-toornament"
 import type { ScheduledMatch } from "@/lib/toornament-schedule"
 import { resolveOfficialTeam } from "@/lib/toornament-standings"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { RecentResultsTable } from "@/components/recent-results-table"
 import { LeaderboardTable } from "./leaderboard/leaderboard-table"

@@ -7,13 +7,13 @@ import {
   getTeamRoster,
   getTeamDemoMatches,
   type TeamMeta,
-} from "@/lib/db"
-import { getFaceitPlayerStats } from "@/lib/faceit"
+} from "@/lib/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { teamMvp } from "@/lib/follow-stats"
 import {
   getLiveDivisionStandings,
   getLiveTeamPendingMatches,
-} from "@/lib/toornament-live"
+} from "@/lib/cached-toornament"
 import { resolveOfficialTeam } from "@/lib/toornament-standings"
 import { formatMatchDate, matchDateTime } from "@/lib/matches"
 import {
@@ -201,7 +201,7 @@ export default async function FollowPage({
           Upcoming matches
         </h2>
         <p className="text-xs text-muted-foreground">
-          Live Toornament schedule, cached for up to five minutes. Times are
+          Toornament schedule, refreshed about every six hours. Times are
           Europe/Stockholm.
         </p>
         <Suspense fallback={<LoadingSection />}>
@@ -221,8 +221,8 @@ export default async function FollowPage({
           {team.division} placement
         </h2>
         <p className="text-xs text-muted-foreground">
-          Official rank, not calculated from ingested demos. Live data cached
-          for up to five minutes.
+          Official rank, not calculated from ingested demos. Refreshed about
+          every six hours; older data may appear during refresh or outages.
         </p>
         <Suspense fallback={<LoadingSection />}>
           <Placement team={team} teams={teams} />

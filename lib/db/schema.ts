@@ -21,6 +21,15 @@ export const players = sqliteTable("players", {
   lastSeenAt: text("last_seen_at").notNull(),
 })
 
+export const cacheGeneration = sqliteTable(
+  "cache_generation",
+  {
+    id: integer("id").primaryKey(),
+    generation: text("generation").notNull(),
+  },
+  (table) => [check("cache_generation_singleton", sql`${table.id} = 1`)]
+)
+
 export const teams = sqliteTable(
   "teams",
   {

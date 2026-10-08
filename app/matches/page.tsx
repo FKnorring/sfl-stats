@@ -1,9 +1,11 @@
 import { connection } from "next/server"
-import { getCurrentSeason, getDemoMatches, getMatchTeams } from "@/lib/db"
 import {
-  enrichUpcomingMatches,
-  getLivePendingMatches,
-} from "@/lib/toornament-live"
+  getCurrentSeason,
+  getDemoMatches,
+  getMatchTeams,
+} from "@/lib/cached-data"
+import { enrichUpcomingMatches } from "@/lib/toornament-live"
+import { getLivePendingMatches } from "@/lib/cached-toornament"
 import { MatchesView } from "./matches-view"
 
 export default async function MatchesPage() {

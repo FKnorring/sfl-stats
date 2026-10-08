@@ -17,13 +17,12 @@ import {
 } from "@/lib/toornament-standings"
 
 // Same default tournament as scripts/scrape-schedule.ts.
-const TOURNAMENT_ID = "2560854090247290879"
-const REVALIDATE_SECONDS = 300
+export const TOURNAMENT_ID = "2560854090247290879"
 
 /**
  * Fetches the live schedule widget (no API key needed) and returns every
- * pending match. Cached by Next's fetch cache for a few minutes so page
- * views don't each hit Toornament. Returns null if Toornament is
+ * pending match. The app caches successful results in cached-toornament.
+ * Returns null if Toornament is
  * unreachable so the page can say so instead of failing.
  */
 export async function getLivePendingMatches(
@@ -34,7 +33,7 @@ export async function getLivePendingMatches(
 }
 
 /** Every match (pending and completed) in the tournament's schedule widget. */
-async function getLiveScheduleMatches(
+export async function getLiveScheduleMatches(
   tournamentId: string
 ): Promise<ScheduledMatch[] | null> {
   let html: string
@@ -42,7 +41,7 @@ async function getLiveScheduleMatches(
     const res = await fetch(
       `https://widget.toornament.com/tournaments/${tournamentId}/matches/schedule/?_locale=en_US`,
       {
-        next: { revalidate: REVALIDATE_SECONDS },
+        cache: "no-store",
         signal: AbortSignal.timeout(10000),
       }
     )
@@ -116,18 +115,23 @@ export type LiveStandingsResult = {
   sourceUrl: string | null
 }
 
-async function divisionStage(team: MatchTeam): Promise<string> {
+export async function getDivisionStages() {
   const page = await fetch("https://publiclir.se/svenska-foeretagsligan/", {
-    next: { revalidate: REVALIDATE_SECONDS },
+    cache: "no-store",
     signal: AbortSignal.timeout(10000),
   })
   if (!page.ok) throw new Error(`League page: HTTP ${page.status}`)
   const content = pageJsonSchema.parse(
     extractRootComponentJson(await page.text())
   )
-  const stages = extractCs2DivisionStages(
-    content.pageContent.fields.contentArea
-  ).filter(
+  return extractCs2DivisionStages(content.pageContent.fields.contentArea)
+}
+
+async function divisionStage(
+  team: MatchTeam,
+  loadStages: typeof getDivisionStages
+): Promise<string> {
+  const stages = (await loadStages()).filter(
     (stage) => stage.season === team.season && stage.division === team.division
   )
   if (stages.length !== 1)
@@ -136,25 +140,40 @@ async function divisionStage(team: MatchTeam): Promise<string> {
 }
 
 export async function getLiveTeamPendingMatches(
-  team: MatchTeam
+  team: MatchTeam,
+  loadStages = getDivisionStages,
+  loadSchedule = getLivePendingMatches
 ): Promise<ScheduledMatch[] | null> {
   try {
-    const stage = await divisionStage(team)
+    const stage = await divisionStage(team, loadStages)
     const tournamentId = stage.split("/")[2]
-    return await getLivePendingMatches(tournamentId)
+    return await loadSchedule(tournamentId)
   } catch (error) {
     console.error("[toornament] Could not load current-season schedule:", error)
     return null
   }
 }
 
+export async function getRankingRows(
+  sourceUrl: string
+): Promise<OfficialStanding[]> {
+  const response = await fetch(sourceUrl, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!response.ok) throw new Error(`Ranking widget: HTTP ${response.status}`)
+  return parseStandingsWidget(await response.text())
+}
+
 /** Completed official matches for the team's division, from the live widget. */
 export async function getLiveDivisionResults(
-  team: MatchTeam
+  team: MatchTeam,
+  loadStages = getDivisionStages,
+  loadSchedule = getLiveScheduleMatches
 ): Promise<ScheduledMatch[] | null> {
   try {
-    const stage = await divisionStage(team)
-    const matches = await getLiveScheduleMatches(stage.split("/")[2])
+    const stage = await divisionStage(team, loadStages)
+    const matches = await loadSchedule(stage.split("/")[2])
     return (
       matches?.filter(
         (m) =>
@@ -171,21 +190,18 @@ export async function getLiveDivisionResults(
 
 export async function getLiveDivisionStandings(
   team: MatchTeam,
-  teams: MatchTeam[]
+  teams: MatchTeam[],
+  loadStages = getDivisionStages,
+  loadRanking = getRankingRows
 ): Promise<LiveStandingsResult> {
   let sourceUrl: string | null = null
   try {
-    sourceUrl = `https://widget.toornament.com${await divisionStage(team)}`
-    const response = await fetch(sourceUrl, {
-      next: { revalidate: REVALIDATE_SECONDS },
-      signal: AbortSignal.timeout(10000),
-    })
-    if (!response.ok) throw new Error(`Ranking widget: HTTP ${response.status}`)
+    sourceUrl = `https://widget.toornament.com${await divisionStage(team, loadStages)}`
     const divisionTeams = teams.filter(
       (candidate) =>
         candidate.season === team.season && candidate.division === team.division
     )
-    const rows = parseStandingsWidget(await response.text()).map((row) => ({
+    const rows = (await loadRanking(sourceUrl)).map((row) => ({
       ...row,
       teamId: resolveOfficialTeam(row.teamName, divisionTeams)?.teamId ?? null,
     }))

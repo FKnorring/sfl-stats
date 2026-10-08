@@ -43,7 +43,7 @@ faceit-sync.ts    →  faceit_match_stats, for players already matched to a stea
 
 ## Prerequisites
 
-- Node.js 22+
+- Node.js 22.9+
 - [pnpm](https://pnpm.io/) 10+
 
 ## Setup
@@ -96,7 +96,8 @@ the app has nothing to show otherwise.
 Open `/matches` from the sidebar to see a horizontally scrolling live
 Toornament schedule and the ingested-demo history. Division selection and
 team-name search update both sections immediately; all divisions are shown
-initially. Schedule requests are cached for five minutes. If Toornament is
+initially. Schedule source data is refreshed about every six hours. Older successful
+data can appear during refresh or an outage. If Toornament is
 unavailable, history and filters still work. Dates use Stockholm time.
 
 History shows one row per demo, newest first, linking to
@@ -143,8 +144,9 @@ throughout overview tables.
 
 The dashboard combines upcoming matches, all attributed demo history,
 official division placement, roster statistics/MVP, and other followed
-teams. Live schedule and ranking widgets are discovered from publiclir.se's
-current-season CS2 embeds and cached for up to five minutes. Source failures
+teams. Schedule and ranking widgets are discovered from publiclir.se's
+current-season CS2 embeds and refreshed about every six hours. Older
+successful data can appear during refresh or outages. Source failures
 are shown explicitly; ingested demo data remains usable. This does not
 require a schedule-scrape run or any public database writes.
 
@@ -165,6 +167,105 @@ hand-written `.sql` file.
 pnpm db:generate   # after editing lib/db/schema.ts, generates a migration under drizzle/
 pnpm db:migrate    # applies pending migrations to whichever DB DATABASE_URL points at
 ```
+
+## Shared caches and ingestion updates
+
+Public database results, Faceit recent-window summaries and successful
+Toornament source results refresh on demand about every **six hours**.
+Steam profiles and demo kill-event data refresh about every **24 hours**.
+These are refresh targets, not strict age limits: a request can receive
+older successful data while background refresh runs or an upstream source
+is unavailable. A cache miss still pays the query/network cost. Caching
+does not make the ingested Faceit snapshot newer than its sync schedule.
+
+The app uses Next.js Data Cache, managed by Vercel in production. Pages
+remain request-rendered so URL filters and browser-local follows behave
+as before. Every fresh server request reads one small `cache_generation`
+row; all heavier queries reuse generation-keyed cached results. Each
+write-capable ingestion run advances that marker, including overrides,
+kill backfills, team re-resolution and partially failed runs. An old query
+finishing after ingestion cannot refill the current generation's cache.
+The public app only **reads** this marker with its read-only credential.
+
+### Production setup
+
+1. Apply `0007_cache_generation.sql` (after the ratings migration `0006`)
+   with `pnpm db:migrate` against the target Turso
+   database using the maintainer's full-access credential **before deploying
+   this app version or running the updated ingestion scripts**.
+2. Set a strong random `CACHE_REVALIDATION_SECRET` in the Vercel production
+   environment and your local untracked `.env`. Use a different secret for
+   a preview/test deployment; never prefix it with `NEXT_PUBLIC_`.
+3. Set `CACHE_REVALIDATION_URL=https://<production-domain>/api/revalidate`
+   locally. Use the direct HTTPS production domain, not a redirecting alias.
+   The deployed app does not need this URL.
+4. Use the same `DATABASE_URL` and `CACHE_NAMESPACE` on both sides.
+   The namespace defaults to `FKnorring/sfl-stats`; set a different one for
+   unrelated projects. Production and preview should use separate databases.
+   Requests with the wrong database/namespace scope are rejected.
+5. Deploy with a read-only Turso credential; keep the writable credential
+   only on the ingestion machine. Run ingestion normally.
+
+All five ingestion/enrichment commands load `.env` if present; already-exported
+environment variables take precedence. They notify the protected endpoint
+after the write phase, expiring DB tags immediately and also Toornament
+tags for roster/schedule runs. The generation change independently
+invalidates DB and Toornament cache keys across instances. Steam profile
+caches keep their 24-hour lifetime.
+
+Both callback settings may be omitted for local-only development; the
+script logs that notification is disabled but still advances the local
+generation marker. A partially configured callback fails before writes.
+Local `file:` database runs cannot notify a deployed app. The endpoint
+cannot write to the database or accept arbitrary cache tags/paths.
+
+After successful ingestion, the next fresh load/reload reads updated DB
+data without a redeploy. Tag invalidation can take roughly 300 ms to
+propagate between Vercel regions. Requests already in flight and open tabs
+may retain older data. The player hover-card cache stays tab-local, while
+its HTTP endpoint uses `no-store` so a reload does not reuse a separate
+browser/CDN response cache.
+
+The `ENV=local` admin Steam ID editor uses the same write-phase wrapper,
+including generation advancement and optional notification after partial
+failure. Its existing local-only guard remains; production app requests
+cannot use it to write to the database.
+
+### Failure recovery
+
+Failures after writes are explicit and return a nonzero exit code; earlier
+commits are not rolled back. Even a partial ingestion attempts the
+generation update and cache notification. If notification fails, correct
+the endpoint/secret/target and retry without parsing or syncing again:
+
+```bash
+pnpm cache:revalidate -- --source demos
+# source is demos, roster, schedule, or faceit
+```
+
+This command advances the generation again and retries the authenticated
+notification. If the generation update failed, apply migrations/fix DB
+access before retrying. Manual DB edits outside the ingestion scripts also
+need this command. Do not purge the entire Vercel team cache as routine
+recovery; caches can be shared with other projects.
+
+### Cache regression and performance checks
+
+```bash
+pnpm test         # isolated query, source, endpoint and notifier regressions
+pnpm build
+pnpm test:cache   # production-mode integration using an isolated fixture
+```
+
+`test:cache` starts temporary loopback servers and an in-memory database,
+measures 14 routes (including home and rating-filtered leaderboard),
+checks cache sizes/lifetimes, performs authenticated CLI
+invalidation, and reproduces a query finishing after invalidation. It also
+checks source-outage recovery and Faceit serialization. No production DB
+or external API is used. Reported timings use a simulated 40 ms upstream
+delay; they are not production latency claims. Warm loads should make one
+generation query and no repeated aggregate, Steam or Toornament calls.
+Response serialization/table rendering can still dominate large pages.
 
 ## Scripts
 
@@ -301,8 +402,12 @@ pnpm faceit:sync -- --probe <steamid64>
   **no DB writes**. Run this first after setting `FACEIT_API_KEY` to confirm
   the key works and sanity-check the response shape.
 
-This script requires `FACEIT_API_KEY` to be set in `.env` — it's run via
-`node --env-file=.env`, so no extra setup beyond the `.env` file is needed.
+This script requires `FACEIT_API_KEY` to be set in `.env` or the environment.
+Its read-only `--probe` does not advance the generation or notify caches.
+
+`rate:demos` enrichment and `--recompute` use the same invalidation wrapper
+and `demos` notification source, including partially failed runs.
+`rate:demos --dry-run` neither advances the generation nor notifies caches.
 
 ## Other useful commands
 
