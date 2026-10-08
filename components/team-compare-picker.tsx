@@ -19,7 +19,7 @@ const CompareContext = React.createContext<CompareContextValue | null>(null)
 /**
  * Shares the current team-compare selection between one checkbox per
  * standings row and the floating compare bar, without threading state
- * through the server component in app/teams/page.tsx.
+ * through the server component in app/teams/[division]/page.tsx.
  */
 export function TeamCompareProvider({
   children,

@@ -52,7 +52,7 @@ export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
     meta: { className: "font-medium" },
     cell: ({ row }) => (
       <Link
-        href={`/teams/${encodeURIComponent(row.original.teamName)}`}
+        href={`/teams/team/${encodeURIComponent(row.original.teamName)}`}
         className="flex items-center gap-2 underline-offset-4 hover:underline"
       >
         {row.original.logoUrl ? (

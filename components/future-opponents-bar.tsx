@@ -55,7 +55,7 @@ export function FutureOpponentsBar({
                 variant="outline"
                 render={
                   <Link
-                    href={`/teams/${encodeURIComponent(opponent.opponentName)}`}
+                    href={`/teams/team/${encodeURIComponent(opponent.opponentName)}`}
                   >
                     Scout Opponent
                   </Link>

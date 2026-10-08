@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { db } from "@/lib/db/client"
+import { matches } from "@/lib/db/schema"
 import {
   getDemoMatchById,
   getDemoMatchPlayerStats,
@@ -12,6 +14,13 @@ import { Badge } from "@/components/ui/badge"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { isLocalEnv } from "@/lib/env"
 import { DemoMatchView } from "./demo-match-view"
+
+export async function generateStaticParams() {
+  const sample = await db.select({ matchId: matches.id }).from(matches).limit(1)
+  return sample.length
+    ? sample.map(({ matchId }) => ({ matchId: String(matchId) }))
+    : [{ matchId: "__empty__" }]
+}
 
 export default async function DemoMatchPage({
   params,
@@ -124,7 +133,7 @@ export default async function DemoMatchPage({
               <div className="size-16 justify-self-start rounded-md border border-border bg-muted" />
             )}
             <Link
-              href={`/teams/${encodeURIComponent(teamAName)}`}
+              href={`/teams/team/${encodeURIComponent(teamAName)}`}
               className="justify-self-end text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
             >
               {teamAName}
@@ -139,7 +148,7 @@ export default async function DemoMatchPage({
               </span>
             )}
             <Link
-              href={`/teams/${encodeURIComponent(teamBName)}`}
+              href={`/teams/team/${encodeURIComponent(teamBName)}`}
               className="justify-self-start text-xl font-semibold underline-offset-4 drop-shadow-sm hover:underline"
             >
               {teamBName}

@@ -40,7 +40,12 @@ for (let team = 1; team <= 12; team++) {
   const name = team === 1 ? "Alpha" : team === 2 ? "Beta" : `Team ${team}`
   seed.push({
     sql: "INSERT INTO teams (id,name,season,division) VALUES (?,?,?,?)",
-    args: [team, name, "SFL Säsong 9", "Division 1"],
+    args: [
+      team,
+      name,
+      "SFL Säsong 9",
+      team === 12 ? "Division 2" : "Division 1",
+    ],
   })
   for (let offset = 0; offset < 5; offset++) {
     const id = (team - 1) * 5 + offset + 1
@@ -111,6 +116,8 @@ await persistRatingExtraction(drizzle(database), 1, {
         name: `Player ${index + 1}`,
         side,
         kills: Number(won),
+        weightedKills: Number(won),
+        ecoKills: 0,
         deaths: Number(!won),
         assists: 0,
         flashAssists: 0,
@@ -384,17 +391,23 @@ const routes = [
   "/",
   "/leaderboard",
   "/teams",
+  "/teams/Division%201",
+  "/teams/Division%202",
+  "/teams?division=Division%201&season=SFL+S%C3%A4song+9",
+  "/teams/Alpha",
   "/teams/compare?teamA=1&teamB=2",
   `/players/${steamid(1)}`,
-  "/teams/Alpha",
+  "/teams/team/Alpha",
   "/follow/Alpha",
   "/matches",
   "/matches/demo/1",
+  "/matches/demo/2",
   "/matches/official",
   `/api/players/${steamid(1)}/card`,
   "/leaderboard?stat=adr&team=Alpha",
   "/leaderboard?stat=rating",
   "/players/missing",
+  "/teams/missing",
 ]
 const report = { mode: baseline ? "baseline" : "cache-components", routes: [] }
 function median(values) {
@@ -449,17 +462,37 @@ try {
   const [buildCode] = await once(child, "exit")
   assert.equal(buildCode, 0, logs)
   console.log(logs)
+  const prerenders = JSON.parse(
+    await readFile(path.join(buildDirectory, "prerender-manifest.json"), "utf8")
+  )
+  for (const route of [
+    "/teams/Division%201",
+    "/teams/Division%202",
+    "/teams/team/Alpha",
+    "/follow/Alpha",
+    `/players/${steamid(1)}`,
+    "/matches/official",
+    "/matches/demo/1",
+  ]) {
+    const prerender = prerenders.routes[decodeURIComponent(route)]
+    assert.ok(prerender, `${route}: must be prerendered`)
+    assert.equal(
+      prerender.initialRevalidateSeconds,
+      21600,
+      `${route}: must retain six-hour ISR`
+    )
+  }
   logs = ""
   child = runNext(["start", "-p", String(port)])
   await waitUntilReady("/api/players/missing/card")
   for (const route of routes) {
     console.log(`Measuring ${route}`)
     const cold = await load(route)
-    if (route === "/players/missing") {
+    if (route === "/players/missing" || route === "/teams/missing") {
       assert.ok(
         cold.status === 404 ||
           cold.text.includes("NEXT_HTTP_ERROR_FALLBACK;404"),
-        "Missing player must retain the native not-found response"
+        "Missing pages must retain the native not-found response"
       )
     } else assert.equal(cold.status, 200, logs)
     if (route === "/")
@@ -472,6 +505,21 @@ try {
         cold.text.includes(steamid(1)),
         "Fixture demos must qualify for the leaderboard"
       )
+    if (route.startsWith("/teams?"))
+      assert.ok(
+        cold.text.includes("Alpha"),
+        "Legacy division links must render standings"
+      )
+    if (route === "/teams/Division%202") {
+      assert.ok(
+        cold.text.includes("Team 12"),
+        "Division route must render its teams"
+      )
+      assert.ok(
+        !cold.text.includes('href="/teams/team/Alpha"'),
+        "Other divisions must not render team links"
+      )
+    }
     if (route === "/matches/demo/1")
       assert.ok(
         cold.text.replaceAll('\\"', '"').includes('"damage":1300'),
@@ -555,7 +603,7 @@ try {
     for (const route of [
       "/",
       "/leaderboard",
-      "/teams/Alpha",
+      "/teams/team/Alpha",
       "/matches/demo/1",
     ]) {
       const fresh = await eventually(

@@ -1,12 +1,10 @@
 "use client"
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 /**
- * Division switcher backed by the `?division=` URL param, same convention
- * as FilterSelect in components/leaderboard-filters.tsx — pushing a new URL
- * re-triggers the Server Component page rather than fetching client-side.
+ * Division switcher backed by `/teams/[division]`, preserving season filters.
  *
  * `children` must be actual TabsContent elements (built by the server page),
  * not a render-prop function — functions can't cross the server/client
@@ -22,14 +20,14 @@ export function DivisionTabs({
   children: React.ReactNode
 }) {
   const router = useRouter()
-  const pathname = usePathname()
   const searchParams = useSearchParams()
 
   function handleChange(next: unknown) {
     if (typeof next !== "string") return
     const params = new URLSearchParams(searchParams.toString())
-    params.set("division", next)
-    router.push(`${pathname}?${params.toString()}`)
+    params.delete("division")
+    const suffix = params.size ? `?${params}` : ""
+    router.push(`/teams/${encodeURIComponent(next)}${suffix}`)
   }
 
   return (

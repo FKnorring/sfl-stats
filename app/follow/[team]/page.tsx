@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { getCurrentTeamCatalog as getStaticTeamCatalog } from "@/lib/db"
 import {
   getCurrentTeamCatalog,
   getTeamRoster,
@@ -133,6 +134,13 @@ async function Placement({
   )
 }
 
+export async function generateStaticParams() {
+  const teams = await getStaticTeamCatalog()
+  return teams.length
+    ? [...new Set(teams.map((team) => team.teamName))].map((team) => ({ team }))
+    : [{ team: "__empty__" }]
+}
+
 export default async function FollowPage({
   params,
 }: {
@@ -185,7 +193,7 @@ export default async function FollowPage({
         <FollowTeamButton teamName={team.teamName} />
         <FavoriteTeamButton teamName={team.teamName} />
         <Link
-          href={`/teams/${encodeURIComponent(team.teamName)}`}
+          href={`/teams/team/${encodeURIComponent(team.teamName)}`}
           className="inline-flex min-h-11 items-center text-sm underline underline-offset-4"
         >
           Team details

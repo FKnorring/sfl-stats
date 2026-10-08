@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation"
+import { getCurrentTeamCatalog } from "@/lib/db"
 import {
   getTeamByName,
   getCurrentSeason,
@@ -20,6 +21,13 @@ import {
   NetlightEmbers,
   NetlightName,
 } from "@/components/netlight-flames"
+
+export async function generateStaticParams() {
+  const teams = await getCurrentTeamCatalog()
+  return teams.length
+    ? [...new Set(teams.map((team) => team.teamName))].map((name) => ({ name }))
+    : [{ name: "__empty__" }]
+}
 
 export default async function TeamPage({
   params,

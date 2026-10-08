@@ -91,7 +91,14 @@ export async function checkCacheNavigation(executable, origin) {
         if (await evaluate(expression)) return
         await sleep(100)
       }
-      assert.fail(`Browser did not reach: ${expression}`)
+      const state = await evaluate(`({
+        url: location.href,
+        text: document.body?.innerText.slice(0, 2500),
+        links: Array.from(document.querySelectorAll("a")).slice(0, 20).map(el => el.getAttribute("href"))
+      })`)
+      assert.fail(
+        `Browser did not reach: ${expression}; ${JSON.stringify({ ...state, errors })}`
+      )
     }
     await send("Page.enable")
     await send("Runtime.enable")
@@ -139,11 +146,45 @@ export async function checkCacheNavigation(executable, origin) {
     )
     await evaluate(`document.querySelector('a[href="/teams"]').click()`)
     await waitFor(
-      `location.pathname === "/teams" && !!document.querySelector('a[href="/teams/Alpha"]')`
+      `location.pathname === "/teams/Division%201" && !!document.querySelector('a[href="/teams/team/Alpha"]')`
     )
-    await evaluate(`document.querySelector('a[href="/teams/Alpha"]').click()`)
+    await evaluate(
+      `document.querySelector('[data-slot="select-trigger"]').click()`
+    )
     await waitFor(
-      `location.pathname === "/teams/Alpha" && document.querySelector("table")?.textContent.includes("Player")`
+      `Array.from(document.querySelectorAll('[role="option"]')).some(el => el.textContent.includes("SFL Säsong 9"))`
+    )
+    await evaluate(
+      `Array.from(document.querySelectorAll('[role="option"]')).find(el => el.textContent.includes("SFL Säsong 9")).click()`
+    )
+    await waitFor(
+      `new URLSearchParams(location.search).get("season") === "SFL Säsong 9"`
+    )
+    await evaluate(
+      `Array.from(document.querySelectorAll('[role="tab"]')).find(el => el.textContent === "Division 2").click()`
+    )
+    await waitFor(
+      `location.pathname === "/teams/Division%202" && !!document.querySelector('a[href="/teams/team/Team%2012"]')`
+    )
+    assert.equal(
+      await evaluate(`new URLSearchParams(location.search).get("season")`),
+      "SFL Säsong 9"
+    )
+    assert.equal(
+      await evaluate(`new URLSearchParams(location.search).has("division")`),
+      false
+    )
+    await evaluate(
+      `Array.from(document.querySelectorAll('[role="tab"]')).find(el => el.textContent === "Division 1").click()`
+    )
+    await waitFor(
+      `location.pathname === "/teams/Division%201" && !!document.querySelector('a[href="/teams/team/Alpha"]')`
+    )
+    await evaluate(
+      `document.querySelector('a[href="/teams/team/Alpha"]').click()`
+    )
+    await waitFor(
+      `location.pathname === "/teams/team/Alpha" && document.querySelector("table")?.textContent.includes("Player")`
     )
     await evaluate(`document.querySelector('a[href="/followed"]').click()`)
     await waitFor(
