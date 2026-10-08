@@ -22,6 +22,8 @@ test("rating CLI writes without a generation marker and skips notification prefl
     steamid64,
     side: 2,
     kills: 1,
+    weightedKills: 1,
+    ecoKills: 0,
     deaths: 0,
     assists: 0,
     flashAssists: 0,

@@ -1,14 +1,16 @@
 import type { PlayerRoundFact } from "./demo-rating"
 
-export const RATING_VERSION = "sfl-v1"
+export const RATING_VERSION = "sfl-v2"
 export const RATING_DESCRIPTION =
-  "SFL Rating v1: a custom, provisional model, not an official HLTV rating. " +
+  "SFL Rating v2: a custom, provisional model, not an official HLTV rating. " +
   "Combat 25%, damage 20%, KAST 20%, survival 10%, impact 15%, support 10%. " +
-  "1.00 is the round-weighted average of the frozen SFL reference corpus."
+  "Kills against a poorer-equipped team count for less. 1.00 is the round-weighted average of the frozen SFL reference corpus."
 
 // Frozen from 5,374 validated player-rounds in 26 SFL09 demos. Never refresh on ingestion.
 export const RATING_REFERENCE = {
-  combat: 0.6903609973948641,
+  // v2: weighted kills. Scaled from the v1 mean by the weighted/raw kill ratio on
+  // the 20 locally available corpus demos; re-fit on the full corpus when possible.
+  combat: 0.5565109201585791,
   damage: 75.74413844436174,
   consistency: 0.7009676218831411,
   survival: 0.30796427242277635,
@@ -33,6 +35,8 @@ export type RatingComponents = Record<keyof typeof RATING_WEIGHTS, number>
 export type RatingInput = Pick<
   PlayerRoundFact,
   | "kills"
+  | "weightedKills"
+  | "ecoKills"
   | "deaths"
   | "assists"
   | "flashAssists"
@@ -52,6 +56,7 @@ export type PlayerRatingSummary = {
   rounds: number
   components: RatingComponents
   kills: number
+  ecoKills: number
   deaths: number
   assists: number
   headshotKills: number
@@ -71,7 +76,7 @@ export function ratingMetrics(fact: RatingInput) {
     }
   }
   return {
-    combat: fact.kills,
+    combat: fact.weightedKills,
     damage: fact.damage,
     consistency: Number(
       fact.kills > 0 ||
@@ -124,6 +129,7 @@ export function calculatePlayerRating(
     rounds: facts.length,
     components,
     kills: total("kills"),
+    ecoKills: total("ecoKills"),
     deaths: total("deaths"),
     assists: total("assists") + total("flashAssists"),
     headshotKills: total("headshotKills"),

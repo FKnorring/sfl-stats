@@ -92,11 +92,12 @@ export function DemoMatchView({
           >
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-medium">
-                {current.inGameName} · SFL Rating v1
+                {current.inGameName} · SFL Rating v2
               </h2>
               <RatingValue
                 rating={current.rating}
                 reason={current.ratingUnavailableReason}
+                teamName={current.rosterTeamName}
               />
             </div>
             {rating ? (
@@ -115,8 +116,8 @@ export function DemoMatchView({
                   ))}
                 </dl>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  {rating.rounds} participated rounds · KAST{" "}
-                  {(rating.kast * 100).toFixed(1)}%{" · "}Openings{" "}
+                  {rating.rounds} participated rounds · {rating.ecoKills} eco
+                  kills · KAST {(rating.kast * 100).toFixed(1)}%{" · "}Openings{" "}
                   {rating.openingKills}/{rating.openingDeaths}
                   {" · "}
                   {rating.clutchWins} clutch wins · {rating.flashAssists} flash

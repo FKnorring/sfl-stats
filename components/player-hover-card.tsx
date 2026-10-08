@@ -116,6 +116,7 @@ function CardBody({ data }: { data: PlayerCardData }) {
                     <RatingValue
                       rating={g.rating}
                       reason={g.ratingUnavailableReason}
+                      teamName={data.teamName}
                     />
                   </span>
                 </Link>

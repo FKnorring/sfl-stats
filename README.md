@@ -200,7 +200,7 @@ This intentionally replaces ADR-0009's stronger post-ingestion guarantee.
 ### Production setup
 
 1. Deploy the generation-free app and update all ingestion scripts first.
-   Retire old deployments/scripts before applying `0008_uneven_snowbird.sql`
+   Retire old deployments/scripts before applying `0010_retire_cache_generation.sql`
    with `pnpm db:migrate` using the maintainer's full-access credential.
    This forward migration drops only the obsolete `cache_generation` table.
    The new app works while the old table is still present; dropping it first

@@ -1,0 +1,1 @@
+ALTER TABLE `player_match_round_stats` ADD `eco_kills` integer DEFAULT 0 NOT NULL;

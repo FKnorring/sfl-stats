@@ -4,6 +4,8 @@ import path from "node:path"
 import { test } from "node:test"
 import {
   deriveRatingFacts,
+  isEcoKill,
+  killWeight,
   extractRatingFacts,
   type RatingEvent,
   type RatingSnapshot,
@@ -25,6 +27,8 @@ const ids = [
 ]
 const empty: RatingInput = {
   kills: 0,
+  weightedKills: 0,
+  ecoKills: 0,
   deaths: 1,
   assists: 0,
   flashAssists: 0,
@@ -118,6 +122,7 @@ test("score golden example, empty input, invalid input and KAST union", () => {
   const sample = {
     ...empty,
     kills: 2,
+    weightedKills: 2,
     damage: 150,
     survived: true,
     traded: true,
@@ -412,3 +417,23 @@ test(
     assert.ok(Math.abs(calculatePlayerRating(facts).rating - 1) < 1e-12)
   }
 )
+
+test("kills against a poorer team are discounted, with a floor and a cap", () => {
+  assert.equal(killWeight(4000, 4000), 1)
+  assert.equal(killWeight(4000, 6000), 1)
+  assert.equal(killWeight(4000, 3200), 0.8)
+  assert.equal(killWeight(4000, 400), 0.6)
+  assert.equal(killWeight(null, 3000), 1)
+  assert.equal(killWeight(3000, null), 1)
+  assert.equal(killWeight(0, 0), 1)
+})
+
+test("eco kills need an eco victim team facing a non-eco killer team", () => {
+  assert.equal(isEcoKill(4000, 2000), true)
+  assert.equal(isEcoKill(4000, 800), true)
+  assert.equal(isEcoKill(4000, 2001), false)
+  assert.equal(isEcoKill(2500, 2600), false)
+  assert.equal(isEcoKill(800, 800), false)
+  assert.equal(isEcoKill(null, 500), false)
+  assert.equal(isEcoKill(4000, null), false)
+})

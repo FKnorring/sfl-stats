@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "49ae24b1-97c3-4335-8ace-ae848089a462",
-  "prevId": "a115d3bc-438e-4f6c-9ac6-b367e5a5fdf4",
+  "id": "514f547f-10c6-48dd-ae50-ae14daff3e34",
+  "prevId": "49ae24b1-97c3-4335-8ace-ae848089a462",
   "tables": {
     "faceit_match_stats": {
       "name": "faceit_match_stats",
@@ -1414,35 +1414,6 @@
         "toornament_matches_status_check": {
           "name": "toornament_matches_status_check",
           "value": "\"toornament_matches\".\"status\" IN ('pending', 'running', 'completed')"
-        }
-      }
-    },
-    "cache_generation": {
-      "name": "cache_generation",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "generation": {
-          "name": "generation",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "cache_generation_singleton": {
-          "name": "cache_generation_singleton",
-          "value": "\"cache_generation\".\"id\" = 1"
         }
       }
     }

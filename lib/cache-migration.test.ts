@@ -22,7 +22,7 @@ test("generation retirement upgrades an existing DB without touching league data
       await readFile("drizzle/meta/_journal.json", "utf8")
     )
     const retirement = journal.entries.at(-1)
-    assert.equal(retirement.tag, "0008_uneven_snowbird")
+    assert.equal(retirement.tag, "0010_retire_cache_generation")
     journal.entries.pop()
     await mkdir(path.join(folder, "meta"))
     await writeFile(
