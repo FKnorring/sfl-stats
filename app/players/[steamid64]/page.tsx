@@ -43,13 +43,14 @@ export default async function PlayerPage({
   const player = await getPlayerBySteamId64(steamid64)
   if (!player) notFound()
 
-  const [matchHistory, faceit, steamSummary, leagueAverage] =
-    await Promise.all([
+  const [matchHistory, faceit, steamSummary, leagueAverage] = await Promise.all(
+    [
       getPlayerMatchHistory(steamid64),
       getFaceitPlayer(steamid64),
       getPlayerSummary(steamid64).catch(() => null),
       getLeagueAverageStats(),
-    ])
+    ]
+  )
 
   const isNetlight = matchHistory.some((m) => isNetlightTeam(m.teamName))
   // Netlight kill data stays server-side on prod until unlocked via action.

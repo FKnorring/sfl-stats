@@ -37,7 +37,7 @@ export function NetlightHeatmapGate({ steamid64 }: { steamid64: string }) {
       }}
     >
       <p className="text-sm text-muted-foreground">
-        Swischa @Bralle 100kr för premium-access till Netlight's data
+        Swischa @Bralle 100kr för premium-access till Netlight&apos;s data
       </p>
       <div className="flex max-w-xs gap-2">
         <Input
