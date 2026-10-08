@@ -9,7 +9,7 @@ import {
   getTeamDemoMatches,
   getRecentResults,
 } from "@/lib/cached-data"
-import { getFaceitPlayerStats } from "@/lib/cached-data"
+import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cached-data"
 import { TeamRosterTable } from "@/components/team-roster-table"
 import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"
@@ -98,7 +98,10 @@ export default async function TeamPage({
         teamId={meta.teamId}
         teamName={meta.teamName}
         roster={roster}
-        faceitStats={faceitStats}
+        faceitStats={pickFaceitStats(
+          faceitStats,
+          roster.map((row) => row.steamid64)
+        )}
       />
 
       <TeamMapStats maps={mapStats} />

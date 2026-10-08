@@ -141,7 +141,8 @@ async function leaderboard(
   direction: queries.SortDirection,
   season: string,
   division: string,
-  team: string
+  team: string,
+  limit: number
 ) {
   "use cache: remote"
   cacheLife("current")
@@ -152,6 +153,7 @@ async function leaderboard(
     season: season || undefined,
     division: division || undefined,
     team: team || undefined,
+    limit: limit || undefined,
   })
 }
 export function getLeaderboard(filters: queries.LeaderboardFilters) {
@@ -161,18 +163,34 @@ export function getLeaderboard(filters: queries.LeaderboardFilters) {
     filters.direction ?? "desc",
     filters.season ?? "",
     filters.division ?? "",
-    filters.team ?? ""
+    filters.team ?? "",
+    filters.limit ?? 0
   )
 }
 
-async function standings(scope: string, season: string) {
+async function standings(scope: string, season: string, division: string) {
   "use cache: remote"
   cacheLife("current")
   cacheTag(scopedCacheTag("db", scope))
-  return queries.getTeamStandings({ season: season || undefined })
+  return queries.getTeamStandings({
+    season: season || undefined,
+    division: division || undefined,
+  })
 }
-export function getTeamStandings(filters: { season?: string } = {}) {
-  return standings(cacheScope(), filters.season ?? "")
+export function getTeamStandings(
+  filters: { season?: string; division?: string } = {}
+) {
+  return standings(cacheScope(), filters.season ?? "", filters.division ?? "")
+}
+
+async function teamOptions(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamOptions()
+}
+export function getTeamOptions() {
+  return teamOptions(cacheScope())
 }
 
 async function teamByName(scope: string, name: string, season: string) {
@@ -292,14 +310,37 @@ export async function getPlayerKills(steamid64: string) {
   ).flat()
 }
 
-async function faceitPlayers(scope: string, days: number) {
+async function faceitPlayers(scope: string, days: number, ids: string[] | null) {
   "use cache: remote"
   cacheLife("current")
   cacheTag(scopedCacheTag("db", scope))
-  return Array.from((await faceit.getFaceitPlayerStats(days)).entries())
+  return Array.from(
+    (await faceit.getFaceitPlayerStats(days, ids ?? undefined)).entries()
+  )
 }
-export async function getFaceitPlayerStats(days = 7) {
-  return new Map(await faceitPlayers(cacheScope(), days))
+/** All Faceit players, or only `steamid64s` (prefer this when rendering a
+ * few players, so the cached entry and client payload stay small). */
+export async function getFaceitPlayerStats(
+  days = 7,
+  steamid64s?: (string | null)[]
+) {
+  const ids = steamid64s
+    ? [...new Set(steamid64s.filter((id) => id !== null))].sort()
+    : null
+  return new Map(await faceitPlayers(cacheScope(), days, ids))
+}
+/** Narrows a Faceit lookup to the given players before it is serialized to a
+ * client component. */
+export function pickFaceitStats<T>(
+  stats: Map<string, T>,
+  steamid64s: (string | null)[]
+): Map<string, T> {
+  return new Map(
+    steamid64s.flatMap((id) => {
+      const entry = id === null ? undefined : stats.get(id)
+      return entry === undefined ? [] : [[id!, entry] as const]
+    })
+  )
 }
 
 async function faceitTeams(scope: string, days: number) {

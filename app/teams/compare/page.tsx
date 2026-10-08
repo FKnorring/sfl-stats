@@ -1,5 +1,5 @@
 import {
-  getTeamStandings,
+  getTeamOptions,
   getTeamMeta,
   getTeamRoster,
   type TeamMeta,
@@ -93,22 +93,20 @@ export default async function TeamComparePage({
   const teamAId = parseTeamId(params.teamA)
   const teamBId = parseTeamId(params.teamB)
 
-  const [standings, faceitStats] = await Promise.all([
-    getTeamStandings({}),
-    getFaceitPlayerStats(),
-  ])
+  const [teams, faceitStats, metaA, metaB, rosterA, rosterB] =
+    await Promise.all([
+      getTeamOptions(),
+      getFaceitPlayerStats(),
+      teamAId != null ? getTeamMeta(teamAId) : null,
+      teamBId != null ? getTeamMeta(teamBId) : null,
+      teamAId != null ? getTeamRoster(teamAId) : [],
+      teamBId != null ? getTeamRoster(teamBId) : [],
+    ])
 
-  const teamOptions: TeamOption[] = standings.map((t) => ({
+  const teamOptions: TeamOption[] = teams.map((t) => ({
     teamId: t.teamId,
     label: `${t.teamName} — ${t.division} (${t.season})`,
   }))
-
-  const [metaA, metaB, rosterA, rosterB] = await Promise.all([
-    teamAId != null ? getTeamMeta(teamAId) : null,
-    teamBId != null ? getTeamMeta(teamBId) : null,
-    teamAId != null ? getTeamRoster(teamAId) : [],
-    teamBId != null ? getTeamRoster(teamBId) : [],
-  ])
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">

@@ -8,7 +8,7 @@ import {
   getTeamDemoMatches,
   type TeamMeta,
 } from "@/lib/cached-data"
-import { getFaceitPlayerStats } from "@/lib/cached-data"
+import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cached-data"
 import { teamMvp } from "@/lib/follow-stats"
 import {
   getLiveDivisionStandings,
@@ -265,7 +265,10 @@ export default async function FollowPage({
           teamId={team.teamId}
           teamName={team.teamName}
           roster={roster}
-          faceitStats={faceitStats}
+          faceitStats={pickFaceitStats(
+            faceitStats,
+            roster.map((row) => row.steamid64)
+          )}
           includeAccounts={false}
         />
       </section>

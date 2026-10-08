@@ -55,9 +55,15 @@ export default async function LeaderboardPage({
     : params.division
   const teamParam = Array.isArray(params.team) ? params.team[0] : params.team
 
+  const filterCatalogs = Promise.all([
+    getSeasons(),
+    getDivisions(),
+    getTeams(),
+    getFaceitPlayerStats(),
+  ])
   const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
 
-  const [leaderboardRows, seasons, divisions, teams, faceitStats] =
+  const [leaderboardRows, [seasons, divisions, teams, faceitStats]] =
     await Promise.all([
       getLeaderboard({
         stat,
@@ -65,10 +71,7 @@ export default async function LeaderboardPage({
         division: divisionParam,
         team: teamParam,
       }),
-      getSeasons(),
-      getDivisions(),
-      getTeams(),
-      getFaceitPlayerStats(),
+      filterCatalogs,
     ])
 
   const steamSummaries = await getPlayerSummaries(

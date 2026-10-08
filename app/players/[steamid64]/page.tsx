@@ -7,7 +7,7 @@ import {
   getPlayerKills,
   getPlayerMatchHistory,
 } from "@/lib/cached-data"
-import { getFaceitPlayerStats } from "@/lib/cached-data"
+import { getFaceitPlayer } from "@/lib/cached-data"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
@@ -42,16 +42,14 @@ export default async function PlayerPage({
   const player = await getPlayerBySteamId64(steamid64)
   if (!player) notFound()
 
-  const [matchHistory, faceitStats, steamSummary, leagueAverage, playerKills] =
+  const [matchHistory, faceit, steamSummary, leagueAverage, playerKills] =
     await Promise.all([
       getPlayerMatchHistory(steamid64),
-      getFaceitPlayerStats(),
+      getFaceitPlayer(steamid64),
       getPlayerSummary(steamid64).catch(() => null),
       getLeagueAverageStats(),
       getPlayerKills(steamid64),
     ])
-
-  const faceit = faceitStats.get(steamid64)
 
   const isNetlight = matchHistory.some((m) => isNetlightTeam(m.teamName))
 
