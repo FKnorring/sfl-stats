@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   getTeamOptions,
   getTeamMeta,
@@ -9,6 +11,12 @@ import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { TeamSelect, type TeamOption } from "@/components/team-select"
 import { CompareRosterTable } from "./compare-roster-table"
 import type { TeamRosterTableRow } from "@/components/team-roster-columns"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Compare teams",
+  description: "Compare SFL CS2 team rosters and player statistics.",
+}
 
 function parseTeamId(value: string | string[] | undefined): number | undefined {
   const raw = Array.isArray(value) ? value[0] : value
@@ -84,10 +92,47 @@ function TeamColumn({
   )
 }
 
-export default async function TeamComparePage({
+type SearchParams = Promise<{
+  [key: string]: string | string[] | undefined
+}>
+
+function CompareSkeleton() {
+  return (
+    <div className="grid gap-6 md:grid-cols-2" aria-busy="true">
+      {[0, 1].map((slot) => (
+        <div key={slot} className="flex flex-col gap-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export default function TeamComparePage({
   searchParams,
 }: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+  searchParams: SearchParams
+}) {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6">
+      <h1 className="font-heading text-xl font-semibold tracking-tight">
+        Compare teams
+      </h1>
+      <Suspense fallback={<CompareSkeleton />}>
+        <TeamCompareResults searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function TeamCompareResults({
+  searchParams,
+}: {
+  searchParams: SearchParams
 }) {
   const params = await searchParams
   const teamAId = parseTeamId(params.teamA)
@@ -109,25 +154,23 @@ export default async function TeamComparePage({
   }))
 
   return (
-    <div className="flex min-h-svh flex-col gap-6 p-6">
-      <div className="grid gap-6 md:grid-cols-2">
-        <TeamColumn
-          slot="teamA"
-          teams={teamOptions}
-          teamId={teamAId}
-          meta={metaA}
-          roster={rosterA}
-          faceitStats={faceitStats}
-        />
-        <TeamColumn
-          slot="teamB"
-          teams={teamOptions}
-          teamId={teamBId}
-          meta={metaB}
-          roster={rosterB}
-          faceitStats={faceitStats}
-        />
-      </div>
+    <div className="grid gap-6 md:grid-cols-2">
+      <TeamColumn
+        slot="teamA"
+        teams={teamOptions}
+        teamId={teamAId}
+        meta={metaA}
+        roster={rosterA}
+        faceitStats={faceitStats}
+      />
+      <TeamColumn
+        slot="teamB"
+        teams={teamOptions}
+        teamId={teamBId}
+        meta={metaB}
+        roster={rosterB}
+        faceitStats={faceitStats}
+      />
     </div>
   )
 }

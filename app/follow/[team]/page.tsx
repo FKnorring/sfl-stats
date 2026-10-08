@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCurrentTeamCatalog as getStaticTeamCatalog } from "@/lib/db"
@@ -141,11 +142,33 @@ export async function generateStaticParams() {
     : [{ team: "__empty__" }]
 }
 
-export default async function FollowPage({
-  params,
-}: {
-  params: Promise<{ team: string }>
-}) {
+type TeamParams = Promise<{ team: string }>
+
+export default function FollowPage({ params }: { params: TeamParams }) {
+  return (
+    <Suspense fallback={<FollowPageSkeleton />}>
+      <FollowPageContent params={params} />
+    </Suspense>
+  )
+}
+
+function FollowPageSkeleton() {
+  return (
+    <div className="flex min-h-svh flex-col gap-8 p-6" aria-busy="true">
+      <div className="flex items-center gap-4">
+        <Skeleton className="size-14 rounded-lg" />
+        <div className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <Skeleton className="h-32 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  )
+}
+
+async function FollowPageContent({ params }: { params: TeamParams }) {
   const { team: segment } = await params
   let name: string
   try {

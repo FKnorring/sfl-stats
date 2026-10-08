@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { PlayerKillRow } from "@/lib/db"
-import type { MapRadar } from "@/lib/map-images"
+import { formatMapName, type MapRadar } from "@/lib/map-images"
 import { inferCtSite } from "@/lib/site-inference"
 import {
   Heatmap,
@@ -124,6 +124,7 @@ export function PlayerMapHeatmap({
         points={points}
         imageUrl={radar.url}
         isRadar
+        label={`${formatMapName(map) ?? map}: ${points.length} ${mode} ${side === "all" ? "on both sides" : `as ${side}`} heatmap`}
         className="mx-auto max-w-[min(100%,36rem)]"
       />
     </div>

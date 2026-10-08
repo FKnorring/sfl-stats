@@ -1,78 +1,65 @@
-import Link from "next/link"
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   getLeaderboard,
   getCurrentSeason,
-  getSeasons,
-  getDivisions,
-  getTeams,
-  type LeaderboardStat,
+  getCurrentTeamCatalog,
 } from "@/lib/cached-data"
 import { getFaceitPlayerStats } from "@/lib/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
-import {
-  SeasonFilter,
-  DivisionFilter,
-  TeamFilter,
-  StatFilter,
-} from "@/components/leaderboard-filters"
-import { LeaderboardTable } from "./leaderboard-table"
+import { LeaderboardView } from "./leaderboard-view"
 import { RatingExplanation } from "@/components/player-rating"
+import type { Metadata } from "next"
 
-const STAT_OPTIONS: { value: LeaderboardStat; label: string }[] = [
-  { value: "rating", label: "SFL Rating" },
-  { value: "kills", label: "Kills" },
-  { value: "deaths", label: "Deaths" },
-  { value: "adr", label: "ADR" },
-  { value: "hs_pct", label: "HS%" },
-  { value: "mvps", label: "MVPs" },
-  { value: "assists", label: "Assists" },
-]
-
-const STAT_VALUES = new Set(STAT_OPTIONS.map((o) => o.value))
-
-function isLeaderboardStat(
-  value: string | undefined
-): value is LeaderboardStat {
-  return !!value && STAT_VALUES.has(value as LeaderboardStat)
+export const metadata: Metadata = {
+  title: "Player leaderboard",
+  description:
+    "Compare SFL CS2 player performance across seasons and divisions.",
 }
 
-export default async function LeaderboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
-  const params = await searchParams
-  const statParam = Array.isArray(params.stat) ? params.stat[0] : params.stat
-  const stat: LeaderboardStat = isLeaderboardStat(statParam)
-    ? statParam
-    : "kills"
+function LeaderboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true">
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-9 w-28" />
+        <Skeleton className="h-9 w-32" />
+        <Skeleton className="h-9 w-36" />
+        <Skeleton className="h-9 w-36" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
+    </div>
+  )
+}
 
-  const seasonParam = Array.isArray(params.season)
-    ? params.season[0]
-    : params.season
-  const divisionParam = Array.isArray(params.division)
-    ? params.division[0]
-    : params.division
-  const teamParam = Array.isArray(params.team) ? params.team[0] : params.team
+export default function LeaderboardPage() {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6">
+      <h1 className="font-heading text-xl font-semibold tracking-tight">
+        Player leaderboard
+      </h1>
+      <Suspense fallback={<LeaderboardSkeleton />}>
+        <LeaderboardResults />
+      </Suspense>
+    </div>
+  )
+}
 
-  const filterCatalogs = Promise.all([
-    getSeasons(),
-    getDivisions(),
-    getTeams(),
+async function LeaderboardResults() {
+  // The board is scoped to the current season and ranked by kills on the
+  // server. Division and team filtering happens in the browser, so the
+  // full season is fetched once here rather than per filter selection.
+  const season = (await getCurrentSeason()) ?? undefined
+
+  const [leaderboardRows, teams, faceitStats] = await Promise.all([
+    getLeaderboard({ stat: "kills", season }),
+    getCurrentTeamCatalog(),
     getFaceitPlayerStats(),
   ])
-  const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
-
-  const [leaderboardRows, [seasons, divisions, teams, faceitStats]] =
-    await Promise.all([
-      getLeaderboard({
-        stat,
-        season,
-        division: divisionParam,
-        team: teamParam,
-      }),
-      filterCatalogs,
-    ])
 
   const steamSummaries = await getPlayerSummaries(
     leaderboardRows.map((row) => row.steamid64)
@@ -95,25 +82,10 @@ export default async function LeaderboardPage({
     }
   })
 
-  const statLabel = STAT_OPTIONS.find((o) => o.value === stat)?.label
-
   return (
-    <div className="flex min-h-svh flex-col gap-6 p-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <StatFilter stats={STAT_OPTIONS} value={stat} />
-        <SeasonFilter seasons={seasons} value={season} />
-        <DivisionFilter divisions={divisions} value={divisionParam} />
-        <TeamFilter teams={teams} value={teamParam} />
-        <Link
-          href="/teams"
-          className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:underline"
-        >
-          View team standings →
-        </Link>
-      </div>
-
-      <LeaderboardTable rows={rows} stat={stat} statLabel={statLabel} />
+    <>
+      <LeaderboardView rows={rows} teams={teams} />
       <RatingExplanation />
-    </div>
+    </>
   )
 }

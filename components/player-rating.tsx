@@ -64,7 +64,7 @@ export function RatingValue({
       </span>
       {ratedGames !== undefined && matchesPlayed !== undefined ? (
         <span
-          className="text-[10px] text-muted-foreground"
+          className="text-xs text-muted-foreground"
           title={`${ratedGames} of ${matchesPlayed} demos rated`}
           aria-label={`${ratedGames} of ${matchesPlayed} demos rated`}
         >

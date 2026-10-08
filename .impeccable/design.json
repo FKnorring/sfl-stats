@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-08T00:00:00.000Z",
+  "title": "Design System: SFL Stats",
+  "extensions": {
+    "colorMeta": {
+      "league-magenta": {
+        "role": "primary",
+        "displayName": "League Magenta",
+        "canonical": "oklch(0.518 0.253 323.949)",
+        "tonalRamp": ["oklch(0.15 0.253 323.949)", "oklch(0.25 0.253 323.949)", "oklch(0.35 0.253 323.949)", "oklch(0.45 0.253 323.949)", "oklch(0.55 0.253 323.949)", "oklch(0.65 0.253 323.949)", "oklch(0.8 0.253 323.949)", "oklch(0.95 0.253 323.949)"]
+      },
+      "league-magenta-dark": {
+        "role": "primary",
+        "displayName": "League Magenta Dark",
+        "canonical": "oklch(0.452 0.211 324.591)",
+        "tonalRamp": ["oklch(0.15 0.211 324.591)", "oklch(0.25 0.211 324.591)", "oklch(0.35 0.211 324.591)", "oklch(0.45 0.211 324.591)", "oklch(0.55 0.211 324.591)", "oklch(0.65 0.211 324.591)", "oklch(0.8 0.211 324.591)", "oklch(0.95 0.211 324.591)"]
+      },
+      "paper-white": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": ["oklch(0.15 0 0)", "oklch(0.25 0 0)", "oklch(0.35 0 0)", "oklch(0.45 0 0)", "oklch(0.55 0 0)", "oklch(0.65 0 0)", "oklch(0.8 0 0)", "oklch(0.95 0 0)"]
+      },
+      "ink-mauve": {
+        "role": "neutral",
+        "displayName": "Mauve Ink",
+        "canonical": "oklch(0.145 0.008 326)",
+        "tonalRamp": ["oklch(0.15 0.008 326)", "oklch(0.25 0.008 326)", "oklch(0.35 0.008 326)", "oklch(0.45 0.008 326)", "oklch(0.55 0.008 326)", "oklch(0.65 0.008 326)", "oklch(0.8 0.008 326)", "oklch(0.95 0.008 326)"]
+      },
+      "panel-dark": {
+        "role": "neutral",
+        "displayName": "Deep Mauve Panel",
+        "canonical": "oklch(0.212 0.019 322.12)",
+        "tonalRamp": ["oklch(0.15 0.019 322.12)", "oklch(0.25 0.019 322.12)", "oklch(0.35 0.019 322.12)", "oklch(0.45 0.019 322.12)", "oklch(0.55 0.019 322.12)", "oklch(0.65 0.019 322.12)", "oklch(0.8 0.019 322.12)", "oklch(0.95 0.019 322.12)"]
+      },
+      "muted-mauve": {
+        "role": "neutral",
+        "displayName": "Soft Mauve Wash",
+        "canonical": "oklch(0.96 0.003 325.6)",
+        "tonalRamp": ["oklch(0.15 0.003 325.6)", "oklch(0.25 0.003 325.6)", "oklch(0.35 0.003 325.6)", "oklch(0.45 0.003 325.6)", "oklch(0.55 0.003 325.6)", "oklch(0.65 0.003 325.6)", "oklch(0.8 0.003 325.6)", "oklch(0.95 0.003 325.6)"]
+      },
+      "muted-copy": {
+        "role": "neutral",
+        "displayName": "Mauve Secondary Copy",
+        "canonical": "oklch(0.542 0.034 322.5)",
+        "tonalRamp": ["oklch(0.15 0.034 322.5)", "oklch(0.25 0.034 322.5)", "oklch(0.35 0.034 322.5)", "oklch(0.45 0.034 322.5)", "oklch(0.55 0.034 322.5)", "oklch(0.65 0.034 322.5)", "oklch(0.8 0.034 322.5)", "oklch(0.95 0.034 322.5)"]
+      },
+      "line-mauve": {
+        "role": "neutral",
+        "displayName": "Fine Mauve Line",
+        "canonical": "oklch(0.922 0.005 325.62)",
+        "tonalRamp": ["oklch(0.15 0.005 325.62)", "oklch(0.25 0.005 325.62)", "oklch(0.35 0.005 325.62)", "oklch(0.45 0.005 325.62)", "oklch(0.55 0.005 325.62)", "oklch(0.65 0.005 325.62)", "oklch(0.8 0.005 325.62)", "oklch(0.95 0.005 325.62)"]
+      },
+      "focus-mauve": {
+        "role": "neutral",
+        "displayName": "Mauve Focus",
+        "canonical": "oklch(0.711 0.019 323.02)",
+        "tonalRamp": ["oklch(0.15 0.019 323.02)", "oklch(0.25 0.019 323.02)", "oklch(0.35 0.019 323.02)", "oklch(0.45 0.019 323.02)", "oklch(0.55 0.019 323.02)", "oklch(0.65 0.019 323.02)", "oklch(0.8 0.019 323.02)", "oklch(0.95 0.019 323.02)"]
+      },
+      "danger-red": {
+        "role": "tertiary",
+        "displayName": "Destructive Red",
+        "canonical": "oklch(0.577 0.245 27.325)",
+        "tonalRamp": ["oklch(0.15 0.245 27.325)", "oklch(0.25 0.245 27.325)", "oklch(0.35 0.245 27.325)", "oklch(0.45 0.245 27.325)", "oklch(0.55 0.245 27.325)", "oklch(0.65 0.245 27.325)", "oklch(0.8 0.245 27.325)", "oklch(0.95 0.245 27.325)"]
+      }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Space Grotesk", "purpose": "Default interface copy and controls." },
+      "heading": { "displayName": "JetBrains Mono", "purpose": "Technical section and title labels where explicitly used." },
+      "data": { "displayName": "Geist Mono", "purpose": "Statistics, ranks, and numeric comparison." },
+      "label": { "displayName": "Compact Label", "purpose": "Metadata and supporting labels." }
+    },
+    "shadows": [
+      { "name": "control-xs", "value": "shadow-xs", "purpose": "Subtle edge on inputs and compact cards." },
+      { "name": "selected-sm", "value": "shadow-sm", "purpose": "Selected tabs and sidebar variants." },
+      { "name": "popover-md", "value": "shadow-md", "purpose": "Dropdown and select menus." },
+      { "name": "sheet-lg", "value": "shadow-lg", "purpose": "Sheet overlays." }
+    ],
+    "motion": [
+      { "name": "control-transition", "value": "transition-all", "purpose": "Short state transitions on controls." },
+      { "name": "active-press", "value": "translateY(1px)", "purpose": "Button active feedback." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "Tailwind sm breakpoint" },
+      { "name": "md", "value": "768px mobile-navigation switch" },
+      { "name": "lg", "value": "Tailwind lg breakpoint" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Compact magenta action with tactile press and visible keyboard focus.",
+      "html": "<button class=\"ds-btn-primary\">Compare teams</button>",
+      "css": ".ds-btn-primary { background: var(--primary); color: var(--primary-foreground); border: 1px solid transparent; border-radius: var(--radius-lg); padding: 0 10px; height: 32px; font: 500 14px/1.4 var(--font-sans); white-space: nowrap; transition: all 150ms ease; } .ds-btn-primary:hover { background: color-mix(in oklch, var(--primary) 80%, transparent); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); } .ds-btn-primary:disabled { opacity: .5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Neutral secondary action for utility flows and table controls.",
+      "html": "<button class=\"ds-btn-outline\">View matches</button>",
+      "css": ".ds-btn-outline { background: var(--background); color: var(--foreground); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 0 10px; height: 32px; font: 500 14px/1.4 var(--font-sans); transition: all 150ms ease; } .ds-btn-outline:hover { background: var(--muted); } .ds-btn-outline:active { transform: translateY(1px); } .ds-btn-outline:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Compact transparent field with subtle inset depth and a shared focus ring.",
+      "html": "<input class=\"ds-input\" aria-label=\"Search players\" placeholder=\"Search players\">",
+      "css": ".ds-input { width: 100%; min-width: 0; height: 32px; padding: 4px 10px; color: var(--foreground); background: transparent; border: 1px solid var(--input); border-radius: var(--radius-lg); box-shadow: 0 1px 2px rgb(0 0 0 / .05); font: 400 14px/1.4 var(--font-sans); transition: color 150ms ease, border-color 150ms ease; } .ds-input::placeholder { color: var(--muted-foreground); } .ds-input:focus-visible { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent); } .ds-input:disabled { opacity: .5; cursor: not-allowed; } .ds-input[aria-invalid=true] { border-color: var(--destructive); box-shadow: 0 0 0 3px color-mix(in oklch, var(--destructive) 20%, transparent); }"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Icon-led route item with a distinct active surface and accessible focus.",
+      "html": "<a class=\"ds-nav-active\" href=\"#leaderboard\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M8 21h8m-4-4v4M7 4h10v5a5 5 0 0 1-10 0V4Zm0 2H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4\"/></svg><span>Leaderboard</span></a>",
+      "css": ".ds-nav-active { display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 6px 8px; color: var(--foreground); background: var(--muted); border-radius: var(--radius-md); text-decoration: none; font: 500 14px/1.4 var(--font-sans); transition: background 150ms ease, color 150ms ease; } .ds-nav-active svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; } .ds-nav-active:hover { background: color-mix(in oklch, var(--muted) 75%, var(--primary) 25%); } .ds-nav-active:focus-visible { outline: 3px solid color-mix(in oklch, var(--ring) 50%, transparent); outline-offset: 1px; }"
+    },
+    {
+      "name": "Data Card",
+      "kind": "card",
+      "refersTo": "card-data",
+      "description": "Border-defined container for a compact comparison or summary.",
+      "html": "<section class=\"ds-card\"><h3>Division standings</h3><p>Updated from parsed demos</p></section>",
+      "css": ".ds-card { padding: 16px; color: var(--card-foreground); background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); } .ds-card h3 { margin: 0 0 8px; font: 500 14px/1.4 var(--font-heading); } .ds-card p { margin: 0; color: var(--muted-foreground); font: 400 14px/1.5 var(--font-sans); }"
+    },
+    {
+      "name": "Table Row",
+      "kind": "custom",
+      "refersTo": "table-row",
+      "description": "Compact statistics row with restrained hover and tabular figures.",
+      "html": "<div class=\"ds-table-row\"><span>Player</span><span class=\"ds-stat\">1.24</span></div>",
+      "css": ".ds-table-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 8px; color: var(--foreground); border-bottom: 1px solid var(--border); font: 400 14px/1.4 var(--font-sans); transition: background 150ms ease; } .ds-table-row:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); } .ds-table-row .ds-stat { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Scout’s Workbench",
+    "overview": "SFL Stats is a compact, competitive workbench for reading league performance. Its interface puts dense, demo-derived records and comparisons first: a clear sans-serif carries the working text, monospaced figures support quick scanning, and a vivid magenta accent marks the primary action and selected states. The mood is competitive and energetic, expressed through purposeful color and responsive controls rather than a wholesale esports spectacle.\n\nThe visual system balances a bright, white light theme with a mauve-tinted dark theme. Fine borders and muted surfaces organize the work area; selective shadows make controls and overlays tactile. Navigation stays icon-led and task-oriented, while tables remain the central high-density pattern.",
+    "keyCharacteristics": [
+      "Compact, data-dense layouts with tabular and monospaced statistics.",
+      "Vivid league magenta against quiet, mauve-tinted neutrals.",
+      "Border-defined surfaces, with restrained lift for interactive layers.",
+      "Paired light and dark themes; the default follows the system preference."
+    ],
+    "rules": [
+      { "name": "The Accent Signal Rule", "body": "Use magenta to identify the primary action or an active state, not as a substitute for the neutral structure that makes dense data readable.", "section": "colors" },
+      { "name": "The Figure-Face Rule", "body": "Use Geist Mono or tabular numerals for statistics and ranks when alignment improves comparison; do not apply a monospaced face to all prose.", "section": "typography" },
+      { "name": "The Layer-on-Intent Rule", "body": "Reserve stronger shadows for content that overlays or temporarily rises above the work surface.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve both light and dark semantic color assignments; the theme changes the actual values behind shared roles.",
+      "Do use the magenta accent for primary actions and active states, retaining neutral surfaces for the bulk of dense data.",
+      "Do keep visible keyboard focus rings and the established disabled and invalid treatments.",
+      "Do preserve horizontal table overflow when column relationships matter on narrow screens.",
+      "Do treat SFL Rating as a provisional custom score, not an official HLTV rating."
+    ],
+    "donts": [
+      "Don't present Faceit context as the source of SFL league statistics or SFL Rating.",
+      "Don't imply that demo-derived statistics or provisional ratings are official tournament results.",
+      "Don't apply strong shadows indiscriminately to data cards and sections.",
+      "Don't use decorative magenta where it competes with the meaning of data or status colors."
+    ]
+  }
+}

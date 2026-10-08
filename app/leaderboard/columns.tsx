@@ -60,7 +60,8 @@ const rightAlign = { className: "text-right" }
 
 // Columns dropped by the compact variant (e.g. the home page preview).
 const COMPACT_HIDDEN = new Set([
-  "division",
+  "teamName",
+  "matchesPlayed",
   "assists",
   "hsPct",
   "statValue",

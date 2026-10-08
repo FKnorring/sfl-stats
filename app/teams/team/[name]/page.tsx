@@ -1,3 +1,5 @@
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { notFound } from "next/navigation"
 import { getCurrentTeamCatalog } from "@/lib/db"
 import {
@@ -29,11 +31,28 @@ export async function generateStaticParams() {
     : [{ name: "__empty__" }]
 }
 
-export default async function TeamPage({
-  params,
-}: {
-  params: Promise<{ name: string }>
-}) {
+type TeamParams = Promise<{ name: string }>
+
+function TeamPageSkeleton() {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6" aria-busy="true">
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-36 w-full" />
+      <Skeleton className="h-64 w-full" />
+      <Skeleton className="h-64 w-full" />
+    </div>
+  )
+}
+
+export default function TeamPage({ params }: { params: TeamParams }) {
+  return (
+    <Suspense fallback={<TeamPageSkeleton />}>
+      <TeamPageContent params={params} />
+    </Suspense>
+  )
+}
+
+async function TeamPageContent({ params }: { params: TeamParams }) {
   const { name } = await params
   const teamName = decodeURIComponent(name)
 

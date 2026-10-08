@@ -14,8 +14,9 @@ export type TeamOption = { teamId: number; label: string }
 /**
  * One query-param-backed <Select> for picking a specific team-season (by
  * teamId, not name — same reasoning as getTeamStandings/getTeamRoster).
- * Mirrors FilterSelect in leaderboard-filters.tsx, but with no "all" option
- * since a slot on the compare page always needs a team.
+ * Modelled on the query-param selects that used to live in
+ * leaderboard-filters.tsx, but with no "all" option since a slot on the
+ * compare page always needs a team.
  */
 export function TeamSelect({
   paramName,

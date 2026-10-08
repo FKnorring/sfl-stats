@@ -1,15 +1,15 @@
 import Link from "next/link"
+import { Suspense } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
 import { notFound, redirect } from "next/navigation"
 import { getDivisions as getStaticDivisions } from "@/lib/db"
 import {
   getTeamStandings,
   getCurrentSeason,
-  getSeasons,
   getDivisions,
   getTeamByName,
 } from "@/lib/cached-data"
 import { getFaceitTeamStats } from "@/lib/cached-data"
-import { SeasonFilter } from "@/components/leaderboard-filters"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
 import {
   TeamCompareProvider,
@@ -17,6 +17,12 @@ import {
 } from "@/components/team-compare-picker"
 import type { TeamStandingTableRow } from "../columns"
 import { TeamStandingsTable } from "../team-standings-table"
+import type { Metadata } from "next"
+
+export const metadata: Metadata = {
+  title: "Division standings",
+  description: "View SFL CS2 team standings by division and season.",
+}
 
 export async function generateStaticParams() {
   const divisions = await getStaticDivisions()
@@ -25,13 +31,32 @@ export async function generateStaticParams() {
     : [{ division: "__empty__" }]
 }
 
-export default async function TeamsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ division: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
-}) {
+type DivisionParams = Promise<{ division: string }>
+
+function DivisionSkeleton() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true">
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-9 w-28" />
+      </div>
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-full" />
+    </div>
+  )
+}
+
+export default function TeamsPage({ params }: { params: DivisionParams }) {
+  return (
+    <div className="flex min-h-svh flex-col gap-6 p-6">
+      <Suspense fallback={<DivisionSkeleton />}>
+        <DivisionStandings params={params} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function DivisionStandings({ params }: { params: DivisionParams }) {
   const { division } = await params
   let activeDivision: string
   try {
@@ -40,17 +65,11 @@ export default async function TeamsPage({
     if (!(error instanceof URIError)) throw error
     notFound()
   }
-  const query = await searchParams
-  const seasonParam = Array.isArray(query.season)
-    ? query.season[0]
-    : query.season
+  const season = (await getCurrentSeason()) ?? undefined
 
-  const filterData = Promise.all([getSeasons(), getDivisions()])
-  const season = seasonParam ?? (await getCurrentSeason()) ?? undefined
-
-  const [standingRows, [seasons, divisions], faceitStats] = await Promise.all([
+  const [standingRows, divisions, faceitStats] = await Promise.all([
     getTeamStandings({ season, division: activeDivision }),
-    filterData,
+    getDivisions(),
     getFaceitTeamStats(),
   ])
   if (!divisions.includes(activeDivision)) {
@@ -74,9 +93,11 @@ export default async function TeamsPage({
   })
 
   return (
-    <div className="flex min-h-svh flex-col gap-6 p-6">
+    <>
+      <h1 className="font-heading text-xl font-semibold tracking-tight">
+        {activeDivision} standings
+      </h1>
       <div className="flex flex-wrap items-center gap-2">
-        <SeasonFilter seasons={seasons} value={season} />
         <Link
           href="/leaderboard"
           className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -96,6 +117,6 @@ export default async function TeamsPage({
         </DivisionTabs>
         <TeamCompareBar />
       </TeamCompareProvider>
-    </div>
+    </>
   )
 }

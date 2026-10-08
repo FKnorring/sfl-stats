@@ -1,19 +1,18 @@
+import { Suspense } from "react"
 import { notFound } from "next/navigation"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { getAdminRosterEntries } from "@/lib/db"
 import { isLocalEnv } from "@/lib/env"
 import { SteamIdEditor } from "./steamid-editor"
 
 // Local-only maintenance tool (ADR-0002): 404s unless ENV=local.
-export default async function AdminPage({
+export default function AdminPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
   if (!isLocalEnv) notFound()
-
-  const { q = "" } = await searchParams
-  const entries = await getAdminRosterEntries(q)
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -23,6 +22,37 @@ export default async function AdminPage({
         the database and data/player-overrides.json, so future ingests keep
         them.
       </p>
+      <Suspense fallback={<AdminResultsSkeleton />}>
+        <AdminResults searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}
+
+function AdminResultsSkeleton() {
+  return (
+    <div className="flex flex-col gap-2" aria-busy="true">
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-80" />
+        <Skeleton className="h-8 w-16" />
+      </div>
+      {Array.from({ length: 4 }, (_, index) => (
+        <Skeleton key={index} className="h-10 w-full" />
+      ))}
+    </div>
+  )
+}
+
+async function AdminResults({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>
+}) {
+  const { q = "" } = await searchParams
+  const entries = await getAdminRosterEntries(q)
+
+  return (
+    <>
       <form className="flex gap-2">
         <input
           name="q"
@@ -67,6 +97,6 @@ export default async function AdminPage({
       {entries.length === 0 ? (
         <p className="text-sm text-muted-foreground">No matching entries.</p>
       ) : null}
-    </div>
+    </>
   )
 }
