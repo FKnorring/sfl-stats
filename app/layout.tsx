@@ -9,7 +9,6 @@ import { cn } from "@/lib/utils"
 import { FollowProvider } from "@/components/follow-provider"
 import { getCurrentTeamCatalog } from "@/lib/cached-data"
 import { isLocalEnv } from "@/lib/env"
-import { connection } from "next/server"
 
 const jetbrainsMonoHeading = JetBrains_Mono({
   subsets: ["latin"],
@@ -31,7 +30,6 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  await connection()
   const teams = await getCurrentTeamCatalog()
   return (
     <html

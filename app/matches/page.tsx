@@ -1,4 +1,3 @@
-import { connection } from "next/server"
 import {
   getCurrentSeason,
   getDemoMatches,
@@ -9,8 +8,6 @@ import { getLivePendingMatches } from "@/lib/cached-toornament"
 import { MatchesView } from "./matches-view"
 
 export default async function MatchesPage() {
-  // Unlike force-dynamic, this preserves the schedule fetch's explicit cache.
-  await connection()
   const [history, live, season] = await Promise.all([
     getDemoMatches(),
     getLivePendingMatches(),

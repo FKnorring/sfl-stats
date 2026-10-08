@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation"
+import { connection } from "next/server"
 import { isLocalEnv } from "@/lib/env"
 import { readMapZones } from "@/lib/map-zones"
 import { getMapRadar } from "@/lib/map-images"
 import { ZoneEditor } from "./zone-editor"
-
-export const dynamic = "force-dynamic"
 
 const MAPS = [
   "de_ancient",
@@ -20,6 +19,7 @@ const MAPS = [
 export default async function ZonesPage() {
   if (!isLocalEnv) notFound()
 
+  await connection()
   const zones = await readMapZones()
   const radars = Object.fromEntries(
     MAPS.flatMap((m) => {

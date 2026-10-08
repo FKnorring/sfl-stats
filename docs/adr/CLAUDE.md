@@ -15,3 +15,4 @@ When a decision here is final, add a new ADR with the next sequential number (ch
 | 0007 | [Browser-local follows and favorites with official live rankings](0007-browser-local-follow-preferences.md)                             |
 | 0008 | [Shared demo identities and explicit result provenance](0008-shared-demo-identities-and-result-provenance.md)                           |
 | 0009 | [Shared Data Cache with an ingestion generation marker](0009-generation-keyed-data-caches.md)                                           |
+| 0010 | [Native Cache Components with eventual tag revalidation](0010-native-cache-components.md)                                               |

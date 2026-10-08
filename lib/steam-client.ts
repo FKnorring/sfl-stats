@@ -1,11 +1,7 @@
 import { z } from "zod"
-import { unstable_cache } from "next/cache"
-import {
-  CACHE_VERSION,
-  STABLE_DATA_SECONDS,
-  cacheScope,
-  cacheTag,
-} from "@/lib/cache-policy"
+import { cacheLife, cacheTag } from "next/cache"
+import { connection } from "next/server"
+import { cacheScope, scopedCacheTag } from "@/lib/cache-policy"
 
 // Steam Web API, authenticated with a single key param (not a bearer token).
 // Generate one at https://steamcommunity.com/dev/apikey.
@@ -61,11 +57,16 @@ export async function getPlayerSummaries(
   const key = getApiKey()
   if (!key || steamid64s.length === 0) return result
 
+  // Keep optional-source failures out of the prerendered shell.
+  await connection()
   const uniqueIds = Array.from(new Set(steamid64s))
   uniqueIds.sort()
   for (let i = 0; i < uniqueIds.length; i += 100) {
     try {
-      const players = await cachedBatch(uniqueIds.slice(i, i + 100))
+      const players = await cachedBatch(
+        cacheScope(),
+        uniqueIds.slice(i, i + 100)
+      )
       for (const player of players) result.set(player.steamid64, player)
     } catch (err) {
       console.warn("[steam-client] failed to fetch player summaries:", err)
@@ -100,8 +101,9 @@ export async function fetchPlayerSummaryBatch(
   }))
 }
 
-const cachedBatch = unstable_cache(
-  fetchPlayerSummaryBatch,
-  [cacheScope(), CACHE_VERSION, "steam-batch"],
-  { revalidate: STABLE_DATA_SECONDS, tags: [cacheTag("steam")] }
-)
+async function cachedBatch(scope: string, ids: string[]) {
+  "use cache: remote"
+  cacheLife("stable")
+  cacheTag(scopedCacheTag("steam", scope))
+  return fetchPlayerSummaryBatch(ids)
+}

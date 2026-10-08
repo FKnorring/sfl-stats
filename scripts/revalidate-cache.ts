@@ -1,8 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises"
 import { pathToFileURL } from "node:url"
 import { z } from "zod"
-import { randomUUID } from "node:crypto"
-import { sql } from "drizzle-orm"
 import {
   cacheScope,
   DEFAULT_DATABASE_URL,
@@ -58,23 +56,6 @@ export function revalidationConfig(
 
 type NotificationConfig = NonNullable<ReturnType<typeof revalidationConfig>>
 
-export async function advanceCacheGeneration() {
-  const { openWritableDb } = await import("@/lib/db/client")
-  const database = openWritableDb()
-  try {
-    await database.run(
-      sql`UPDATE cache_generation SET generation = ${randomUUID()} WHERE id = 1`
-    )
-    const rows = await database.all<{ generation: string }>(
-      sql`SELECT generation FROM cache_generation WHERE id = 1`
-    )
-    if (!rows[0])
-      throw new Error("Missing cache generation; apply database migrations")
-  } finally {
-    database.$client.close()
-  }
-}
-
 export async function notifyCache(
   source: RevalidationSource,
   config: NotificationConfig,
@@ -116,15 +97,14 @@ export async function notifyCache(
     const value = acknowledgement.parse(await response.json())
     if (value.scope !== config.scope)
       throw new Error("Cache notification acknowledged the wrong target")
-    console.log(`[cache] invalidated ${source} data`)
+    console.log(`[cache] marked ${source} data stale`)
     return
   }
 }
 
 export async function withCacheInvalidation<Result>(
   source: RevalidationSource,
-  run: (markWritePhase: () => void) => Promise<Result>,
-  advance = advanceCacheGeneration
+  run: (markWritePhase: () => void) => Promise<Result>
 ) {
   const config = revalidationConfig()
   if (!config)
@@ -140,18 +120,6 @@ export async function withCacheInvalidation<Result>(
     })
   } catch (error) {
     failures.push(error)
-  }
-  if (wrote) {
-    try {
-      await advance()
-    } catch (error) {
-      failures.push(
-        new Error(
-          `Writes may have committed, but cache generation update failed; apply migrations and retry pnpm cache:revalidate -- --source ${source}`,
-          { cause: error }
-        )
-      )
-    }
   }
   if (wrote && config) {
     try {
@@ -178,7 +146,6 @@ async function main() {
   )
   const config = revalidationConfig()
   if (!config) throw new Error("Configure cache revalidation before retrying")
-  await advanceCacheGeneration()
   await notifyCache(source, config)
 }
 

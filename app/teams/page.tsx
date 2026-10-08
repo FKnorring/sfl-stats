@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { connection } from "next/server"
 import {
   getTeamStandings,
   getCurrentSeason,
@@ -21,7 +20,6 @@ export default async function TeamsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  await connection()
   const params = await searchParams
   const seasonParam = Array.isArray(params.season)
     ? params.season[0]

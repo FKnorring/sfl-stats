@@ -1,7 +1,6 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { connection } from "next/server"
 import {
   getCurrentTeamCatalog,
   getTeamRoster,
@@ -139,7 +138,6 @@ export default async function FollowPage({
 }: {
   params: Promise<{ team: string }>
 }) {
-  await connection()
   const { team: segment } = await params
   let name: string
   try {

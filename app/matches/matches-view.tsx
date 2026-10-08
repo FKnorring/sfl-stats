@@ -235,7 +235,7 @@ export function MatchesView({
             <Badge variant="secondary">{filteredUpcoming.length}</Badge>
           ) : null}
           <span className="text-xs text-muted-foreground sm:ml-auto">
-            Live Toornament schedule / five-minute cache
+            Live Toornament schedule / six-hour refresh
           </span>
         </div>
         {filteredUpcoming === undefined ? (

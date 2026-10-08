@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { connection } from "next/server"
 import { notFound } from "next/navigation"
 import {
   getDemoMatchById,
@@ -19,7 +18,6 @@ export default async function DemoMatchPage({
 }: {
   params: Promise<{ matchId: string }>
 }) {
-  await connection()
   const { matchId: matchIdParam } = await params
   const matchId = Number(matchIdParam)
   if (!Number.isInteger(matchId)) notFound()

@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { connection } from "next/server"
 import {
   getLeaderboard,
   getCurrentSeason,
@@ -42,7 +41,6 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  await connection()
   const params = await searchParams
   const statParam = Array.isArray(params.stat) ? params.stat[0] : params.stat
   const stat: LeaderboardStat = isLeaderboardStat(statParam)

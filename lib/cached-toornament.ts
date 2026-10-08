@@ -1,49 +1,43 @@
-import { unstable_cache } from "next/cache"
+import { cacheLife, cacheTag } from "next/cache"
+import { connection } from "next/server"
 import * as source from "@/lib/toornament-live"
 import type { MatchTeam } from "@/lib/matches"
-import { getCacheGeneration } from "@/lib/cache-generation"
-import {
-  CACHE_VERSION,
-  CURRENT_DATA_SECONDS,
-  cacheScope,
-  cacheTag,
-} from "@/lib/cache-policy"
+import { cacheScope, scopedCacheTag } from "@/lib/cache-policy"
 
-const keys = [cacheScope(), CACHE_VERSION]
-const options = {
-  revalidate: CURRENT_DATA_SECONDS,
-  tags: [cacheTag("toornament")],
-}
 class UnavailableSchedule extends Error {}
-const scheduleMatches = async (tournamentId: string) => {
-  const generation = await getCacheGeneration()
-  return unstable_cache(
-    async (id: string) => {
-      const matches = await source.getLiveScheduleMatches(id)
-      if (matches === null)
-        throw new UnavailableSchedule("Toornament schedule unavailable")
-      return matches
-    },
-    [...keys, generation, "schedule-matches"],
-    options
-  )(tournamentId)
+async function scheduleMatches(scope: string, tournamentId: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("toornament", scope))
+  const matches = await source.getLiveScheduleMatches(tournamentId)
+  if (matches === null)
+    throw new UnavailableSchedule("Toornament schedule unavailable")
+  return matches
 }
-const divisionStages = async () =>
-  unstable_cache(
-    source.getDivisionStages,
-    [...keys, await getCacheGeneration(), "division-stages"],
-    options
-  )()
-const rankingRows = async (url: string) =>
-  unstable_cache(
-    source.getRankingRows,
-    [...keys, await getCacheGeneration(), "ranking-rows"],
-    options
-  )(url)
+async function cachedDivisionStages(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("toornament", scope))
+  return source.getDivisionStages()
+}
+function divisionStages() {
+  return cachedDivisionStages(cacheScope())
+}
+async function cachedRankingRows(scope: string, url: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("toornament", scope))
+  return source.getRankingRows(url)
+}
+function rankingRows(url: string) {
+  return cachedRankingRows(cacheScope(), url)
+}
 
 async function getLiveScheduleMatches(tournamentId: string) {
+  // Unavailable-source UI must be retried at request time, not prerendered.
+  await connection()
   try {
-    return await scheduleMatches(tournamentId)
+    return await scheduleMatches(cacheScope(), tournamentId)
   } catch (error) {
     if (!(error instanceof UnavailableSchedule)) throw error
     return null
@@ -57,7 +51,8 @@ export async function getLivePendingMatches(
   return matches?.filter((match) => match.status === "pending") ?? null
 }
 
-export function getLiveDivisionResults(team: MatchTeam) {
+export async function getLiveDivisionResults(team: MatchTeam) {
+  await connection()
   return source.getLiveDivisionResults(
     team,
     divisionStages,
@@ -65,7 +60,8 @@ export function getLiveDivisionResults(team: MatchTeam) {
   )
 }
 
-export function getLiveTeamPendingMatches(team: MatchTeam) {
+export async function getLiveTeamPendingMatches(team: MatchTeam) {
+  await connection()
   return source.getLiveTeamPendingMatches(
     team,
     divisionStages,
@@ -73,7 +69,11 @@ export function getLiveTeamPendingMatches(team: MatchTeam) {
   )
 }
 
-export function getLiveDivisionStandings(team: MatchTeam, teams: MatchTeam[]) {
+export async function getLiveDivisionStandings(
+  team: MatchTeam,
+  teams: MatchTeam[]
+) {
+  await connection()
   return source.getLiveDivisionStandings(
     team,
     teams,

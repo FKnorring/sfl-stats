@@ -4,6 +4,8 @@ import {
   cacheScope,
   CURRENT_DATA_SECONDS,
   STABLE_DATA_SECONDS,
+  CACHE_PROFILES,
+  scopedCacheTag,
   sourceCacheGroups,
 } from "./cache-policy"
 import { handleCacheRevalidation } from "./cache-revalidation"
@@ -37,6 +39,15 @@ test("cache scopes isolate databases and namespaces without credentials", () => 
   )
   assert.equal(cacheScope("file:data/sfl.db"), cacheScope("file:./data/sfl.db"))
   assert.match(cacheScope(), /^sfl:[0-9a-f]{32}$/)
+})
+
+test("native profiles preserve refresh targets without imposing hard expiry", () => {
+  assert.deepEqual(CACHE_PROFILES, {
+    current: { stale: 300, revalidate: 21600 },
+    stable: { stale: 300, revalidate: 86400 },
+  })
+  const scope = cacheScope("libsql://fixture.turso.io", "test")
+  assert.equal(scopedCacheTag("db", scope), `${scope}:db`)
 })
 
 test("ingestion mapping conservatively expires DB and relevant external sources", () => {
