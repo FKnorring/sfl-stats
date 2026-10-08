@@ -28,6 +28,10 @@ export type DemoMatchRow = MatchTeams & {
 export type UpcomingMatchRow = MatchTeams & {
   matchId: string
   scheduledAt: string | null
+  /** Twitch channel URL, when the match is streamed. */
+  streamUrl?: string | null
+  /** Commentator of the stream, when known. */
+  streamCaster?: string | null
 }
 
 export function matchesFilters(

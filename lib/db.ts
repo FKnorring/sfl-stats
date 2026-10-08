@@ -1693,3 +1693,15 @@ export async function getAdminRosterEntries(
       `
   )) as AdminRosterEntry[]
 }
+
+/** Twitch stream URLs for upcoming matches, keyed by Toornament match id. */
+export async function getMatchStreams(): Promise<
+  Record<string, { url: string; caster: string | null }>
+> {
+  const rows = (await db.all(
+    sql`SELECT toornament_match_id AS matchId, stream_url AS url, caster FROM match_streams`
+  )) as { matchId: string; url: string; caster: string | null }[]
+  return Object.fromEntries(
+    rows.map((r) => [r.matchId, { url: r.url, caster: r.caster }])
+  )
+}

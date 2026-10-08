@@ -692,3 +692,24 @@ test("HTTP and network failures are explicit; unexpected errors are not swallowe
   })
   await assert.rejects(getLivePendingMatches(), /Unexpected programming error/)
 })
+
+test("upcoming match cards show a Twitch link only when the match is streamed", () => {
+  const upcoming = ["1", "2"].map((matchId) => ({
+    matchId,
+    scheduledAt: null,
+    teamAName: `Alpha ${matchId}`,
+    teamBName: `Beta ${matchId}`,
+    teamADivision: "1",
+    teamBDivision: "1",
+    streamUrl: matchId === "1" ? "https://www.twitch.tv/sflcs" : null,
+  }))
+  const html = renderToStaticMarkup(
+    createElement(
+      FollowProvider,
+      { teams: [] },
+      createElement(MatchesView, { history: [], upcoming, divisions: ["1"] })
+    )
+  )
+  assert.equal(html.match(/Watch on Twitch/g)?.length, 2) // aria-label + title, once
+  assert.match(html, /href="https:\/\/www\.twitch\.tv\/sflcs"/)
+})

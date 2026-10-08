@@ -1,0 +1,1 @@
+ALTER TABLE `match_streams` ADD `caster` text;

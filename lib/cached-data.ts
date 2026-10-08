@@ -366,3 +366,13 @@ async function faceitPlayer(scope: string, steamid64: string, days: number) {
 export function getFaceitPlayer(steamid64: string, days = 7) {
   return faceitPlayer(cacheScope(), steamid64, days)
 }
+
+async function matchStreams(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getMatchStreams()
+}
+export function getMatchStreams() {
+  return matchStreams(cacheScope())
+}
