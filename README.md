@@ -410,7 +410,7 @@ and `demos` notification source, including partially failed runs.
 ```bash
 pnpm lint        # eslint
 pnpm format      # prettier --write
-pnpm typecheck   # tsc --noEmit
+pnpm typecheck   # next typegen + tsc --noEmit (works before the first build)
 ```
 
 ## Contributing
