@@ -19,6 +19,7 @@ import {
 } from "@/components/netlight-flames"
 import { MatchHistoryTable } from "./player-history-tables"
 import { isLocalEnv } from "@/lib/env"
+import { NetlightHeatmapGate } from "./netlight-heatmap-gate"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/map-images"
 import { RatingValue, RatingExplanation } from "@/components/player-rating"
@@ -42,16 +43,19 @@ export default async function PlayerPage({
   const player = await getPlayerBySteamId64(steamid64)
   if (!player) notFound()
 
-  const [matchHistory, faceit, steamSummary, leagueAverage, playerKills] =
-    await Promise.all([
+  const [matchHistory, faceit, steamSummary, leagueAverage] = await Promise.all(
+    [
       getPlayerMatchHistory(steamid64),
       getFaceitPlayer(steamid64),
       getPlayerSummary(steamid64).catch(() => null),
       getLeagueAverageStats(),
-      getPlayerKills(steamid64),
-    ])
+    ]
+  )
 
   const isNetlight = matchHistory.some((m) => isNetlightTeam(m.teamName))
+  // Netlight kill data stays server-side on prod until unlocked via action.
+  const playerKills =
+    isNetlight && !isLocalEnv ? [] : await getPlayerKills(steamid64)
 
   return (
     <div className="flex min-h-svh flex-col gap-6 p-6">
@@ -211,9 +215,7 @@ export default async function PlayerPage({
         </div>
 
         {isNetlight && !isLocalEnv ? (
-          <p className="text-sm text-muted-foreground">
-            Det här vill du veta va? 😉
-          </p>
+          <NetlightHeatmapGate steamid64={steamid64} />
         ) : (
           <PlayerMapHeatmap
             steamid64={steamid64}
