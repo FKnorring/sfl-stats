@@ -305,7 +305,7 @@ This script requires `FACEIT_API_KEY` to be set in `.env` — it's run via
 ```bash
 pnpm lint        # eslint
 pnpm format      # prettier --write
-pnpm typecheck   # tsc --noEmit
+pnpm typecheck   # next typegen + tsc --noEmit (works before the first build)
 ```
 
 ## Contributing
