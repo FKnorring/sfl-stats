@@ -1416,6 +1416,35 @@
           "value": "\"toornament_matches\".\"status\" IN ('pending', 'running', 'completed')"
         }
       }
+    },
+    "cache_generation": {
+      "name": "cache_generation",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "generation": {
+          "name": "generation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "cache_generation_singleton": {
+          "name": "cache_generation_singleton",
+          "value": "\"cache_generation\".\"id\" = 1"
+        }
+      }
     }
   },
   "views": {},
