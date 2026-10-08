@@ -176,6 +176,7 @@ export function buildLeaderboardColumns(
           rating={row.original.rating}
           ratedGames={row.original.ratedGames}
           matchesPlayed={row.original.matchesPlayed}
+          teamName={row.original.teamName}
         />
       ),
     },
@@ -249,6 +250,7 @@ export function buildLeaderboardColumns(
             rating={row.original.rating}
             ratedGames={row.original.ratedGames}
             matchesPlayed={row.original.matchesPlayed}
+            teamName={row.original.teamName}
           />
         ) : (
           formatStat(stat, statValueFor(stat, row.original))

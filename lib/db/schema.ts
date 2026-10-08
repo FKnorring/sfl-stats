@@ -219,6 +219,8 @@ export const playerMatchRoundStats = sqliteTable(
       .references(() => players.steamid64),
     side: integer("side").notNull(),
     kills: integer("kills").notNull(),
+    weightedKills: real("weighted_kills").notNull().default(0),
+    ecoKills: integer("eco_kills").notNull().default(0),
     deaths: integer("deaths").notNull(),
     assists: integer("assists").notNull(),
     flashAssists: integer("flash_assists").notNull(),

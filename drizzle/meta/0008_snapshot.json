@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a115d3bc-438e-4f6c-9ac6-b367e5a5fdf4",
-  "prevId": "5036334e-353b-404a-82e7-3de9fcb31165",
+  "id": "49ae24b1-97c3-4335-8ace-ae848089a462",
+  "prevId": "a115d3bc-438e-4f6c-9ac6-b367e5a5fdf4",
   "tables": {
     "faceit_match_stats": {
       "name": "faceit_match_stats",
@@ -621,6 +621,14 @@
         "weighted_kills": {
           "name": "weighted_kills",
           "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "eco_kills": {
+          "name": "eco_kills",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,

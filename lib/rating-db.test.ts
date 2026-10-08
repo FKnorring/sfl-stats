@@ -46,6 +46,8 @@ function extraction(): RatingExtraction {
       name: `player-${index}`,
       side: index ? (3 as const) : (2 as const),
       kills: index ? 0 : 1,
+      weightedKills: index ? 0 : 1,
+      ecoKills: 0,
       deaths: index ? 1 : 0,
       assists: 0,
       flashAssists: 0,

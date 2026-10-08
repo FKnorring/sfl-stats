@@ -61,6 +61,7 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
       <RatingValue
         rating={row.original.rating}
         reason={row.original.ratingUnavailableReason}
+        teamName={row.original.teamName}
       />
     ),
   },

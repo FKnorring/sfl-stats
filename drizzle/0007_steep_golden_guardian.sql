@@ -1,0 +1,1 @@
+ALTER TABLE `player_match_round_stats` ADD `weighted_kills` real DEFAULT 0 NOT NULL;
