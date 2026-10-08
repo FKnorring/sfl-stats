@@ -5,7 +5,11 @@ import { Button } from "@/components/ui/button"
 import type { StreamAssignment } from "@/lib/stream-message"
 import { deleteStream, parseStreams, saveStreams } from "./actions"
 
-export function StreamEditor({ saved }: { saved: Record<string, { url: string; caster: string | null }> }) {
+export function StreamEditor({
+  saved,
+}: {
+  saved: Record<string, { url: string; caster: string | null }>
+}) {
   const [text, setText] = React.useState("")
   const [assignments, setAssignments] = React.useState<StreamAssignment[]>([])
   const [unmatched, setUnmatched] = React.useState<string[]>([])
