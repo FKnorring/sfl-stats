@@ -14,7 +14,7 @@ function TeamHeading({ name, score }: { name: string; score: number | null }) {
   return (
     <div className="flex items-center justify-between">
       <Link
-        href={`/teams/${encodeURIComponent(name)}`}
+        href={`/teams/team/${encodeURIComponent(name)}`}
         className="text-sm font-medium underline-offset-4 hover:underline"
       >
         {name}

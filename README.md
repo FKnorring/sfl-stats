@@ -121,6 +121,12 @@ node --import tsx --test lib/matches.test.ts
 
 ## Following teams
 
+Team standings use `/teams/[division]` (for example,
+`/teams/Division%201`); `/teams` redirects to the first division.
+Old `/teams?division=...` links redirect to the matching division, preserving
+the optional season filter. Team detail pages now use `/teams/team/[name]`;
+old `/teams/[name]` links redirect there.
+
 Follow teams from `/teams` or a team detail page. `/followed` lists your
 followed teams and lets you choose a favorite; `/follow/[team]` opens one
 team's dashboard. The first follow is automatically the favorite. Removing
@@ -184,6 +190,14 @@ their lifetime with `cacheLife` and their scoped invalidation tags with
 `cacheTag`. The static shell can prerender; URL filters and request-time
 content render behind Suspense. Optional-source fallbacks stay request-time
 so an outage is not baked into the shell. Browser-local follows are unchanged.
+
+All dynamic page routes use Cache Components ISR with Partial Prefetching.
+`generateStaticParams` prerenders divisions and current teams, plus one sample
+player, official match and demo. Other URLs get an instant App Shell and are
+upgraded on demand, using the same six-hour data refresh and ingestion tags.
+Empty datasets supply a not-found sample because Cache Components requires
+at least one build-time parameter. Query-filtered views and optional live
+sources remain behind Suspense rather than caching request-specific values.
 
 The `current` and `stable` profiles use a five-minute client navigation
 stale window, six-hour/24-hour server refresh targets, and the default
@@ -333,7 +347,7 @@ pnpm scrape:schedule -- --tournament-id 2560854090247290879
 - `--tournament-id` — defaults to the current SFL CS2 tournament
   ([`scripts/scrape-schedule.ts`](scripts/scrape-schedule.ts)).
 - `--locale` — widget locale, defaults to `en_US`.
-- Powers the "Upcoming opponents" bar on `/teams/[name]`.
+- Powers the "Upcoming opponents" bar on `/teams/team/[name]`.
 
 ### `pnpm ingest:demos`
 

@@ -1,5 +1,7 @@
 import Link from "next/link"
 import { notFound } from "next/navigation"
+import { db } from "@/lib/db/client"
+import { toornamentMatches } from "@/lib/db/schema"
 import { getMatchById } from "@/lib/cached-data"
 import { Badge } from "@/components/ui/badge"
 
@@ -23,12 +25,20 @@ function TeamLabel({ name, teamId }: { name: string; teamId: number | null }) {
   }
   return (
     <Link
-      href={`/teams/${encodeURIComponent(name)}`}
+      href={`/teams/team/${encodeURIComponent(name)}`}
       className="text-xl font-medium underline-offset-4 hover:underline"
     >
       {name}
     </Link>
   )
+}
+
+export async function generateStaticParams() {
+  const sample = await db
+    .select({ matchId: toornamentMatches.toornamentMatchId })
+    .from(toornamentMatches)
+    .limit(1)
+  return sample.length ? sample : [{ matchId: "__empty__" }]
 }
 
 export default async function MatchPage({

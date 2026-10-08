@@ -1,4 +1,6 @@
 import { notFound } from "next/navigation"
+import { db } from "@/lib/db/client"
+import { players } from "@/lib/db/schema"
 import {
   getLeagueAverageStats,
   getPlayerBySteamId64,
@@ -20,6 +22,14 @@ import { isLocalEnv } from "@/lib/env"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/map-images"
 import { RatingValue, RatingExplanation } from "@/components/player-rating"
+
+export async function generateStaticParams() {
+  const sample = await db
+    .select({ steamid64: players.steamid64 })
+    .from(players)
+    .limit(1)
+  return sample.length ? sample : [{ steamid64: "__empty__" }]
+}
 
 export default async function PlayerPage({
   params,
