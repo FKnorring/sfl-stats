@@ -79,6 +79,14 @@ export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
     ),
   },
   {
+    accessorKey: "matchesPlayed",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Matches" />
+    ),
+    meta: rightAlign,
+  },
+
+  {
     accessorKey: "wins",
     header: ({ column }) => <DataTableColumnHeader column={column} title="W" />,
     meta: rightAlign,
@@ -86,13 +94,6 @@ export const teamStandingsColumns: ColumnDef<TeamStandingTableRow>[] = [
   {
     accessorKey: "losses",
     header: ({ column }) => <DataTableColumnHeader column={column} title="L" />,
-    meta: rightAlign,
-  },
-  {
-    accessorKey: "matchesPlayed",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Matches" />
-    ),
     meta: rightAlign,
   },
   {

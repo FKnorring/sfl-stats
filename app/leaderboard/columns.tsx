@@ -182,7 +182,8 @@ export function buildLeaderboardColumns(
       ),
     },
     {
-      accessorKey: "kills",
+      id: "kills",
+      accessorFn: (row) => statValueFor("kills", row),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Avg K" />
       ),
@@ -193,7 +194,8 @@ export function buildLeaderboardColumns(
           : "—",
     },
     {
-      accessorKey: "deaths",
+      id: "deaths",
+      accessorFn: (row) => statValueFor("deaths", row),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Avg D" />
       ),
@@ -204,7 +206,8 @@ export function buildLeaderboardColumns(
           : "—",
     },
     {
-      accessorKey: "assists",
+      id: "assists",
+      accessorFn: (row) => statValueFor("assists", row),
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Avg A" />
       ),
