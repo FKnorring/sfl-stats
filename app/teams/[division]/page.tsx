@@ -4,12 +4,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { notFound, redirect } from "next/navigation"
 import { getDivisions as getStaticDivisions } from "@/lib/db"
 import {
-  getTeamStandings,
-  getCurrentSeason,
+  getCurrentTeamCatalog,
   getDivisions,
   getTeamByName,
 } from "@/lib/cached-data"
 import { getFaceitTeamStats } from "@/lib/cached-data"
+import { getLiveDivisionStandings } from "@/lib/cached-toornament"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
 import {
   TeamCompareProvider,
@@ -65,10 +65,8 @@ async function DivisionStandings({ params }: { params: DivisionParams }) {
     if (!(error instanceof URIError)) throw error
     notFound()
   }
-  const season = (await getCurrentSeason()) ?? undefined
-
-  const [standingRows, divisions, faceitStats] = await Promise.all([
-    getTeamStandings({ season, division: activeDivision }),
+  const [catalog, divisions, faceitStats] = await Promise.all([
+    getCurrentTeamCatalog(),
     getDivisions(),
     getFaceitTeamStats(),
   ])
@@ -78,12 +76,20 @@ async function DivisionStandings({ params }: { params: DivisionParams }) {
     notFound()
   }
 
-  // Pre-join Faceit stats into plain, serializable fields — the lookup Map
-  // itself can't cross the server/client boundary into the DataTable.
-  const rows: TeamStandingTableRow[] = standingRows.map((row) => {
-    const fs = faceitStats.get(row.teamId)
+  // Any team in the division selects its Toornament stage (same as the home page).
+  const representative = catalog.find((t) => t.division === activeDivision)
+  const live = representative
+    ? await getLiveDivisionStandings(representative, catalog)
+    : null
+  const logoById = new Map(catalog.map((t) => [t.teamId, t.logoUrl]))
+
+  // Pre-join Faceit stats and logos into plain, serializable fields — the
+  // lookup Maps themselves can't cross the server/client boundary.
+  const rows: TeamStandingTableRow[] = (live?.rows ?? []).map((row) => {
+    const fs = row.teamId === null ? undefined : faceitStats.get(row.teamId)
     return {
       ...row,
+      logoUrl: row.teamId === null ? null : (logoById.get(row.teamId) ?? null),
       faceitAvgElo: fs?.avgElo ?? null,
       faceitRecent:
         !fs || fs.matchesRecent === 0
@@ -98,6 +104,11 @@ async function DivisionStandings({ params }: { params: DivisionParams }) {
         {activeDivision} standings
       </h1>
       <div className="flex flex-wrap items-center gap-2">
+        {live?.error ? (
+          <p role="status" className="text-sm text-muted-foreground">
+            {live.error}
+          </p>
+        ) : null}
         <Link
           href="/leaderboard"
           className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -111,8 +122,18 @@ async function DivisionStandings({ params }: { params: DivisionParams }) {
           <TabsContent value={activeDivision}>
             <TeamStandingsTable
               rows={rows}
-              emptyMessage="No teams found for this division."
+              emptyMessage={live?.error ?? "No teams found for this division."}
             />
+            {live?.sourceUrl ? (
+              <a
+                href={live.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-muted-foreground underline underline-offset-4"
+              >
+                Official Toornament ranking
+              </a>
+            ) : null}
           </TabsContent>
         </DivisionTabs>
         <TeamCompareBar />
