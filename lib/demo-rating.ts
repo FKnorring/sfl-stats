@@ -1,4 +1,3 @@
-import { parseEvents, parseTicks } from "@laihoe/demoparser2"
 import { z } from "zod"
 
 export type RatingSide = 2 | 3
@@ -409,51 +408,4 @@ export function deriveRatingFacts(
     }
   }
   return { rounds, facts, unavailableReason: null }
-}
-
-export function extractRatingFacts(filePath: string): RatingExtraction {
-  const events = z
-    .array(ratingEventSchema)
-    .parse(
-      parseEvents(
-        filePath,
-        [
-          "begin_new_match",
-          "round_start",
-          "round_freeze_end",
-          "round_end",
-          "player_death",
-          "player_hurt",
-        ],
-        ["team_num", "health"],
-        ["total_rounds_played", "is_warmup_period", "game_phase", "game_time"]
-      )
-    )
-  const ticks = [
-    ...new Set(
-      events
-        .filter(
-          (e) =>
-            e.event_name === "round_freeze_end" || e.event_name === "round_end"
-        )
-        .map((e) => e.tick)
-    ),
-  ]
-  const snapshots = z
-    .array(ratingSnapshotSchema)
-    .parse(
-      parseTicks(
-        filePath,
-        [
-          "player_steamid",
-          "player_name",
-          "team_num",
-          "is_alive",
-          "health",
-          "round_start_equip_value",
-        ],
-        ticks
-      )
-    )
-  return deriveRatingFacts(events, snapshots)
 }

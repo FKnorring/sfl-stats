@@ -3,26 +3,23 @@ import path from "node:path"
 import { sql } from "drizzle-orm"
 
 import { openWritableDb, type AppDb } from "@/lib/db/client"
-import {
-  STAT_FIELDS,
-  tickRowSchema,
-  deriveStats,
-  roundEndRowSchema,
-  killRowSchema,
-  isMatchComplete,
-  type RoundEndRow,
-} from "@/lib/demo-stats"
-import { resolvePlayerMatch, type MatchCandidate } from "@/lib/matching"
+import type { RoundEndRow } from "@/lib/demo-stats"
+import { type MatchCandidate, resolvePlayerMatch } from "@/lib/matching"
 import {
   deriveStableTeamSides,
   findClosestToornamentMatch,
   type KillSideRow,
 } from "@/lib/team-anchoring"
 import { z } from "zod"
-import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
+import { parseTicks } from "@laihoe/demoparser2"
 import { withCacheInvalidation } from "../cache/revalidate-cache"
-import { extractRatingFacts } from "@/lib/demo-rating"
 import { persistRatingExtraction } from "@/lib/rating-db"
+import {
+  extractDemoFacts,
+  extractKillFacts,
+  extractRoundEnds,
+  type DemoKillFact,
+} from "@/lib/demo-extraction"
 
 const DEFAULT_DIR = path.join(process.cwd(), "demos")
 const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
@@ -326,60 +323,33 @@ function computeTeamScore(
   return { teamAId, teamAScore, teamBId, teamBScore }
 }
 
-// parseTicks/events label sides "CT"/"TERRORIST"; store "CT"/"T".
-function toSide(name: string | null | undefined): string | null {
-  if (name === "CT") return "CT"
-  if (name === "TERRORIST") return "T"
-  return null
-}
-
 /** Inserts match_kills rows and returns them in the shape team-anchoring's
  * deriveStableTeamSides/computeTeamScoreFromKills consume, so callers that
  * already have them in memory (ingestDemo) don't need a round-trip through
  * the DB — see getKillSideRows for the backfill path, which does. */
-async function insertKills(
+async function insertKillFacts(
   db: AppDb,
   matchId: number,
-  filePath: string
+  kills: DemoKillFact[]
 ): Promise<KillSideRow[]> {
-  // "X"/"Y" must be requested for demoparser2 to populate the attacker_*/
-  // user_* position fields at all; without them they come back undefined.
-  const raw = parseEvent(filePath, "player_death", [
-    "X",
-    "Y",
-    "attacker_X",
-    "attacker_Y",
-    "attacker_steamid",
-    "user_X",
-    "user_Y",
-    "user_steamid",
-    // Bare prop name; demoparser2 expands it to attacker_/user_team_name.
-    "team_name",
-    "total_rounds_played",
-  ]) as unknown[]
-  const kills = z.array(killRowSchema).parse(raw)
-
   const killSideRows: KillSideRow[] = []
-  for (const k of kills) {
-    if (!k.user_steamid) continue
-    const attackerSide = toSide(k.attacker_team_name)
-    const victimSide = toSide(k.user_team_name)
-    const round = k.total_rounds_played ?? 0
+  for (const kill of kills) {
+    if (!kill.victimSteamid64) continue
     await db.run(sql`
       INSERT INTO match_kills (
         match_id, round, tick, attacker_steamid64, attacker_x, attacker_y, attacker_side,
         victim_steamid64, victim_x, victim_y, victim_side, weapon, headshot
       ) VALUES (
-        ${matchId}, ${round}, ${k.tick}, ${k.attacker_steamid ?? null}, ${k.attacker_X ?? null}, ${k.attacker_Y ?? null}, ${attackerSide},
-        ${k.user_steamid}, ${k.user_X ?? null}, ${k.user_Y ?? null}, ${victimSide}, ${k.weapon ?? null}, ${k.headshot == null ? null : k.headshot ? 1 : 0}
+        ${matchId}, ${kill.round}, ${kill.tick}, ${kill.attackerSteamid64}, ${kill.attackerX}, ${kill.attackerY}, ${kill.attackerSide},
+        ${kill.victimSteamid64}, ${kill.victimX}, ${kill.victimY}, ${kill.victimSide}, ${kill.weapon}, ${kill.headshot == null ? null : kill.headshot ? 1 : 0}
       )
     `)
     killSideRows.push({
-      round,
-      attackerSteamid64: k.attacker_steamid ?? null,
-      attackerSide: attackerSide as "CT" | "T" | null,
-      victimSteamid64: k.user_steamid,
-      victimSide: victimSide as "CT" | "T" | null,
+      round: kill.round,
+      attackerSteamid64: kill.attackerSteamid64,
+      attackerSide: kill.attackerSide,
+      victimSteamid64: kill.victimSteamid64,
+      victimSide: kill.victimSide,
     })
   }
   return killSideRows
@@ -637,28 +607,18 @@ async function ingestDemo(
 ) {
   const now = new Date().toISOString()
 
-  const header = parseHeader(filePath) as Record<string, string>
-  const roundEndsRaw = parseEvent(filePath, "round_end") as unknown[]
-  const roundEnds = z.array(roundEndRowSchema).parse(roundEndsRaw)
-  if (roundEnds.length === 0) {
+  const facts = extractDemoFacts(filePath)
+  if (facts.status === "no-rounds") {
     console.warn(`[ingest-demos] no rounds found, skipping: ${filePath}`)
     return
   }
-  if (!isMatchComplete(roundEnds)) {
+  if (facts.status === "incomplete") {
     console.warn(
       `[ingest-demos] match never reached a final score (dead artifact), skipping: ${filePath}`
     )
     return
   }
-  const gameEndTick = Math.max(...roundEnds.map((r) => r.tick))
-  const totalRounds = roundEnds.length
-
-  const rawTicks = parseTicks(
-    filePath,
-    [...STAT_FIELDS],
-    [gameEndTick]
-  ) as unknown[]
-  const tickRows = z.array(tickRowSchema).parse(rawTicks)
+  const { header, roundEnds, totalRounds, players } = facts
 
   const fileName = path.basename(filePath)
   const demoDate = parseDemoTimestamp(fileName)
@@ -678,8 +638,7 @@ async function ingestDemo(
   const steamidToTeam = new Map<string, number>()
   const steamidToInGameName = new Map<string, string>()
 
-  for (const row of tickRows) {
-    const stats = deriveStats(row, totalRounds)
+  for (const stats of players) {
     if (!stats) {
       console.warn(
         `[ingest-demos] dropping player row with no steamid/name in ${path.basename(filePath)} (bot or upstream null-field bug)`
@@ -738,7 +697,7 @@ async function ingestDemo(
     }
   }
 
-  const killRows = await insertKills(db, matchId, filePath)
+  const killRows = await insertKillFacts(db, matchId, facts.killFacts)
 
   const resolved = await resolveMatchTeams(
     db,
@@ -763,11 +722,10 @@ async function ingestDemo(
       team_resolution_conflict = ${resolved.teamResolutionConflict}
     WHERE id = ${matchId}
   `)
-  const ratingFacts = extractRatingFacts(filePath)
-  await persistRatingExtraction(db, matchId, ratingFacts)
-  if (ratingFacts.unavailableReason) {
+  await persistRatingExtraction(db, matchId, facts.ratingFacts)
+  if (facts.ratingFacts.unavailableReason) {
     console.warn(
-      `[ingest-demos] unrated demo ${matchId}: ${ratingFacts.unavailableReason}`
+      `[ingest-demos] unrated demo ${matchId}: ${facts.ratingFacts.unavailableReason}`
     )
   }
 }
@@ -800,8 +758,7 @@ async function reresolveTeams(
   const match = matchRows[0]
   if (!match) return
 
-  const roundEndsRaw = parseEvent(filePath, "round_end") as unknown[]
-  const roundEnds = z.array(roundEndRowSchema).parse(roundEndsRaw)
+  const roundEnds = extractRoundEnds(filePath)
 
   const killRows = await getKillSideRows(db, matchId)
 
@@ -920,7 +877,7 @@ async function main() {
           )) as { id: number }[]
           console.log(`[ingest-demos] backfilling kills for ${name}`)
           try {
-            await insertKills(db, rows[0].id, file)
+            await insertKillFacts(db, rows[0].id, extractKillFacts(file))
           } catch (err) {
             console.error(`[ingest-demos] failed to backfill ${file}:`, err)
             failures.push(err)

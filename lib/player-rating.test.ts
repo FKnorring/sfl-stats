@@ -6,10 +6,10 @@ import {
   deriveRatingFacts,
   isEcoKill,
   killWeight,
-  extractRatingFacts,
   type RatingEvent,
   type RatingSnapshot,
 } from "./demo-rating"
+import { extractRatingFacts } from "./demo-extraction"
 import {
   calculatePlayerRating,
   ratingMetrics,
