@@ -9,8 +9,8 @@ import {
   toggleFollow,
   currentTeam,
   followHref,
-} from "./followed-teams"
-import { createFollowStore } from "./follow-store"
+} from "./follow/followed-teams"
+import { createFollowStore } from "./follow/follow-store"
 
 const teams = [
   { teamId: 1, teamName: "Alpha" },

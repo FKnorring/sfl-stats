@@ -2,12 +2,12 @@ import { parseTicks } from "@laihoe/demoparser2"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
 import type { AppDb } from "@/lib/db/client"
-import type { RoundEndRow } from "@/lib/demo-stats"
+import type { RoundEndRow } from "@/scripts/demos/domain/demo-stats"
 import {
   deriveStableTeamSides,
   findClosestToornamentMatch,
   type KillSideRow,
-} from "@/lib/team-anchoring"
+} from "@/scripts/demos/domain/team-anchoring"
 import type { DemoMatching } from "./player-matching"
 
 export type TeamResolution = "player_match" | "toornament_inferred" | null

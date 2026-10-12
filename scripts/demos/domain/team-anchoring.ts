@@ -1,4 +1,4 @@
-import { stableBucketAIsCTForRoundIndex } from "@/lib/demo-stats"
+import { stableBucketAIsCTForRoundIndex } from "@/scripts/demos/domain/demo-stats"
 
 // Pure, DB-free logic for the two matching-pipeline extensions described in
 // docs (see issue #48): team-side anchoring (narrow candidate pools using

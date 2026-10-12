@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { createFollowStore } from "@/lib/follow-store"
+import { createFollowStore } from "@/lib/follow/follow-store"
 import {
   currentTeam,
   FOLLOWED_COOKIE,
   FOLLOWED_STORAGE,
   type FollowTeam,
-} from "@/lib/followed-teams"
+} from "@/lib/follow/followed-teams"
 import { Button } from "@/components/ui/button"
 
 type FollowContextValue = ReturnType<

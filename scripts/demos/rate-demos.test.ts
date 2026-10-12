@@ -41,7 +41,12 @@ test("rating CLI writes without a generation marker and skips notification prefl
   const run = (args: string[], partialConfig = false) => {
     const result = spawnSync(
       process.execPath,
-      ["--import", "tsx", path.resolve("scripts", "demos", "rate-demos.ts"), ...args],
+      [
+        "--import",
+        "tsx",
+        path.resolve("scripts", "demos", "rate-demos.ts"),
+        ...args,
+      ],
       {
         env: {
           ...process.env,

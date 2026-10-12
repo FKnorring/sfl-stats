@@ -573,7 +573,7 @@ try {
     assert.equal((await notify({ source: "demos" }, "wrong")).status, 401)
     assert.equal((await notify({ source: "unknown" })).status, 400)
     assert.equal((await fetch(endpoint)).status, 405)
-    const { cacheScope } = await import("../../lib/cache-policy.ts")
+    const { cacheScope } = await import("../../lib/cache/cache-policy.ts")
     const target = cacheScope(upstream, namespace)
     await database.execute({
       sql: "UPDATE players SET latest_ingame_name='Updated fixture' WHERE steamid64=?",

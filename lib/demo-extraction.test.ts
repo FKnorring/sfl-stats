@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { normalizeKillFacts } from "./demo-extraction"
+import { normalizeKillFacts } from "../scripts/demos/domain/demo-extraction"
 
 test("normalizes parser kill rows into persistence facts", () => {
   assert.deepEqual(

@@ -4,7 +4,7 @@ import { createClient } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 import { migrate } from "drizzle-orm/libsql/migrator"
 import * as schema from "./db/schema"
-import { teamMvp } from "./follow-stats"
+import { teamMvp } from "./follow/follow-stats"
 import type { TeamRosterPlayerRow } from "./db"
 
 const originalUrl = process.env.DATABASE_URL

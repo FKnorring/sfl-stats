@@ -2,7 +2,7 @@
 
 import { HeartIcon, StarIcon } from "lucide-react"
 import { useFollow, useFollows } from "@/components/follow-provider"
-import { followClass } from "@/lib/followed-teams"
+import { followClass } from "@/lib/follow/followed-teams"
 
 export function useFollowRowClass() {
   const { state } = useFollows()

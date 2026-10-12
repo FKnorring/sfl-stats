@@ -9,7 +9,7 @@ import {
   type RatingEvent,
   type RatingSnapshot,
 } from "./demo-rating"
-import { extractRatingFacts } from "./demo-extraction"
+import { extractRatingFacts } from "../scripts/demos/domain/demo-extraction"
 import {
   calculatePlayerRating,
   ratingMetrics,

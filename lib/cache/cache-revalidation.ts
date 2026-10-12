@@ -5,7 +5,7 @@ import {
   scopedCacheTag,
   revalidationSourceSchema,
   sourceCacheGroups,
-} from "@/lib/cache-policy"
+} from "@/lib/cache/cache-policy"
 
 const payloadSchema = z
   .object({

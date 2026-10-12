@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import type { TeamDemoMatchRow } from "@/lib/db"
 import { DataTable } from "@/components/data-table/data-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
-import { formatMapName } from "@/lib/map-images"
+import { formatMapName } from "@/lib/maps/map-images"
 import {
   FollowIndicator,
   useFollowRowClass,

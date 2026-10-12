@@ -2,7 +2,7 @@
 
 import { writeFile } from "node:fs/promises"
 import { isLocalEnv } from "@/lib/env"
-import { MAP_ZONES_PATH, type MapZones } from "@/lib/map-zones"
+import { MAP_ZONES_PATH, type MapZones } from "@/lib/maps/map-zones"
 
 /**
  * Overwrites data/map-zones.json. Local-only authoring tool: refuses to run

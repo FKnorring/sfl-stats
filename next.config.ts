@@ -1,5 +1,5 @@
 import type { NextConfig } from "next"
-import { CACHE_PROFILES } from "./lib/cache-policy"
+import { CACHE_PROFILES } from "./lib/cache/cache-policy"
 
 const nextConfig: NextConfig = {
   cacheComponents: true,

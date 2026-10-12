@@ -10,8 +10,8 @@ import {
   getTeamMapStats,
   getTeamDemoMatches,
   getRecentResults,
-} from "@/lib/cached-data"
-import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cache/cached-data"
 import { TeamRosterTable } from "@/components/team-roster-table"
 import { FutureOpponentsBar } from "@/components/future-opponents-bar"
 import { TeamMapStats } from "@/components/team-map-stats"

@@ -1,6 +1,6 @@
 import type { PlayerKillRow } from "@/lib/db"
-import type { MapRadar } from "@/lib/map-images"
-import type { MapZone, MapZones } from "@/lib/map-zones"
+import type { MapRadar } from "@/lib/maps/map-images"
+import type { MapZone, MapZones } from "@/lib/maps/map-zones"
 import zonesJson from "@/data/map-zones.json"
 
 // Which bombsite (or mid) a player most likely holds, judged from where they

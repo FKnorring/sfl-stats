@@ -1,7 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache"
 import * as queries from "@/lib/db"
 import * as faceit from "@/lib/faceit"
-import { cacheScope, scopedCacheTag } from "@/lib/cache-policy"
+import { cacheScope, scopedCacheTag } from "@/lib/cache/cache-policy"
 
 export type * from "@/lib/db"
 

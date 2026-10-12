@@ -8,13 +8,13 @@ import {
   getTeamRoster,
   getTeamDemoMatches,
   type TeamMeta,
-} from "@/lib/cached-data"
-import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cached-data"
-import { teamMvp } from "@/lib/follow-stats"
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayerStats, pickFaceitStats } from "@/lib/cache/cached-data"
+import { teamMvp } from "@/lib/follow/follow-stats"
 import {
   getLiveDivisionStandings,
   getLiveTeamPendingMatches,
-} from "@/lib/cached-toornament"
+} from "@/lib/cache/cached-toornament"
 import { resolveOfficialTeam } from "@/lib/toornament-standings"
 import { formatMatchDate, matchDateTime } from "@/lib/matches"
 import {
