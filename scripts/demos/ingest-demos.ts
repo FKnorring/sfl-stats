@@ -20,7 +20,7 @@ import {
 } from "@/lib/team-anchoring"
 import { z } from "zod"
 import { parseHeader, parseEvent, parseTicks } from "@laihoe/demoparser2"
-import { withCacheInvalidation } from "./revalidate-cache"
+import { withCacheInvalidation } from "../cache/revalidate-cache"
 import { extractRatingFacts } from "@/lib/demo-rating"
 import { persistRatingExtraction } from "@/lib/rating-db"
 

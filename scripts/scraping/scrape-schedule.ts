@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm"
 
 import { openWritableDb, type AppDb } from "@/lib/db/client"
-import { withCacheInvalidation } from "./revalidate-cache"
+import { withCacheInvalidation } from "../cache/revalidate-cache"
 import {
   parseScheduleWidget,
   type ScheduledMatch,

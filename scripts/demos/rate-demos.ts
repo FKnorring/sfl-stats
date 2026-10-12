@@ -10,7 +10,7 @@ import {
   recomputeMatchRatings,
   groupRatingFacts,
 } from "@/lib/rating-db"
-import { withCacheInvalidation } from "./revalidate-cache"
+import { withCacheInvalidation } from "../cache/revalidate-cache"
 
 async function main() {
   const { values } = parseArgs({

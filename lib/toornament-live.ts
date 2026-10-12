@@ -16,7 +16,7 @@ import {
   type OfficialStanding,
 } from "@/lib/toornament-standings"
 
-// Same default tournament as scripts/scrape-schedule.ts.
+// Same default tournament as scripts/scraping/scrape-schedule.ts.
 export const TOURNAMENT_ID = "2560854090247290879"
 
 /**

@@ -5,7 +5,7 @@ import { extractRootComponentJson } from "@/lib/root-component-json"
 import { pageJsonSchema } from "@/lib/roster-types"
 import { extractCs2Rosters } from "@/lib/roster-extract"
 import type { ScrapedTeam } from "@/lib/roster-types"
-import { withCacheInvalidation } from "./revalidate-cache"
+import { withCacheInvalidation } from "../cache/revalidate-cache"
 
 const DEFAULT_URL = "https://publiclir.se/svenska-foeretagsligan/"
 

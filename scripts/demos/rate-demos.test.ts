@@ -9,8 +9,8 @@ import { createClient } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 import { migrate } from "drizzle-orm/libsql/migrator"
 import { eq, sql } from "drizzle-orm"
-import * as schema from "../lib/db/schema"
-import { calculatePlayerRating } from "../lib/player-rating"
+import * as schema from "../../lib/db/schema"
+import { calculatePlayerRating } from "../../lib/player-rating"
 
 test("rating CLI writes without a generation marker and skips notification preflight for dry runs", async () => {
   const folder = await mkdtemp(path.join(os.tmpdir(), "sfl-rating-cache-"))
@@ -41,7 +41,7 @@ test("rating CLI writes without a generation marker and skips notification prefl
   const run = (args: string[], partialConfig = false) => {
     const result = spawnSync(
       process.execPath,
-      ["--import", "tsx", path.resolve("scripts", "rate-demos.ts"), ...args],
+      ["--import", "tsx", path.resolve("scripts", "demos", "rate-demos.ts"), ...args],
       {
         env: {
           ...process.env,

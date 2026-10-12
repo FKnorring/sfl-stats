@@ -1194,7 +1194,7 @@ export type FutureOpponent = {
 
 /**
  * Upcoming (not-yet-played) matches for one team, scraped from Toornament's
- * schedule widget by scripts/scrape-schedule.ts. Each row names whichever
+ * schedule widget by scripts/scraping/scrape-schedule.ts. Each row names whichever
  * side isn't `teamId` as the opponent — picked in JS since team_a/team_b
  * are just "side 1"/"side 2" from the scrape, not home/away.
  */

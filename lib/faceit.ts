@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm"
 import { db } from "@/lib/db/client"
 
 // Read-only, same convention as lib/db.ts — all writes happen exclusively
-// in scripts/faceit-sync.ts via lib/db/client.ts's openWritableDb.
+// in scripts/faceit/faceit-sync.ts via lib/db/client.ts's openWritableDb.
 
 const DEFAULT_RECENT_DAYS = 7
 

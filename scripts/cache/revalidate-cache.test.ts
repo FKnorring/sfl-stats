@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import http from "node:http"
 import { once } from "node:events"
-import { cacheScope } from "../lib/cache-policy"
+import { cacheScope } from "../../lib/cache-policy"
 import {
   notifyCache,
   revalidationConfig,
