@@ -19,8 +19,8 @@ export function LeaderboardTable({
   compact = false,
 }: {
   rows: LeaderboardTableRow[]
-  stat: LeaderboardStat
-  statLabel: string | undefined
+  stat?: LeaderboardStat
+  statLabel?: string
   compact?: boolean
 }) {
   const rowClass = useFollowRowClass()
