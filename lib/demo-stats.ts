@@ -75,7 +75,7 @@ export function stableBucketAIsCTForRoundIndex(roundIndex: number): boolean {
  * CS2's half-swap schedule (see stableBucketAIsCTForRoundIndex). Used to
  * decide whether a demo represents a genuinely finished match, independent
  * of whether its players could be resolved to roster teams (see
- * computeTeamScore in scripts/demos/ingest-demos.ts, which needs that resolution
+ * computeTeamScore in scripts/demos/team-resolution.ts, which needs that resolution
  * and can legitimately return null for a complete match played against a
  * non-roster opponent).
  */

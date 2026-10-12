@@ -99,7 +99,7 @@ export const matches = sqliteTable(
     demoDate: text("demo_date"),
     totalRounds: integer("total_rounds"),
     // Resolved only when exactly two distinct roster teams are matched among
-    // this demo's players (see scripts/demos/ingest-demos.ts) — round wins tallied
+    // this demo's players (see scripts/demos/team-resolution.ts) — round wins tallied
     // from round_end events' winning side, attributed to a team via each
     // matched player's side at that round's tick (sides swap at halftime).
     teamAId: integer("team_a_id").references(() => teams.id),
