@@ -69,8 +69,38 @@ const COMPACT_HIDDEN = new Set([
   "faceitRecent",
 ])
 
-export function buildLeaderboardColumns(
+// Highlighted stat column, only shown when a page picks a stat to feature.
+function statValueColumn(
   stat: LeaderboardStat,
+  statLabel: string | undefined
+): ColumnDef<LeaderboardTableRow> {
+  return {
+    id: "statValue",
+    accessorFn: (row) =>
+      stat === "rating" && row.rating == null
+        ? undefined
+        : statValueFor(stat, row),
+    sortUndefined: "last",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title={statLabel ?? "Stat"} />
+    ),
+    meta: { className: "text-right font-medium" },
+    cell: ({ row }) =>
+      stat === "rating" ? (
+        <RatingValue
+          rating={row.original.rating}
+          ratedGames={row.original.ratedGames}
+          matchesPlayed={row.original.matchesPlayed}
+          teamName={row.original.teamName}
+        />
+      ) : (
+        formatStat(stat, statValueFor(stat, row.original))
+      ),
+  }
+}
+
+export function buildLeaderboardColumns(
+  stat: LeaderboardStat | undefined,
   statLabel: string | undefined,
   compact = false
 ): ColumnDef<LeaderboardTableRow>[] {
@@ -78,7 +108,9 @@ export function buildLeaderboardColumns(
     {
       id: "rank",
       header: "#",
-      cell: ({ row }) => row.index + 1,
+      // Position in the currently sorted/filtered rows, not the source order.
+      cell: ({ row, table }) =>
+        table.getRowModel().rows.findIndex((r) => r.id === row.id) + 1,
       enableSorting: false,
       meta: { className: "w-10 text-muted-foreground" },
     },
@@ -237,29 +269,7 @@ export function buildLeaderboardColumns(
           ? `${(row.original.hsPct * 100).toFixed(1)}%`
           : "—",
     },
-    {
-      id: "statValue",
-      accessorFn: (row) =>
-        stat === "rating" && row.rating == null
-          ? undefined
-          : statValueFor(stat, row),
-      sortUndefined: "last",
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={statLabel ?? "Stat"} />
-      ),
-      meta: { className: "text-right font-medium" },
-      cell: ({ row }) =>
-        stat === "rating" ? (
-          <RatingValue
-            rating={row.original.rating}
-            ratedGames={row.original.ratedGames}
-            matchesPlayed={row.original.matchesPlayed}
-            teamName={row.original.teamName}
-          />
-        ) : (
-          formatStat(stat, statValueFor(stat, row.original))
-        ),
-    },
+    ...(stat ? [statValueColumn(stat, statLabel)] : []),
     {
       accessorKey: "faceitElo",
       header: ({ column }) => (

@@ -76,7 +76,7 @@ export function LeaderboardView({
         {filteredRows.length} players shown.
       </p>
 
-      <LeaderboardTable rows={filteredRows} stat="kills" statLabel="Kills" />
+      <LeaderboardTable rows={filteredRows} />
     </>
   )
 }
