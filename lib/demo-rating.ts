@@ -32,7 +32,7 @@ export const ratingSnapshotSchema = z.object({
   team_num: z.number().nullish(),
   is_alive: z.boolean().nullish(),
   health: z.number().nullish(),
-  round_start_equip_value: z.number().nullish(),
+  current_equip_value: z.number().nullish(),
 })
 
 export type RatingEvent = z.infer<typeof ratingEventSchema>
@@ -215,7 +215,7 @@ export function deriveRatingFacts(
         openingDeaths: 0,
         clutchWins: 0,
         clutchOpponents: 0,
-        equipmentValue: row.round_start_equip_value ?? null,
+        equipmentValue: row.current_equip_value ?? null,
       })
       alive.add(row.player_steamid)
       health.set(row.player_steamid, row.health)
@@ -450,7 +450,7 @@ export function extractRatingFacts(filePath: string): RatingExtraction {
           "team_num",
           "is_alive",
           "health",
-          "round_start_equip_value",
+          "current_equip_value",
         ],
         ticks
       )
