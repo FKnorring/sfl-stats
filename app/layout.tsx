@@ -13,7 +13,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { FollowProvider } from "@/components/follow-provider"
-import { getCurrentTeamCatalog } from "@/lib/cached-data"
+import { getCurrentTeamCatalog } from "@/lib/cache/cached-data"
 import { isLocalEnv } from "@/lib/env"
 import type { Metadata } from "next"
 

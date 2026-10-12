@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio"
-import type { ScrapedPlayer } from "@/lib/roster-types"
+import type { ScrapedPlayer } from "@/lib/roster/roster-types"
 
 /**
  * Parse one team's rich-text lineup block (as hand-typed by league editors)

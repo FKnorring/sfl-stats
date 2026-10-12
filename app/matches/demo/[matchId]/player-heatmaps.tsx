@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import type { MatchKillRow } from "@/lib/db"
-import type { MapRadar } from "@/lib/map-images"
+import type { MapRadar } from "@/lib/maps/map-images"
 
 type Mode = "kills" | "deaths"
 type SideFilter = "all" | "T" | "CT"

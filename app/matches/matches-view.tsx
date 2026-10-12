@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select"
 import { TeamLogo } from "@/components/recent-results-table"
 import { TwitchLink } from "@/components/twitch-link"
-import { formatMapName } from "@/lib/map-images"
+import { formatMapName } from "@/lib/maps/map-images"
 import {
   FollowIndicator,
   useFollowRowClass,

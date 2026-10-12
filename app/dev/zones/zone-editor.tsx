@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { MapZone, MapZones } from "@/lib/map-zones"
+import type { MapZone, MapZones } from "@/lib/maps/map-zones"
 import { saveMapZones } from "./actions"
 
 const VIEW = 1024

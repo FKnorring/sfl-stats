@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm"
 
 import { openWritableDb, type AppDb } from "@/lib/db/client"
-import { extractRootComponentJson } from "@/lib/root-component-json"
-import { pageJsonSchema } from "@/lib/roster-types"
-import { extractCs2Rosters } from "@/lib/roster-extract"
-import type { ScrapedTeam } from "@/lib/roster-types"
+import { extractRootComponentJson } from "@/lib/roster/root-component-json"
+import { pageJsonSchema } from "@/lib/roster/roster-types"
+import { extractCs2Rosters } from "@/lib/roster/roster-extract"
+import type { ScrapedTeam } from "@/lib/roster/roster-types"
 import { withCacheInvalidation } from "../cache/revalidate-cache"
 
 const DEFAULT_URL = "https://publiclir.se/svenska-foeretagsligan/"

@@ -8,7 +8,7 @@ import {
   type Follow,
   type FollowPreferences,
   type FollowTeam,
-} from "@/lib/followed-teams"
+} from "@/lib/follow/followed-teams"
 
 type StorageAccess = {
   read: () => string | null

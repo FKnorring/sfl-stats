@@ -6,9 +6,9 @@ import {
   extractKillFacts,
   extractRoundEnds,
   type DemoKillFact,
-} from "@/lib/demo-extraction"
+} from "@/scripts/demos/domain/demo-extraction"
 import { persistRatingExtraction } from "@/lib/rating-db"
-import type { KillSideRow } from "@/lib/team-anchoring"
+import type { KillSideRow } from "@/scripts/demos/domain/team-anchoring"
 import {
   createDemoMatching,
   emptyMatchingSummary,

@@ -7,9 +7,9 @@ import {
   getCurrentTeamCatalog,
   getDivisions,
   getTeamByName,
-} from "@/lib/cached-data"
-import { getFaceitTeamStats } from "@/lib/cached-data"
-import { getLiveDivisionStandings } from "@/lib/cached-toornament"
+} from "@/lib/cache/cached-data"
+import { getFaceitTeamStats } from "@/lib/cache/cached-data"
+import { getLiveDivisionStandings } from "@/lib/cache/cached-toornament"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
 import {
   TeamCompareProvider,

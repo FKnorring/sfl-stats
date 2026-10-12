@@ -3,15 +3,15 @@
 import { revalidatePath, updateTag } from "next/cache"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
-import { getLivePendingMatches } from "@/lib/cached-toornament"
-import { getCurrentSeason, getMatchTeams } from "@/lib/cached-data"
+import { getLivePendingMatches } from "@/lib/cache/cached-toornament"
+import { getCurrentSeason, getMatchTeams } from "@/lib/cache/cached-data"
 import { openWritableDb } from "@/lib/db/client"
 import { isLocalEnv } from "@/lib/env"
 import type { UpcomingMatchRow } from "@/lib/matches"
 import { parseStreamMessage, type StreamAssignment } from "@/lib/stream-message"
 import { enrichUpcomingMatches } from "@/lib/toornament-live"
 import { withCacheInvalidation } from "@/scripts/cache/revalidate-cache"
-import { scopedCacheTag } from "@/lib/cache-policy"
+import { scopedCacheTag } from "@/lib/cache/cache-policy"
 
 const NOT_LOCAL = "Admin is only available when ENV=local"
 

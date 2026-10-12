@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import type { MatchKillRow } from "@/lib/db"
-import type { MapRadar } from "@/lib/map-images"
+import type { MapRadar } from "@/lib/maps/map-images"
 import type { DemoMatchPlayerRow } from "./columns"
 import { DemoMatchTable } from "./demo-match-table"
 import { PlayerHeatmaps } from "./player-heatmaps"

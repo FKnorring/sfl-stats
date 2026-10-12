@@ -9,7 +9,7 @@ import {
   getPlayerStatsLifetime,
   parseNumericStat,
   type FaceitMatchStats,
-} from "@/lib/faceit-client"
+} from "@/scripts/faceit/faceit-client"
 
 const DEFAULT_DAYS = 7
 const DEFAULT_MAX_AGE_HOURS = 12

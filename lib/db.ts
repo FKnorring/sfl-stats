@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm"
 import { db, type AppDb } from "@/lib/db/client"
 import { MATCH_THRESHOLD_LOW, scoreSimilarity } from "@/lib/matching"
-import { teamDemoScope } from "@/lib/follow-stats"
+import { teamDemoScope } from "@/lib/follow/follow-stats"
 import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
 import {
   ratingAverageSql,

@@ -8,7 +8,7 @@ import { z } from "zod"
 import { openWritableDb } from "@/lib/db/client"
 import { isLocalEnv } from "@/lib/env"
 import { withCacheInvalidation } from "@/scripts/cache/revalidate-cache"
-import { scopedCacheTag } from "@/lib/cache-policy"
+import { scopedCacheTag } from "@/lib/cache/cache-policy"
 
 const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
 

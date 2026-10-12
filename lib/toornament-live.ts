@@ -7,9 +7,9 @@ import {
   type MatchTeam,
   type UpcomingMatchRow,
 } from "@/lib/matches"
-import { extractRootComponentJson } from "@/lib/root-component-json"
-import { pageJsonSchema } from "@/lib/roster-types"
-import { extractCs2DivisionStages } from "@/lib/roster-extract"
+import { extractRootComponentJson } from "@/lib/roster/root-component-json"
+import { pageJsonSchema } from "@/lib/roster/roster-types"
+import { extractCs2DivisionStages } from "@/lib/roster/roster-extract"
 import {
   parseStandingsWidget,
   resolveOfficialTeam,

@@ -4,13 +4,13 @@ import {
   parseStandingsWidget,
   resolveOfficialTeam,
 } from "./toornament-standings"
-import { extractCs2DivisionStages } from "./roster-extract"
+import { extractCs2DivisionStages } from "./roster/roster-extract"
 import {
   getLiveDivisionStandings,
   getLivePendingMatches,
   getLiveTeamPendingMatches,
 } from "./toornament-live"
-import type { Block } from "./roster-types"
+import type { Block } from "./roster/roster-types"
 
 const labels = [
   "Played",

@@ -3,7 +3,7 @@
 import { HeartIcon, StarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useFollows } from "@/components/follow-provider"
-import { currentTeam } from "@/lib/followed-teams"
+import { currentTeam } from "@/lib/follow/followed-teams"
 
 export function FollowTeamButton({
   teamName,

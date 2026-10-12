@@ -4,9 +4,9 @@ import {
   getDemoMatches,
   getMatchStreams,
   getMatchTeams,
-} from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
 import { enrichUpcomingMatches } from "@/lib/toornament-live"
-import { getLivePendingMatches } from "@/lib/cached-toornament"
+import { getLivePendingMatches } from "@/lib/cache/cached-toornament"
 import { MatchesView } from "./matches-view"
 
 export default async function MatchesPage() {

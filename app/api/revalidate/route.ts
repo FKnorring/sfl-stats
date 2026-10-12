@@ -1,5 +1,5 @@
 import { revalidateTag } from "next/cache"
-import { handleCacheRevalidation } from "@/lib/cache-revalidation"
+import { handleCacheRevalidation } from "@/lib/cache/cache-revalidation"
 
 export async function POST(request: Request) {
   return handleCacheRevalidation(request, (tags) => {

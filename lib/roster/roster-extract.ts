@@ -1,6 +1,6 @@
-import type { Block } from "@/lib/roster-types"
-import type { ScrapedTeam } from "@/lib/roster-types"
-import { parseTeamBlock } from "@/lib/roster-parse"
+import type { Block } from "@/lib/roster/roster-types"
+import type { ScrapedTeam } from "@/lib/roster/roster-types"
+import { parseTeamBlock } from "@/lib/roster/roster-parse"
 
 const GAME_TITLE = "Counter-Strike 2"
 

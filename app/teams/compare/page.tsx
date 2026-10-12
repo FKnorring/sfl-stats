@@ -6,8 +6,8 @@ import {
   getTeamRoster,
   type TeamMeta,
   type TeamRosterPlayerRow,
-} from "@/lib/cached-data"
-import { getFaceitPlayerStats } from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cache/cached-data"
 import { TeamSelect, type TeamOption } from "@/components/team-select"
 import { CompareRosterTable } from "./compare-roster-table"
 import type { TeamRosterTableRow } from "@/components/team-roster-columns"

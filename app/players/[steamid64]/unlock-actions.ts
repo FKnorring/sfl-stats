@@ -1,9 +1,9 @@
 "use server"
 
 import { timingSafeEqual, createHash } from "node:crypto"
-import { getPlayerKills, getPlayerMatchHistory } from "@/lib/cached-data"
+import { getPlayerKills, getPlayerMatchHistory } from "@/lib/cache/cached-data"
 import { isNetlightTeam } from "@/components/netlight-flames"
-import { getMapRadar, type MapRadar } from "@/lib/map-images"
+import { getMapRadar, type MapRadar } from "@/lib/maps/map-images"
 import type { PlayerKillRow } from "@/lib/db"
 
 export type UnlockResult =

@@ -7,8 +7,8 @@ import {
   CACHE_PROFILES,
   scopedCacheTag,
   sourceCacheGroups,
-} from "./cache-policy"
-import { handleCacheRevalidation } from "./cache-revalidation"
+} from "./cache/cache-policy"
+import { handleCacheRevalidation } from "./cache/cache-revalidation"
 
 const secret = "fixture-cache-secret"
 function request(body: unknown, token = secret) {

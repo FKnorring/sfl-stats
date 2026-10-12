@@ -11,7 +11,7 @@ import {
   ratingEventSchema,
   ratingSnapshotSchema,
   type RatingExtraction,
-} from "./demo-rating"
+} from "../../../lib/demo-rating"
 import {
   STAT_FIELDS,
   deriveStats,

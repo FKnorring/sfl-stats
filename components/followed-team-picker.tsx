@@ -7,7 +7,11 @@ import {
   FavoriteTeamButton,
 } from "@/components/follow-team-button"
 import { FollowIndicator } from "@/components/follow-indicator"
-import { currentTeam, followHref, followClass } from "@/lib/followed-teams"
+import {
+  currentTeam,
+  followHref,
+  followClass,
+} from "@/lib/follow/followed-teams"
 
 export function FollowedTeamPicker({ except }: { except?: string }) {
   const { state, ready, teams } = useFollows()

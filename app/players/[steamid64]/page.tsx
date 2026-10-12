@@ -8,8 +8,8 @@ import {
   getPlayerBySteamId64,
   getPlayerKills,
   getPlayerMatchHistory,
-} from "@/lib/cached-data"
-import { getFaceitPlayer } from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayer } from "@/lib/cache/cached-data"
 import { getPlayerSummary } from "@/lib/steam-client"
 import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
@@ -23,7 +23,7 @@ import { MatchHistoryTable } from "./player-history-tables"
 import { isLocalEnv } from "@/lib/env"
 import { NetlightHeatmapGate } from "./netlight-heatmap-gate"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
-import { getMapRadar } from "@/lib/map-images"
+import { getMapRadar } from "@/lib/maps/map-images"
 import { RatingValue, RatingExplanation } from "@/components/player-rating"
 
 export async function generateStaticParams() {

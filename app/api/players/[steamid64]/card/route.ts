@@ -1,5 +1,8 @@
-import { getPlayerBySteamId64, getPlayerMatchHistory } from "@/lib/cached-data"
-import { getFaceitPlayer } from "@/lib/cached-data"
+import {
+  getPlayerBySteamId64,
+  getPlayerMatchHistory,
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayer } from "@/lib/cache/cached-data"
 import { getPlayerSummary } from "@/lib/steam-client"
 
 const RECENT_GAMES = 5

@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { cacheLife, cacheTag } from "next/cache"
 import { connection } from "next/server"
-import { cacheScope, scopedCacheTag } from "@/lib/cache-policy"
+import { cacheScope, scopedCacheTag } from "@/lib/cache/cache-policy"
 
 // Steam Web API, authenticated with a single key param (not a bearer token).
 // Generate one at https://steamcommunity.com/dev/apikey.

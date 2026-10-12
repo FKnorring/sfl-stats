@@ -4,7 +4,7 @@ import Link from "next/link"
 import type { ColumnDef } from "@tanstack/react-table"
 import { DataTable } from "@/components/data-table/data-table"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
-import { followHref } from "@/lib/followed-teams"
+import { followHref } from "@/lib/follow/followed-teams"
 import {
   FollowIndicator,
   useFollowRowClass,

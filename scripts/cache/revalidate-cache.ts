@@ -6,7 +6,7 @@ import {
   DEFAULT_DATABASE_URL,
   revalidationSourceSchema,
   type RevalidationSource,
-} from "@/lib/cache-policy"
+} from "@/lib/cache/cache-policy"
 
 const acknowledgement = z.object({
   revalidated: z.literal(true),

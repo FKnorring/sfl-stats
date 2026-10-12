@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getDivisions } from "@/lib/cached-data"
+import { getDivisions } from "@/lib/cache/cached-data"
 
 export default function TeamsPage({
   searchParams,

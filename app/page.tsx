@@ -6,11 +6,11 @@ import {
   getFaceitPlayerStats,
   getLeaderboard,
   type TeamMeta,
-} from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
 import {
   getLiveDivisionResults,
   getLiveDivisionStandings,
-} from "@/lib/cached-toornament"
+} from "@/lib/cache/cached-toornament"
 import type { ScheduledMatch } from "@/lib/toornament-schedule"
 import { resolveOfficialTeam } from "@/lib/toornament-standings"
 import { getPlayerSummaries } from "@/lib/steam-client"

@@ -11,10 +11,10 @@ import { migrate } from "drizzle-orm/libsql/migrator"
 import { eq, sql } from "drizzle-orm"
 import * as schema from "../../lib/db/schema"
 import type { AppDb } from "../../lib/db/client"
-import { deriveStats } from "../../lib/demo-stats"
-import type { DemoFacts, DemoKillFact } from "../../lib/demo-extraction"
+import { deriveStats } from "./domain/demo-stats"
+import type { DemoFacts, DemoKillFact } from "./domain/demo-extraction"
 import type { MatchStatus } from "../../lib/matching"
-import type { KillSideRow } from "../../lib/team-anchoring"
+import type { KillSideRow } from "./domain/team-anchoring"
 import {
   applyOverrides,
   createDemoMatching,

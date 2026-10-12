@@ -9,9 +9,13 @@ import {
   getDemoMatchPlayerStats,
   getMatchKills,
   getDemoRatingDetails,
-} from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
-import { formatMapName, getMapImageUrl, getMapRadar } from "@/lib/map-images"
+import {
+  formatMapName,
+  getMapImageUrl,
+  getMapRadar,
+} from "@/lib/maps/map-images"
 import { Badge } from "@/components/ui/badge"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { isLocalEnv } from "@/lib/env"

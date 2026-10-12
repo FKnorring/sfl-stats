@@ -9,8 +9,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import type { PlayerKillRow } from "@/lib/db"
-import { formatMapName, type MapRadar } from "@/lib/map-images"
-import { inferCtSite } from "@/lib/site-inference"
+import { formatMapName, type MapRadar } from "@/lib/maps/map-images"
+import { inferCtSite } from "@/lib/maps/site-inference"
 import {
   Heatmap,
   ToggleGroup,

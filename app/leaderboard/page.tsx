@@ -4,8 +4,8 @@ import {
   getLeaderboard,
   getCurrentSeason,
   getCurrentTeamCatalog,
-} from "@/lib/cached-data"
-import { getFaceitPlayerStats } from "@/lib/cached-data"
+} from "@/lib/cache/cached-data"
+import { getFaceitPlayerStats } from "@/lib/cache/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { LeaderboardView } from "./leaderboard-view"
 import { RatingExplanation } from "@/components/player-rating"

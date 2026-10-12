@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation"
 import { connection } from "next/server"
 import { isLocalEnv } from "@/lib/env"
-import { readMapZones } from "@/lib/map-zones"
-import { getMapRadar } from "@/lib/map-images"
+import { readMapZones } from "@/lib/maps/map-zones"
+import { getMapRadar } from "@/lib/maps/map-images"
 import { ZoneEditor } from "./zone-editor"
 
 const MAPS = [

@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { notFound } from "next/navigation"
 import { db } from "@/lib/db/client"
 import { toornamentMatches } from "@/lib/db/schema"
-import { getMatchById } from "@/lib/cached-data"
+import { getMatchById } from "@/lib/cache/cached-data"
 import { Badge } from "@/components/ui/badge"
 import type { Metadata } from "next"
 
