@@ -4,7 +4,7 @@ import { parseArgs } from "node:util"
 import { openWritableDb } from "@/lib/db/client"
 import { matches, playerMatchStats } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
-import { extractRatingFacts } from "@/lib/demo-rating"
+import { extractRatingFacts } from "@/lib/demo-extraction"
 import {
   persistRatingExtraction,
   recomputeMatchRatings,
