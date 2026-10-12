@@ -376,6 +376,30 @@ pnpm ingest:demos -- --dir ./demos
   counts — those need manual review (see
   `data/player-overrides.json`, the git-tracked manual-correction file the
   script reads back in on subsequent runs).
+- Matching counts represent one final outcome per Player per processed Demo,
+  including team-resolution reruns. Anchoring upgrades replace earlier
+  unresolved outcomes instead of being counted twice. A Player appearing in
+  multiple processed Demos contributes once to each; untouched Demos and
+  kill-only backfills do not contribute.
+- Anchoring narrows nickname candidates only when a stable side has a unique
+  highest roster-team vote. Tied highest votes leave that side unanchored.
+- `--toornament-window-hours` — positive maximum distance from a Demo's date
+  to a completed Toornament Match used to infer an unresolved opponent;
+  defaults to 24. Inferred identities do not supply Demo round scores.
+
+The command owns filesystem/argument setup, cache invalidation and reporting.
+Its implementation is split into three CLI-only modules:
+[`player-matching.ts`](scripts/demos/player-matching.ts) owns roster Matching
+and final outcomes; [`team-resolution.ts`](scripts/demos/team-resolution.ts)
+owns anchoring, round-score attribution, opponent inference and conflicts;
+[`ingestion.ts`](scripts/demos/ingestion.ts) owns persistence and the
+first-ingestion/backfill/rerun loop. They reuse the existing `lib` extraction,
+Matching, anchoring and rating modules. Team reruns reuse stored kills but
+still parse round ends and side snapshots from the original Demo.
+
+Per-file failures are logged, later Demos continue, and the command exits
+nonzero after reporting the run. Earlier writes may have committed; this
+refactor does not add a whole-Demo transaction.
 
 ### Player ratings
 

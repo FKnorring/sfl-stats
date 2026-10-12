@@ -17,3 +17,4 @@ When a decision here is final, add a new ADR with the next sequential number (ch
 | 0009 | [Shared Data Cache with an ingestion generation marker](0009-generation-keyed-data-caches.md)                                           |
 | 0010 | [Native Cache Components with eventual tag revalidation](0010-native-cache-components.md)                                               |
 | 0011 | [Co-locate functions with the database and stream page sections](0011-region-colocation-and-streamed-sections.md)                        |
+| 0012 | [Cohesive Demo ingestion modules and final Matching outcomes](0012-cohesive-demo-ingestion-modules.md)                                    |

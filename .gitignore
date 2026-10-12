@@ -42,4 +42,5 @@ data/sfl.db
 data/sfl.db-shm
 data/sfl.db-wal
 demos/
+!scripts/demos/
 .next-cache-test-*/
