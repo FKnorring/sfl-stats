@@ -1,6 +1,6 @@
 # Public web app is always read-only; writes stay in scripts (and maybe a future local-only admin UI)
 
-The Next.js app (`app/`) only ever reads from the database — it never inserts, updates, or deletes. All writes happen through CLI scripts (`scripts/scrape-roster.ts`, `scripts/ingest-demos.ts`, `scripts/faceit-sync.ts`, and manual data fixes), run locally by a maintainer.
+The Next.js app (`app/`) only ever reads from the database — it never inserts, updates, or deletes. All writes happen through CLI scripts (`scripts/scraping/scrape-roster.ts`, `scripts/demos/ingest-demos.ts`, `scripts/faceit/faceit-sync.ts`, and manual data fixes), run locally by a maintainer.
 
 This is a deliberate constraint, not just the current state of things: the goal for the hosted deployment (see #11) is to share a public link to the stats/scouting app with the rest of the league without needing any authentication layer. A read-only app has nothing worth protecting behind a login — there's no mutation an unauthenticated visitor could trigger. Introducing writes from the public app would mean introducing auth, which is explicitly out of scope for this project's goals.
 

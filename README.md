@@ -333,7 +333,7 @@ pnpm scrape:roster -- --url https://publiclir.se/svenska-foeretagsligan/
 ```
 
 - `--url` — defaults to the current SFL roster page
-  ([`scripts/scrape-roster.ts`](scripts/scrape-roster.ts)).
+  ([`scripts/scraping/scrape-roster.ts`](scripts/scraping/scrape-roster.ts)).
 
 ### `pnpm scrape:schedule`
 
@@ -350,7 +350,7 @@ pnpm scrape:schedule -- --tournament-id 2560854090247290879
 ```
 
 - `--tournament-id` — defaults to the current SFL CS2 tournament
-  ([`scripts/scrape-schedule.ts`](scripts/scrape-schedule.ts)).
+  ([`scripts/scraping/scrape-schedule.ts`](scripts/scraping/scrape-schedule.ts)).
 - `--locale` — widget locale, defaults to `en_US`.
 - Powers the "Upcoming opponents" bar on `/teams/team/[name]`.
 
@@ -367,7 +367,7 @@ pnpm ingest:demos -- --dir ./demos
 
 - `--dir` — folder to scan recursively for `.dem` files. Defaults to
   `./demos`, or `$DEMOS_DIR` if set
-  ([`scripts/ingest-demos.ts`](scripts/ingest-demos.ts)).
+  ([`scripts/demos/ingest-demos.ts`](scripts/demos/ingest-demos.ts)).
 - `pnpm download:demos` uses the same `--dir` / `DEMOS_DIR` destination
   convention and checks the configured database, so downloaded demos can be
   ingested with `pnpm ingest:demos -- --dir <folder>`.

@@ -7,12 +7,12 @@ import { sql } from "drizzle-orm"
 import { z } from "zod"
 import { openWritableDb } from "@/lib/db/client"
 import { isLocalEnv } from "@/lib/env"
-import { withCacheInvalidation } from "@/scripts/revalidate-cache"
+import { withCacheInvalidation } from "@/scripts/cache/revalidate-cache"
 import { scopedCacheTag } from "@/lib/cache-policy"
 
 const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
 
-// Mirrors overridesFileSchema in scripts/ingest-demos.ts — kept in sync by
+// Mirrors overridesFileSchema in scripts/demos/ingest-demos.ts — kept in sync by
 // hand since the app and the CLI script don't share a module graph.
 const overridesFileSchema = z.record(
   z.string(),
@@ -32,7 +32,7 @@ export type OverrideSteamIdResult =
 
 /**
  * Local-only (ADR-0002): overwrites a roster entry's steamid64 in the DB and
- * records it in data/player-overrides.json, which scripts/ingest-demos.ts
+ * records it in data/player-overrides.json, which scripts/demos/ingest-demos.ts
  * applies with top priority on every run — so the manual value sticks.
  */
 export async function overrideSteamId(

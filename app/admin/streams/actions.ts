@@ -10,7 +10,7 @@ import { isLocalEnv } from "@/lib/env"
 import type { UpcomingMatchRow } from "@/lib/matches"
 import { parseStreamMessage, type StreamAssignment } from "@/lib/stream-message"
 import { enrichUpcomingMatches } from "@/lib/toornament-live"
-import { withCacheInvalidation } from "@/scripts/revalidate-cache"
+import { withCacheInvalidation } from "@/scripts/cache/revalidate-cache"
 import { scopedCacheTag } from "@/lib/cache-policy"
 
 const NOT_LOCAL = "Admin is only available when ENV=local"

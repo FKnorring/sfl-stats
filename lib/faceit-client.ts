@@ -88,7 +88,7 @@ async function faceitFetch<T>(
 
 // Loose/passthrough schemas: assert only the fields we read, leave the rest
 // unvalidated since several of Faceit's response shapes aren't confirmed
-// from docs (see lib/faceit-client.ts probe step in scripts/faceit-sync.ts).
+// from docs (see lib/faceit-client.ts probe step in scripts/faceit/faceit-sync.ts).
 const faceitPlayerSchema = z
   .object({
     player_id: z.string(),

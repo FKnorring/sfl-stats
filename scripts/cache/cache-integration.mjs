@@ -11,7 +11,7 @@ import { pathToFileURL } from "node:url"
 import { createClient } from "@libsql/client"
 import { drizzle } from "drizzle-orm/libsql"
 import { migrate } from "drizzle-orm/libsql/migrator"
-import { persistRatingExtraction } from "../lib/rating-db.ts"
+import { persistRatingExtraction } from "../../lib/rating-db.ts"
 
 const baseline = process.argv.includes("--baseline")
 const outputIndex = process.argv.indexOf("--output")
@@ -334,7 +334,7 @@ function runNext(args, env = serverEnv) {
     globalThis.process.execPath,
     [
       "--import",
-      pathToFileURL(path.resolve("scripts/cache-upstream-fixture.mjs")).href,
+      pathToFileURL(path.resolve("scripts/cache/cache-upstream-fixture.mjs")).href,
       path.resolve("node_modules/next/dist/bin/next"),
       ...args,
     ],
@@ -360,7 +360,7 @@ async function retryNotification(source) {
     [
       "--import",
       "tsx",
-      path.resolve("scripts/revalidate-cache.ts"),
+      path.resolve("scripts/cache/revalidate-cache.ts"),
       "--source",
       source,
     ],
@@ -573,7 +573,7 @@ try {
     assert.equal((await notify({ source: "demos" }, "wrong")).status, 401)
     assert.equal((await notify({ source: "unknown" })).status, 400)
     assert.equal((await fetch(endpoint)).status, 405)
-    const { cacheScope } = await import("../lib/cache-policy.ts")
+    const { cacheScope } = await import("../../lib/cache-policy.ts")
     const target = cacheScope(upstream, namespace)
     await database.execute({
       sql: "UPDATE players SET latest_ingame_name='Updated fixture' WHERE steamid64=?",
