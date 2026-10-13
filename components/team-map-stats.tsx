@@ -99,9 +99,6 @@ export function TeamMapStats({ maps }: { maps: TeamMapStat[] }) {
       ) : (
         <DataTable columns={columns} data={maps} />
       )}
-      <p className="text-xs text-muted-foreground">
-        Bombsite stats are available for demos parsed with --reparse.
-      </p>
     </div>
   )
 }
