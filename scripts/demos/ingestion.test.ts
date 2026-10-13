@@ -328,6 +328,53 @@ test("team resolution scores observed side swaps and preserves conflict provenan
   assert.equal((await resolve()).teamAId, null)
 })
 
+test("team resolution scores the unique team majority on each stable side", async (t) => {
+  const db = await setup(t)
+  const { matching, resolve } = await resolution(db)
+  const players = [
+    { steamid64: "a1", teamId: 1 },
+    { steamid64: "a2", teamId: 1 },
+    { steamid64: "b1", teamId: 2 },
+    { steamid64: "b2", teamId: 2 },
+    { steamid64: "outlier", teamId: 3 },
+    { steamid64: "unmatched-outlier", teamId: null },
+  ]
+  for (const player of players) {
+    if (player.teamId != null) {
+      matching.steamidToTeam.set(player.steamid64, player.teamId)
+    }
+  }
+  const killRows = players.map((player, index) => ({
+    round: 0,
+    attackerSteamid64: null,
+    attackerSide: null,
+    victimSteamid64: player.steamid64,
+    victimSide: index < 2 || index > 3 ? ("CT" as const) : ("T" as const),
+  }))
+  const readTicks = (_filePath: string, ticks: number[]) =>
+    ticks.flatMap((tick) =>
+      players.map((player, index) => ({
+        tick,
+        player_steamid: player.steamid64,
+        team_name:
+          (index < 2 || index > 3) === (tick === 100) ? "CT" : "TERRORIST",
+      }))
+    )
+
+  const resolved = await resolve({ killRows, readTicks })
+  assert.equal(resolved.teamAId, 1)
+  assert.equal(resolved.teamAScore, 2)
+  assert.equal(resolved.teamBId, 2)
+  assert.equal(resolved.teamBScore, 0)
+
+  matching.steamidToTeam.set("unmatched-outlier", 3)
+  const tied = await resolve({ killRows, readTicks })
+  assert.equal(tied.teamAId, null)
+  assert.equal(tied.teamAScore, null)
+  assert.equal(tied.teamBId, null)
+  assert.equal(tied.teamBScore, null)
+})
+
 test("Toornament fallback infers only a unique close opponent, never a Demo score", async (t) => {
   const db = await setup(t)
   const { matching, resolve } = await resolution(db)
