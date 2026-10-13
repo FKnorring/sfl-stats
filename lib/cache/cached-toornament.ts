@@ -1,6 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache"
 import { connection } from "next/server"
-import * as source from "@/lib/toornament-live"
+import * as source from "@/lib/toornament/live"
 import type { MatchTeam } from "@/lib/matches"
 import { cacheScope, scopedCacheTag } from "@/lib/cache/cache-policy"
 

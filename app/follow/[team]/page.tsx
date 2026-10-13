@@ -15,7 +15,7 @@ import {
   getLiveDivisionStandings,
   getLiveTeamPendingMatches,
 } from "@/lib/cache/cached-toornament"
-import { resolveOfficialTeam } from "@/lib/toornament-standings"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 import { formatMatchDate, matchDateTime } from "@/lib/matches"
 import {
   FollowTeamButton,

@@ -1,7 +1,7 @@
 import {
   parseScheduleWidget,
   type ScheduledMatch,
-} from "@/lib/toornament-schedule"
+} from "@/lib/toornament/schedule"
 import {
   matchDateTime,
   type MatchTeam,
@@ -14,7 +14,7 @@ import {
   parseStandingsWidget,
   resolveOfficialTeam,
   type OfficialStanding,
-} from "@/lib/toornament-standings"
+} from "@/lib/toornament/standings"
 
 // Same default tournament as scripts/scraping/scrape-schedule.ts.
 export const TOURNAMENT_ID = "2560854090247290879"

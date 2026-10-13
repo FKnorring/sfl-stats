@@ -11,8 +11,8 @@ import {
   getLiveDivisionResults,
   getLiveDivisionStandings,
 } from "@/lib/cache/cached-toornament"
-import type { ScheduledMatch } from "@/lib/toornament-schedule"
-import { resolveOfficialTeam } from "@/lib/toornament-standings"
+import type { ScheduledMatch } from "@/lib/toornament/schedule"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { RecentResultsTable } from "@/components/recent-results-table"
 import { Skeleton } from "@/components/ui/skeleton"
