@@ -517,7 +517,7 @@ test("first ingestion preserves aggregate stats, kill facts and basename identit
   assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
 })
 
-test("team map stats split own plants, post-plant wins, and plants against on CT", async (t) => {
+test("team map stats include CT wins after opponent plants per site", async (t) => {
   const db = await setup(t)
   await roster(db, 1, 1, "Alpha")
   await roster(db, 2, 2, "Bravo")
@@ -539,6 +539,22 @@ test("team map stats split own plants, post-plant wins, and plants against on CT
     bombPlantId: opponentPlant.id,
     steamid64: ids[0],
   })
+  const [lostRetake] = await db
+    .insert(schema.matchBombPlants)
+    .values({
+      matchId: match.id,
+      round: 3,
+      tick: 350,
+      planterSteamid64: ids[1],
+      site: "A",
+      placeName: "BombsiteA",
+      roundWinnerSide: "T",
+    })
+    .returning()
+  await db.insert(schema.matchBombPlantCtPlayers).values({
+    bombPlantId: lostRetake.id,
+    steamid64: ids[0],
+  })
 
   const [map] = await getTeamMapStats(1, db)
   assert.equal(map.mapName, "de_nuke")
@@ -546,8 +562,10 @@ test("team map stats split own plants, post-plant wins, and plants against on CT
   assert.equal(map.plantsB, 0)
   assert.equal(map.postPlantWinRateA, 1)
   assert.equal(map.postPlantWinRateB, null)
-  assert.equal(map.opponentPlantsA, 0)
+  assert.equal(map.opponentPlantsA, 1)
   assert.equal(map.opponentPlantsB, 1)
+  assert.equal(map.opponentPlantWinRateA, 0)
+  assert.equal(map.opponentPlantWinRateB, 1)
 })
 
 test("transient database failures retry atomically without double-counting Matching", async (t) => {
