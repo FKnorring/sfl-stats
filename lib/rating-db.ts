@@ -66,6 +66,18 @@ export async function persistRatingExtraction(
   matchId: number,
   extraction: RatingExtraction
 ) {
+  const count = groupRatingFacts(extraction.facts).size
+  await database.transaction((tx) =>
+    persistRatingExtractionInTransaction(tx, matchId, extraction)
+  )
+  return count
+}
+
+export async function persistRatingExtractionInTransaction(
+  tx: WritableTransaction,
+  matchId: number,
+  extraction: RatingExtraction
+) {
   if (
     extraction.unavailableReason &&
     (extraction.rounds.length || extraction.facts.length)
@@ -82,80 +94,77 @@ export async function persistRatingExtraction(
   const summaries = new Map(
     [...grouped].map(([id, rows]) => [id, calculatePlayerRating(rows)])
   )
-  await database.transaction(async (tx) => {
-    const match = await tx
-      .select({ id: matches.id })
-      .from(matches)
-      .where(eq(matches.id, matchId))
-    if (!match.length) throw new Error(`Unknown demo ${matchId}`)
-    await tx
-      .delete(playerMatchRoundStats)
-      .where(eq(playerMatchRoundStats.matchId, matchId))
-    await tx.delete(matchRounds).where(eq(matchRounds.matchId, matchId))
-    if (!extraction.unavailableReason) {
-      const now = new Date().toISOString()
-      for (const [id, rows] of grouped) {
-        await tx
-          .insert(players)
-          .values({
-            steamid64: id,
-            latestIngameName: rows.at(-1)!.name,
-            firstSeenAt: now,
-            lastSeenAt: now,
-          })
-          .onConflictDoNothing()
-        const summary = summaries.get(id)!
-        const finalRound = extraction.rounds.at(-1)!.ordinal
-        const finalFact = rows.find((row) => row.ordinal === finalRound)
-        await tx
-          .insert(playerMatchStats)
-          .values({
-            matchId,
-            steamid64: id,
-            teamName: finalFact ? String(finalFact.side) : null,
-            kills: summary.kills,
-            deaths: summary.deaths,
-            assists: summary.assists,
-            headshotKills: summary.headshotKills,
-            damageTotal: summary.damage,
-            utilityDamageTotal: summary.utilityDamage,
-            clutchCount: summary.clutchWins,
-            adr: summary.damage / summary.rounds,
-            hsPct: summary.kills ? summary.headshotKills / summary.kills : null,
-          })
-          .onConflictDoNothing()
-      }
-      const inserted = await tx
-        .insert(matchRounds)
-        .values(extraction.rounds.map((round) => ({ matchId, ...round })))
-        .returning({ id: matchRounds.id, ordinal: matchRounds.ordinal })
-      const ids = new Map(inserted.map((round) => [round.ordinal, round.id]))
-      for (let start = 0; start < extraction.facts.length; start += 100) {
-        await tx.insert(playerMatchRoundStats).values(
-          extraction.facts.slice(start, start + 100).map((fact) => {
-            const { name, ordinal, ...stored } = fact
-            if (!name || !ids.has(ordinal))
-              throw new Error("Fact has no verified player name or round")
-            return { ...stored, matchId, roundId: ids.get(ordinal)! }
-          })
-        )
-      }
+  const match = await tx
+    .select({ id: matches.id })
+    .from(matches)
+    .where(eq(matches.id, matchId))
+  if (!match.length) throw new Error(`Unknown demo ${matchId}`)
+  await tx
+    .delete(playerMatchRoundStats)
+    .where(eq(playerMatchRoundStats.matchId, matchId))
+  await tx.delete(matchRounds).where(eq(matchRounds.matchId, matchId))
+  if (!extraction.unavailableReason) {
+    const now = new Date().toISOString()
+    for (const [id, rows] of grouped) {
+      await tx
+        .insert(players)
+        .values({
+          steamid64: id,
+          latestIngameName: rows.at(-1)!.name,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        })
+        .onConflictDoNothing()
+      const summary = summaries.get(id)!
+      const finalRound = extraction.rounds.at(-1)!.ordinal
+      const finalFact = rows.find((row) => row.ordinal === finalRound)
+      await tx
+        .insert(playerMatchStats)
+        .values({
+          matchId,
+          steamid64: id,
+          teamName: finalFact ? String(finalFact.side) : null,
+          kills: summary.kills,
+          deaths: summary.deaths,
+          assists: summary.assists,
+          headshotKills: summary.headshotKills,
+          damageTotal: summary.damage,
+          utilityDamageTotal: summary.utilityDamage,
+          clutchCount: summary.clutchWins,
+          adr: summary.damage / summary.rounds,
+          hsPct: summary.kills ? summary.headshotKills / summary.kills : null,
+        })
+        .onConflictDoNothing()
     }
-    const rows = await tx
-      .select({ steamid64: playerMatchStats.steamid64 })
-      .from(playerMatchStats)
-      .where(eq(playerMatchStats.matchId, matchId))
-    for (const row of rows) {
-      await writeRating(
-        tx,
-        matchId,
-        row.steamid64,
-        summaries.get(row.steamid64),
-        extraction.unavailableReason ?? "No eligible participated rounds"
+    const inserted = await tx
+      .insert(matchRounds)
+      .values(extraction.rounds.map((round) => ({ matchId, ...round })))
+      .returning({ id: matchRounds.id, ordinal: matchRounds.ordinal })
+    const ids = new Map(inserted.map((round) => [round.ordinal, round.id]))
+    for (let start = 0; start < extraction.facts.length; start += 100) {
+      await tx.insert(playerMatchRoundStats).values(
+        extraction.facts.slice(start, start + 100).map((fact) => {
+          const { name, ordinal, ...stored } = fact
+          if (!name || !ids.has(ordinal))
+            throw new Error("Fact has no verified player name or round")
+          return { ...stored, matchId, roundId: ids.get(ordinal)! }
+        })
       )
     }
-  })
-  return summaries.size
+  }
+  const rows = await tx
+    .select({ steamid64: playerMatchStats.steamid64 })
+    .from(playerMatchStats)
+    .where(eq(playerMatchStats.matchId, matchId))
+  for (const row of rows) {
+    await writeRating(
+      tx,
+      matchId,
+      row.steamid64,
+      summaries.get(row.steamid64),
+      extraction.unavailableReason ?? "No eligible participated rounds"
+    )
+  }
 }
 
 export async function recomputeMatchRatings(

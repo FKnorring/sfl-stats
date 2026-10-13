@@ -135,7 +135,8 @@ function run(
     kills: () => [kill()],
     rounds: () => rounds,
     sides,
-  }
+  },
+  reparse = false
 ) {
   return runDemoIngestion({
     db,
@@ -143,6 +144,62 @@ function run(
     overrides: new Map(),
     toornamentWindowHours: 24,
     extract,
+    reparse,
+  })
+}
+
+type DemoTransaction = Parameters<Parameters<AppDb["transaction"]>[0]>[0]
+
+function failTransactionRun(
+  db: AppDb,
+  runIndex: number,
+  failures: { remaining: number },
+  error: Error
+): AppDb {
+  return new Proxy(db, {
+    get(target, property, receiver) {
+      if (property !== "transaction") {
+        return Reflect.get(target, property, receiver)
+      }
+      return (callback: (tx: DemoTransaction) => Promise<unknown>) =>
+        target.transaction(async (tx) => {
+          let runCount = 0
+          const wrapped = new Proxy(tx, {
+            get(transaction, member, transactionReceiver) {
+              if (member !== "run") {
+                return Reflect.get(transaction, member, transactionReceiver)
+              }
+              return (...args: Parameters<DemoTransaction["run"]>) => {
+                if (runCount++ === runIndex && failures.remaining > 0) {
+                  failures.remaining--
+                  throw error
+                }
+                return transaction.run(...args)
+              }
+            },
+          })
+          return callback(wrapped)
+        })
+    },
+  })
+}
+
+function failFirstCommit(db: AppDb, error: Error): AppDb {
+  let remaining = 1
+  return new Proxy(db, {
+    get(target, property, receiver) {
+      if (property !== "transaction") {
+        return Reflect.get(target, property, receiver)
+      }
+      return (callback: (tx: DemoTransaction) => Promise<unknown>) =>
+        target.transaction(callback).then((result) => {
+          if (remaining > 0) {
+            remaining--
+            throw error
+          }
+          return result
+        })
+    },
   })
 }
 
@@ -358,6 +415,147 @@ test("first ingestion preserves aggregate stats, kill facts and basename identit
   assert.deepEqual(rerun.summary, emptyMatchingSummary())
   assert.equal((await db.select().from(schema.matchKills)).length, 1)
   assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+
+  const reparsed = await run(
+    db,
+    [name],
+    {
+      demo: () => ({
+        ...facts(),
+        header: { map_name: "de_mirage", server_name: "updated fixture" },
+      }),
+      kills: () => [kill()],
+      rounds: () => rounds,
+      sides,
+    },
+    true
+  )
+  assert.equal(reparsed.ingested, 1)
+  assert.equal(reparsed.skipped, 0)
+  const updatedMatch = (await db.select().from(schema.matches))[0]
+  assert.equal(updatedMatch.id, match.id)
+  assert.equal(updatedMatch.mapName, "de_mirage")
+  assert.equal(updatedMatch.serverName, "updated fixture")
+  assert.equal((await db.select().from(schema.matchKills)).length, 1)
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+})
+
+test("transient database failures retry atomically without double-counting Matching", async (t) => {
+  const db = await setup(t)
+  await roster(db, 1, 1, "Alpha")
+  await roster(db, 2, 2, "Bravo")
+  const result = await run(
+    failTransactionRun(
+      db,
+      2,
+      { remaining: 1 },
+      new Error("socket closed", {
+        cause: { code: "UND_ERR_SOCKET" },
+      })
+    )
+  )
+
+  assert.equal(result.failures.length, 0)
+  assert.equal(result.ingested, 1)
+  assert.equal(result.summary.autoHigh, 2)
+  assert.equal((await db.select().from(schema.matches)).length, 1)
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+  assert.equal((await db.select().from(schema.matchKills)).length, 1)
+  assert.deepEqual(
+    (await db.select().from(schema.rosterEntries)).map(
+      (row) => row.matchStatus
+    ),
+    ["auto_high", "auto_high"]
+  )
+})
+
+test("a transient reparse delete failure preserves then replaces existing demo facts", async (t) => {
+  const db = await setup(t)
+  await roster(db, 1, 1, "Alpha")
+  await roster(db, 2, 2, "Bravo")
+  await run(db)
+  const original = (await db.select().from(schema.matches))[0]
+
+  const result = await run(
+    failTransactionRun(
+      db,
+      0,
+      { remaining: 1 },
+      new Error("socket closed during delete", {
+        cause: { code: "UND_ERR_SOCKET" },
+      })
+    ),
+    [name],
+    {
+      demo: () => ({
+        ...facts(),
+        header: { map_name: "de_mirage", server_name: "updated fixture" },
+      }),
+      kills: () => [kill()],
+      rounds: () => rounds,
+      sides,
+    },
+    true
+  )
+
+  assert.equal(result.failures.length, 0)
+  assert.equal(result.ingested, 1)
+  assert.equal(result.summary.autoHigh, 2)
+  const reparsed = (await db.select().from(schema.matches))[0]
+  assert.equal(reparsed.id, original.id)
+  assert.equal(reparsed.mapName, "de_mirage")
+  assert.equal(reparsed.serverName, "updated fixture")
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+  assert.equal((await db.select().from(schema.matchKills)).length, 1)
+})
+
+test("transient retry exhaustion leaves the failed demo untouched", async (t) => {
+  const db = await setup(t)
+  await roster(db, 1, 1, "Alpha")
+  await roster(db, 2, 2, "Bravo")
+  const result = await run(
+    failTransactionRun(
+      db,
+      2,
+      { remaining: 3 },
+      new Error("socket closed", {
+        cause: { code: "UND_ERR_SOCKET" },
+      })
+    )
+  )
+
+  assert.equal(result.failures.length, 1)
+  assert.equal(result.ingested, 0)
+  assert.deepEqual(result.summary, emptyMatchingSummary())
+  assert.equal((await db.select().from(schema.matches)).length, 0)
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 0)
+  assert.deepEqual(
+    (await db.select().from(schema.rosterEntries)).map(
+      (row) => row.matchStatus
+    ),
+    ["unmatched", "unmatched"]
+  )
+})
+
+test("a lost commit response reconciles by filename before retrying", async (t) => {
+  const db = await setup(t)
+  await roster(db, 1, 1, "Alpha")
+  await roster(db, 2, 2, "Bravo")
+  const result = await run(
+    failFirstCommit(
+      db,
+      new Error("socket closed after commit", {
+        cause: { code: "UND_ERR_SOCKET" },
+      })
+    )
+  )
+
+  assert.equal(result.failures.length, 0)
+  assert.equal(result.ingested, 1)
+  assert.equal(result.summary.autoHigh, 2)
+  assert.equal((await db.select().from(schema.matches)).length, 1)
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+  assert.equal((await db.select().from(schema.matchKills)).length, 1)
 })
 
 test("no-rounds/incomplete skips and null Player rows retain existing counter behavior", async (t) => {
@@ -410,6 +608,38 @@ test("kill-only backfill leaves stats and Matching untouched, and retains world 
   assert.equal(stored[1].headshot, null)
 })
 
+test("a lost backfill commit response does not duplicate kill facts", async (t) => {
+  const db = await setup(t)
+  await db.insert(schema.matches).values({
+    fileName: name,
+    parsedAt: date,
+    teamAId: 1,
+    teamBId: 2,
+  })
+  const result = await run(
+    failFirstCommit(
+      db,
+      new Error("socket closed after commit", {
+        cause: { code: "UND_ERR_SOCKET" },
+      })
+    ),
+    [name],
+    {
+      demo: () => {
+        throw new Error("must not reparse")
+      },
+      kills: () => [kill()],
+      rounds: () => {
+        throw new Error("must not resolve")
+      },
+    }
+  )
+
+  assert.equal(result.failures.length, 0)
+  assert.equal(result.skipped, 1)
+  assert.equal((await db.select().from(schema.matchKills)).length, 1)
+})
+
 test("team reruns reuse stored kills and update resolution without reinserting stats", async (t) => {
   const db = await setup(t)
   await roster(db, 1, 1, "Alpha")
@@ -439,7 +669,7 @@ test("team reruns reuse stored kills and update resolution without reinserting s
   assert.equal((await db.select().from(schema.matchKills)).length, 1)
 })
 
-test("per-file failures retain partial writes and continue to later Demos", async (t) => {
+test("per-demo transactions roll back failed writes and continue to later Demos", async (t) => {
   const db = await setup(t)
   await roster(db, 1, 1, "Alpha")
   await roster(db, 2, 2, "Bravo")
@@ -455,15 +685,15 @@ test("per-file failures retain partial writes and continue to later Demos", asyn
   })
   assert.deepEqual(result.failures, [failure])
   assert.equal(result.ingested, 1)
-  assert.equal((await db.select().from(schema.matches)).length, 2)
-  assert.equal((await db.select().from(schema.playerMatchStats)).length, 4)
+  assert.equal((await db.select().from(schema.matches)).length, 1)
+  assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
   const first = (
     await db
       .select()
       .from(schema.matches)
       .where(eq(schema.matches.fileName, name))
   )[0]
-  assert.equal(first.teamAId, null)
+  assert.equal(first, undefined)
   const second = (
     await db
       .select()
@@ -471,7 +701,7 @@ test("per-file failures retain partial writes and continue to later Demos", asyn
       .where(eq(schema.matches.fileName, "fallback.dem"))
   )[0]
   assert.equal(second.demoDate, second.parsedAt)
-  assert.equal(result.summary.autoHigh, 4)
+  assert.equal(result.summary.autoHigh, 2)
   assert.deepEqual(
     await db.all(
       sql`SELECT name FROM sqlite_master WHERE name = 'cache_generation'`
@@ -767,6 +997,8 @@ test("CLI preserves defaults, validation, discovery, preflight and aggregate err
   assert.equal(empty.status, 0, empty.output)
   assert.match(empty.output, /found 0 \.dem files/)
   assert.match(empty.output, /notification disabled/)
+  const reparseEmpty = runCli(["--reparse"])
+  assert.equal(reparseEmpty.status, 0, reparseEmpty.output)
   const missingDir = runCli(["--dir"])
   assert.equal(missingDir.status, 1, missingDir.output)
   assert.match(missingDir.output, /--dir requires a value/)

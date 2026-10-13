@@ -1,7 +1,7 @@
 import { parseTicks } from "@laihoe/demoparser2"
 import { sql } from "drizzle-orm"
 import { z } from "zod"
-import type { AppDb } from "@/lib/db/client"
+import type { AppDbQueries } from "@/lib/db/client"
 import type { RoundEndRow } from "@/scripts/demos/domain/demo-stats"
 import {
   deriveStableTeamSides,
@@ -108,7 +108,10 @@ function computeTeamScore(
   return { teamAId, teamAScore, teamBId, teamBScore }
 }
 
-async function getCompletedToornamentMatchesForTeam(db: AppDb, teamId: number) {
+async function getCompletedToornamentMatchesForTeam(
+  db: AppDbQueries,
+  teamId: number
+) {
   const rows = await db.all<{
     id: number
     scheduled_at: string
@@ -142,7 +145,7 @@ export async function resolveDemoTeams({
   priorResolution = null,
   readTicks = readSideTicks,
 }: {
-  db: AppDb
+  db: AppDbQueries
   filePath: string
   roundEnds: RoundEndRow[]
   killRows: KillSideRow[]

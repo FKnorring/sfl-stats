@@ -14,6 +14,7 @@ const DEFAULT_TOORNAMENT_WINDOW_HOURS = 24
 function parseArgs(argv: string[]): {
   dir: string
   toornamentWindowHours: number
+  reparse: boolean
 } {
   const idx = argv.indexOf("--dir")
   const dir =
@@ -28,7 +29,7 @@ function parseArgs(argv: string[]): {
   if (!Number.isFinite(toornamentWindowHours) || toornamentWindowHours <= 0) {
     throw new Error("--toornament-window-hours requires a positive number")
   }
-  return { dir, toornamentWindowHours }
+  return { dir, toornamentWindowHours, reparse: argv.includes("--reparse") }
 }
 
 function walkDemosFolder(dir: string): string[] {
@@ -63,7 +64,9 @@ function loadOverrides(): PlayerOverrides {
 
 async function main() {
   await withCacheInvalidation("demos", async (markWritePhase) => {
-    const { dir, toornamentWindowHours } = parseArgs(process.argv.slice(2))
+    const { dir, toornamentWindowHours, reparse } = parseArgs(
+      process.argv.slice(2)
+    )
     const files = walkDemosFolder(dir)
     console.log(`[ingest-demos] found ${files.length} .dem files under ${dir}`)
     const db = openWritableDb()
@@ -73,7 +76,13 @@ async function main() {
     markWritePhase()
     await applyOverrides(db, overrides)
     const { ingested, skipped, reresolved, summary, failures } =
-      await runDemoIngestion({ db, files, overrides, toornamentWindowHours })
+      await runDemoIngestion({
+        db,
+        files,
+        overrides,
+        toornamentWindowHours,
+        reparse,
+      })
 
     console.log(
       `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested, ${reresolved} re-resolved`

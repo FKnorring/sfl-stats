@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm"
-import type { AppDb } from "@/lib/db/client"
+import type { AppDb, AppDbQueries } from "@/lib/db/client"
 import {
   resolvePlayerMatch,
   type MatchCandidate,
@@ -66,7 +66,7 @@ const CURRENT_SEASON_SQL = sql`team_id IN (
   )
 )`
 
-async function getCandidates(db: AppDb, teamId?: number) {
+async function getCandidates(db: AppDbQueries, teamId?: number) {
   const rows = await db.all<{ id: number; nickname: string }>(sql`
     SELECT id, nickname FROM roster_entries
     WHERE match_status IN ('unmatched', 'auto_low', 'auto_high')
@@ -80,7 +80,7 @@ async function getCandidates(db: AppDb, teamId?: number) {
 }
 
 async function updateRosterMatch(
-  db: AppDb,
+  db: AppDbQueries,
   rosterEntryId: number,
   steamid64: string,
   result: MatchResult
@@ -94,7 +94,7 @@ async function updateRosterMatch(
 }
 
 async function claimEntries(
-  db: AppDb,
+  db: AppDbQueries,
   steamid64: string,
   result: MatchResult,
   candidates: MatchCandidate[]
@@ -112,7 +112,7 @@ export async function createDemoMatching({
   summary,
   matchId,
 }: {
-  db: AppDb
+  db: AppDbQueries
   overrides: PlayerOverrides
   summary: MatchingSummary
   matchId?: number
