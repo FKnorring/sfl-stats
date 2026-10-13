@@ -22,6 +22,10 @@ schedule, pure anchoring and rating modules remain authoritative.
 No classes, generic repository adapter, dependency container, new dependency
 or database migration is needed.
 
+ADR-0013 supersedes this ADR's decision to omit whole-Demo transactions and
+retain Matching summaries from failed Demo attempts. The module ownership,
+CLI boundary, and other preserved semantics below remain.
+
 ## Approved behavior changes
 
 Matching summaries count a Player's final outcome once per processed Demo.
@@ -34,8 +38,8 @@ backfills contribute no Matching outcomes.
 Multiple Roster Entries linked to one Player do not multiply the summary.
 Existing evidence uses manual > auto_high > auto_low > ambiguous > unmatched
 precedence for reporting only. File overrides imply manual status. This does
-not change how the rerun query chooses team evidence. A failed Demo retains
-only the Matching outcomes reached before failure.
+not change how the rerun query chooses team evidence. A failed Demo contributes
+no Matching outcomes; outcomes are reported only after its transaction commits.
 
 A stable side must have a unique highest roster-team vote before its other
 Players' nickname candidates are narrowed to that team. A tied highest vote
@@ -58,9 +62,8 @@ an official series score as a Demo score.
 Reruns reuse stored kills but still parse round ends and side snapshots.
 Per-file failures continue to later Demos and remain explicit in the command's
 aggregate error. The runner returns collected failures with its counters so
-the command reports before throwing. Earlier writes may have committed:
-there is no new whole-Demo transaction. Rating replacement retains its existing
-atomic behavior.
+the command reports before throwing. Rating replacement retains its existing
+atomic behavior; ADR-0013 brings it into the enclosing ingestion transaction.
 
 ## Verification and alternatives
 
@@ -72,6 +75,6 @@ Child-process tests isolate the command's database, directory and environment.
 
 A file-per-helper split was rejected because it would scatter candidate policy
 and write ordering without hiding complexity. A generic database repository
-would duplicate the existing libSQL/Drizzle interface. Whole-Demo transactions,
-timezone changes, cross-season rerun changes and duplicate-basename policy
-changes are separate behavior work, not part of modularization.
+would duplicate the existing libSQL/Drizzle interface. ADR-0013 separately
+reopens per-Demo transaction boundaries; timezone changes, cross-season rerun
+changes and duplicate-basename policy changes remain out of scope.

@@ -1,13 +1,13 @@
 import path from "node:path"
 import { sql } from "drizzle-orm"
-import type { AppDb } from "@/lib/db/client"
+import type { AppDb, AppDbQueries } from "@/lib/db/client"
 import {
   extractDemoFacts,
   extractKillFacts,
   extractRoundEnds,
   type DemoKillFact,
 } from "@/scripts/demos/domain/demo-extraction"
-import { persistRatingExtraction } from "@/lib/rating-db"
+import { persistRatingExtractionInTransaction } from "@/lib/rating-db"
 import type { KillSideRow } from "@/scripts/demos/domain/team-anchoring"
 import {
   createDemoMatching,
@@ -36,6 +36,18 @@ const extraction: Extraction = {
 }
 
 const DEMO_TIMESTAMP_RE = /^(\d{4}-\d{2}-\d{2})_(\d{2})-(\d{2})-(\d{2})/
+const MAX_DEMO_ATTEMPTS = 3
+const RETRYABLE_DB_CODES = new Set([
+  "UND_ERR_SOCKET",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+  "ETIMEDOUT",
+  "EPIPE",
+  "EAI_AGAIN",
+])
+
+type DemoTransaction = Parameters<Parameters<AppDb["transaction"]>[0]>[0]
 
 function parseDemoTimestamp(fileName: string): string | null {
   const match = DEMO_TIMESTAMP_RE.exec(fileName)
@@ -47,7 +59,7 @@ function parseDemoTimestamp(fileName: string): string | null {
 }
 
 async function insertKillFacts(
-  db: AppDb,
+  db: AppDbQueries,
   matchId: number,
   kills: DemoKillFact[]
 ): Promise<KillSideRow[]> {
@@ -75,7 +87,7 @@ async function insertKillFacts(
 }
 
 async function getKillSideRows(
-  db: AppDb,
+  db: AppDbQueries,
   matchId: number
 ): Promise<KillSideRow[]> {
   const rows = await db.all<{
@@ -98,7 +110,7 @@ async function getKillSideRows(
 }
 
 async function persistResolvedTeams(
-  db: AppDb,
+  db: AppDbQueries,
   matchId: number,
   resolved: ResolvedTeams
 ) {
@@ -110,6 +122,64 @@ async function persistResolvedTeams(
       team_resolution_conflict = ${resolved.teamResolutionConflict}
     WHERE id = ${matchId}
   `)
+}
+
+function isRetryableDbError(error: unknown): boolean {
+  const seen = new Set<object>()
+  let current = error
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current)
+    const value = current as { cause?: unknown; code?: unknown }
+    if (typeof value.code === "string" && RETRYABLE_DB_CODES.has(value.code)) {
+      return true
+    }
+    current = value.cause
+  }
+  return false
+}
+
+async function retryTransientDbOperation<T>(
+  label: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  for (let attempt = 0; attempt < MAX_DEMO_ATTEMPTS; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      if (!isRetryableDbError(error) || attempt === MAX_DEMO_ATTEMPTS - 1) {
+        throw error
+      }
+      const waitMs = 250 * 2 ** attempt
+      console.warn(
+        `[ingest-demos] transient database error for ${label}; retrying in ${waitMs}ms (attempt ${attempt + 2}/${MAX_DEMO_ATTEMPTS})`
+      )
+      await new Promise((resolve) => setTimeout(resolve, waitMs))
+    }
+  }
+  throw new Error("Unreachable database retry state")
+}
+
+async function withDemoTransaction(
+  db: AppDb,
+  fileName: string,
+  operation: (tx: DemoTransaction, summary: MatchingSummary) => Promise<void>
+): Promise<MatchingSummary> {
+  return retryTransientDbOperation(fileName, async () => {
+    const summary = emptyMatchingSummary()
+    await db.transaction((tx) => operation(tx, summary))
+    return summary
+  })
+}
+
+function addMatchingSummary(
+  target: MatchingSummary,
+  addition: MatchingSummary
+) {
+  target.manual += addition.manual
+  target.autoHigh += addition.autoHigh
+  target.autoLow += addition.autoLow
+  target.ambiguous += addition.ambiguous
+  target.unmatched += addition.unmatched
 }
 
 async function ingestDemo(
@@ -140,54 +210,105 @@ async function ingestDemo(
       `[ingest-demos] couldn't parse a timestamp from filename "${fileName}", falling back to ingestion time`
     )
   }
-  const matchRows = await db.all<{ id: number }>(sql`
-    INSERT INTO matches (file_name, map_name, server_name, demo_date, total_rounds, parsed_at)
-    VALUES (${fileName}, ${header.map_name ?? null}, ${header.server_name ?? null}, ${demoDate ?? now}, ${totalRounds}, ${now})
-    RETURNING id
-  `)
-  const matchId = matchRows[0].id
-  const matching = await createDemoMatching({ db, overrides, summary })
-
-  for (const stats of players) {
-    if (!stats) {
-      console.warn(
-        `[ingest-demos] dropping player row with no steamid/name in ${fileName} (bot or upstream null-field bug)`
-      )
-      continue
-    }
-    await db.run(sql`
-      INSERT INTO players (steamid64, latest_ingame_name, first_seen_at, last_seen_at)
-      VALUES (${stats.steamid64}, ${stats.inGameName}, ${now}, ${now})
-      ON CONFLICT(steamid64) DO UPDATE SET
-        latest_ingame_name = excluded.latest_ingame_name,
-        last_seen_at = excluded.last_seen_at
-    `)
-    await db.run(sql`
-      INSERT INTO player_match_stats (
-        match_id, steamid64, team_name, kills, deaths, assists, headshot_kills,
-        damage_total, utility_damage_total, enemies_flashed_total, mvps,
-        ace_rounds, rounds_3k, rounds_4k, equipment_value_total, adr, hs_pct
-      ) VALUES (
-        ${matchId}, ${stats.steamid64}, ${stats.teamName}, ${stats.kills}, ${stats.deaths}, ${stats.assists}, ${stats.headshotKills},
-        ${stats.damageTotal}, ${stats.utilityDamageTotal}, ${stats.enemiesFlashedTotal}, ${stats.mvps},
-        ${stats.aceRounds}, ${stats.rounds3k}, ${stats.rounds4k}, ${stats.equipmentValueTotal}, ${stats.adr}, ${stats.hsPct}
-      )
-    `)
-    await matching.matchPlayer(stats.steamid64, stats.inGameName)
-  }
-  const killRows = await insertKillFacts(db, matchId, facts.killFacts)
-  const resolved = await resolveDemoTeams({
+  let matchId: number | undefined
+  const committedSummary = await withDemoTransaction(
     db,
-    filePath,
-    roundEnds,
-    killRows,
-    matching,
-    toleranceHours: toornamentWindowHours,
-    demoDate: demoDate ?? now,
-    readTicks: extract.sides,
-  })
-  await persistResolvedTeams(db, matchId, resolved)
-  await persistRatingExtraction(db, matchId, facts.ratingFacts)
+    fileName,
+    async (tx, attemptSummary) => {
+      const existingMatches = await tx.all<{ id: number }>(sql`
+        SELECT id FROM matches WHERE file_name = ${fileName}
+      `)
+      let currentMatchId: number
+      if (existingMatches[0]) {
+        currentMatchId = existingMatches[0].id
+        await tx.run(
+          sql`DELETE FROM match_kills WHERE match_id = ${currentMatchId}`
+        )
+        await tx.run(
+          sql`DELETE FROM player_match_stats WHERE match_id = ${currentMatchId}`
+        )
+        await tx.run(sql`
+          UPDATE matches SET map_name = ${header.map_name ?? null},
+            server_name = ${header.server_name ?? null}, demo_date = ${demoDate ?? now},
+            total_rounds = ${totalRounds}, parsed_at = ${now}, team_a_id = NULL,
+            team_a_score = NULL, team_b_id = NULL, team_b_score = NULL,
+            team_a_resolution = NULL, team_b_resolution = NULL,
+            team_resolution_conflict = NULL
+          WHERE id = ${currentMatchId}
+        `)
+      } else {
+        const matchRows = await tx.all<{ id: number }>(sql`
+          INSERT INTO matches (file_name, map_name, server_name, demo_date, total_rounds, parsed_at)
+          VALUES (${fileName}, ${header.map_name ?? null}, ${header.server_name ?? null}, ${demoDate ?? now}, ${totalRounds}, ${now})
+          RETURNING id
+        `)
+        const insertedMatch = matchRows[0]
+        if (!insertedMatch) throw new Error(`Failed to create demo ${fileName}`)
+        currentMatchId = insertedMatch.id
+      }
+      matchId = currentMatchId
+      const matching = await createDemoMatching({
+        db: tx,
+        overrides,
+        summary: attemptSummary,
+      })
+
+      for (const stats of players) {
+        if (!stats) {
+          console.warn(
+            `[ingest-demos] dropping player row with no steamid/name in ${fileName} (bot or upstream null-field bug)`
+          )
+          continue
+        }
+        await tx.run(sql`
+          INSERT INTO players (steamid64, latest_ingame_name, first_seen_at, last_seen_at)
+          VALUES (${stats.steamid64}, ${stats.inGameName}, ${now}, ${now})
+          ON CONFLICT(steamid64) DO UPDATE SET
+            latest_ingame_name = excluded.latest_ingame_name,
+            last_seen_at = excluded.last_seen_at
+        `)
+        await tx.run(sql`
+          INSERT INTO player_match_stats (
+            match_id, steamid64, team_name, kills, deaths, assists, headshot_kills,
+            damage_total, utility_damage_total, enemies_flashed_total, mvps,
+            ace_rounds, rounds_3k, rounds_4k, equipment_value_total, adr, hs_pct
+          ) VALUES (
+            ${currentMatchId}, ${stats.steamid64}, ${stats.teamName}, ${stats.kills}, ${stats.deaths}, ${stats.assists}, ${stats.headshotKills},
+            ${stats.damageTotal}, ${stats.utilityDamageTotal}, ${stats.enemiesFlashedTotal}, ${stats.mvps},
+            ${stats.aceRounds}, ${stats.rounds3k}, ${stats.rounds4k}, ${stats.equipmentValueTotal}, ${stats.adr}, ${stats.hsPct}
+          )
+        `)
+        await matching.matchPlayer(stats.steamid64, stats.inGameName)
+      }
+      const killRows = await insertKillFacts(
+        tx,
+        currentMatchId,
+        facts.killFacts
+      )
+      const resolved = await resolveDemoTeams({
+        db: tx,
+        filePath,
+        roundEnds,
+        killRows,
+        matching,
+        toleranceHours: toornamentWindowHours,
+        demoDate: demoDate ?? now,
+        readTicks: extract.sides,
+      })
+      await persistResolvedTeams(tx, currentMatchId, resolved)
+      await persistRatingExtractionInTransaction(
+        tx,
+        currentMatchId,
+        facts.ratingFacts
+      )
+    }
+  )
+  addMatchingSummary(summary, committedSummary)
+  if (matchId === undefined) {
+    throw new Error(
+      `Demo transaction completed without a match ID for ${fileName}`
+    )
+  }
   if (facts.ratingFacts.unavailableReason) {
     console.warn(
       `[ingest-demos] unrated demo ${matchId}: ${facts.ratingFacts.unavailableReason}`
@@ -197,8 +318,8 @@ async function ingestDemo(
 
 // Reload stored kill evidence, but still parse round ends and side snapshots.
 async function reresolveTeams(
-  db: AppDb,
-  matchId: number,
+  db: AppDbQueries,
+  fileName: string,
   filePath: string,
   overrides: PlayerOverrides,
   summary: MatchingSummary,
@@ -206,17 +327,19 @@ async function reresolveTeams(
   extract: Extraction
 ) {
   const matchRows = await db.all<{
+    id: number
     demo_date: string | null
     team_a_id: number | null
     team_a_resolution: TeamResolution
     team_b_id: number | null
     team_b_resolution: TeamResolution
   }>(sql`
-    SELECT demo_date, team_a_id, team_a_resolution, team_b_id, team_b_resolution
-    FROM matches WHERE id = ${matchId}
+    SELECT id, demo_date, team_a_id, team_a_resolution, team_b_id, team_b_resolution
+    FROM matches WHERE file_name = ${fileName}
   `)
   const match = matchRows[0]
   if (!match) return
+  const matchId = match.id
   const roundEnds = extract.rounds(filePath)
   const killRows = await getKillSideRows(db, matchId)
   const matching = await createDemoMatching({ db, overrides, summary, matchId })
@@ -249,71 +372,93 @@ export async function runDemoIngestion({
   files,
   overrides,
   toornamentWindowHours,
+  reparse = false,
   extract = extraction,
 }: {
   db: AppDb
   files: string[]
   overrides: PlayerOverrides
   toornamentWindowHours: number
+  reparse?: boolean
   extract?: Extraction
 }) {
-  const alreadyIngested = new Set(
-    (
-      await db.all<{ file_name: string }>(sql`SELECT file_name FROM matches`)
-    ).map((row) => row.file_name)
+  const initialState = await retryTransientDbOperation(
+    "ingestion preflight",
+    async () => {
+      const alreadyIngested = new Map(
+        (
+          await db.all<{ id: number; file_name: string }>(
+            sql`SELECT id, file_name FROM matches`
+          )
+        ).map((row) => [row.file_name, row.id] as const)
+      )
+      const withKills = new Set(
+        (
+          await db.all<{ file_name: string }>(sql`
+            SELECT DISTINCT m.file_name AS file_name
+            FROM matches m JOIN match_kills k ON k.match_id = m.id
+          `)
+        ).map((row) => row.file_name)
+      )
+      const needsTeamReresolution = new Set(
+        (
+          await db.all<{ file_name: string; id: number }>(sql`
+            SELECT file_name, id FROM matches
+            WHERE team_a_id IS NULL OR team_b_id IS NULL OR team_resolution_conflict IS NOT NULL
+          `)
+        ).map((row) => row.file_name)
+      )
+      return { alreadyIngested, withKills, needsTeamReresolution }
+    }
   )
+  const { alreadyIngested, withKills, needsTeamReresolution } = initialState
   const summary = emptyMatchingSummary()
   let ingested = 0
   let skipped = 0
   let reresolved = 0
   const failures: unknown[] = []
-  const withKills = new Set(
-    (
-      await db.all<{ file_name: string }>(sql`
-        SELECT DISTINCT m.file_name AS file_name
-        FROM matches m JOIN match_kills k ON k.match_id = m.id
-      `)
-    ).map((row) => row.file_name)
-  )
-  const needsTeamReresolution = new Set(
-    (
-      await db.all<{ file_name: string; id: number }>(sql`
-        SELECT file_name, id FROM matches
-        WHERE team_a_id IS NULL OR team_b_id IS NULL OR team_resolution_conflict IS NOT NULL
-      `)
-    ).map((row) => row.file_name)
-  )
 
   for (const file of files) {
     const name = path.basename(file)
-    if (alreadyIngested.has(name)) {
+    const existingMatchId = alreadyIngested.get(name)
+    if (existingMatchId !== undefined && !reparse) {
       if (!withKills.has(name)) {
-        const rows = await db.all<{ id: number }>(sql`
-          SELECT id FROM matches WHERE file_name = ${name}
-        `)
         console.log(`[ingest-demos] backfilling kills for ${name}`)
         try {
-          await insertKillFacts(db, rows[0].id, extract.kills(file))
+          const kills = extract.kills(file)
+          await withDemoTransaction(db, name, async (tx) => {
+            const rows = await tx.all<{ id: number }>(sql`
+              SELECT id FROM matches WHERE file_name = ${name}
+            `)
+            if (!rows[0]) throw new Error(`Unknown demo ${name}`)
+            await tx.run(
+              sql`DELETE FROM match_kills WHERE match_id = ${rows[0].id}`
+            )
+            await insertKillFacts(tx, rows[0].id, kills)
+          })
         } catch (error) {
           console.error(`[ingest-demos] failed to backfill ${file}:`, error)
           failures.push(error)
         }
       }
       if (needsTeamReresolution.has(name)) {
-        const rows = await db.all<{ id: number }>(sql`
-          SELECT id FROM matches WHERE file_name = ${name}
-        `)
         console.log(`[ingest-demos] re-resolving teams for ${name}`)
         try {
-          await reresolveTeams(
+          const committedSummary = await withDemoTransaction(
             db,
-            rows[0].id,
-            file,
-            overrides,
-            summary,
-            toornamentWindowHours,
-            extract
+            name,
+            (tx, attemptSummary) =>
+              reresolveTeams(
+                tx,
+                name,
+                file,
+                overrides,
+                attemptSummary,
+                toornamentWindowHours,
+                extract
+              )
           )
+          addMatchingSummary(summary, committedSummary)
           reresolved++
         } catch (error) {
           console.error(`[ingest-demos] failed to re-resolve ${file}:`, error)

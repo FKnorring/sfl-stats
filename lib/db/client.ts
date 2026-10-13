@@ -32,6 +32,7 @@ export function openWritableDb() {
 // Shared type for the writable Drizzle instance, used to annotate helper
 // functions in scripts/ that take `db` as a parameter.
 export type AppDb = ReturnType<typeof openWritableDb>
+export type AppDbQueries = Pick<AppDb, "all" | "run">
 
 // Read-only-by-convention Drizzle instance used by the app. There's no
 // driver-level readonly flag with libSQL (unlike better-sqlite3's
