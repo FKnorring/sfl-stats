@@ -24,7 +24,7 @@ surfaces leaderboards and team comparisons through a Next.js app.
 
 ```
 scrape-roster.ts  →  teams + roster_entries
-ingest-demos.ts   →  matches + player_match_stats (+ resolves roster_entries → players)
+ingest-demos.ts   →  matches + player_match_stats + demo events (+ resolves roster_entries → players)
 faceit-sync.ts    →  faceit_match_stats, for players already matched to a steamid64
                               ↓
                      Next.js app (read-only) → leaderboard, team pages
@@ -359,6 +359,9 @@ pnpm scrape:schedule -- --tournament-id 2560854090247290879
 Parses `.dem` files, writes `matches` + `player_match_stats`, and attempts
 to match in-demo player names to roster entries (nickname similarity, see
 [`lib/matching.ts`](lib/matching.ts)).
+It also stores kill and bomb-plant events. Team map stats use these to show
+each team's A/B plants, post-plant win rates, and opponent plants made while
+the team was defending.
 
 ```bash
 pnpm ingest:demos
@@ -368,6 +371,9 @@ pnpm ingest:demos -- --dir ./demos
 - `--dir` — folder to scan recursively for `.dem` files. Defaults to
   `./demos`, or `$DEMOS_DIR` if set
   ([`scripts/demos/ingest-demos.ts`](scripts/demos/ingest-demos.ts)).
+- `--reparse` — re-ingest matching demos and replace their extracted facts.
+  Use this after `pnpm db:migrate` to populate bombsite stats for demos already
+  in the database; have the original `.dem` files available.
 - `pnpm download:demos` uses the same `--dir` / `DEMOS_DIR` destination
   convention and checks the configured database, so downloaded demos can be
   ingested with `pnpm ingest:demos -- --dir <folder>`.
