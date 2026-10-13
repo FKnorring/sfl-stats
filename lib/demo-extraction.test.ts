@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
+import { z } from "zod"
 
+import { bombPlantRowSchema } from "../scripts/demos/domain/demo-stats"
 import {
   normalizeBombPlants,
   normalizeKillFacts,
@@ -72,22 +74,23 @@ test("normalizes parser kill rows into persistence facts", () => {
 })
 
 test("normalizes bomb plants with site, round winner, and CT players", () => {
+  const plants = z.array(bombPlantRowSchema).parse([
+    {
+      tick: 150,
+      total_rounds_played: 2,
+      user_steamid: "76561198000000001",
+      user_last_place_name: "BombsiteA",
+    },
+    {
+      tick: 250,
+      total_rounds_played: 3,
+      user_steamid: null,
+      user_last_place_name: "Unknown",
+    },
+  ])
   assert.deepEqual(
     normalizeBombPlants(
-      [
-        {
-          tick: 150,
-          total_rounds_played: 2,
-          user_steamid: "76561198000000001",
-          last_place_name: "BombsiteA",
-        },
-        {
-          tick: 250,
-          total_rounds_played: 3,
-          user_steamid: null,
-          last_place_name: "Unknown",
-        },
-      ],
+      plants,
       [
         { tick: 200, winner: "T" },
         { tick: 300, winner: "CT" },

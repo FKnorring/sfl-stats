@@ -193,7 +193,7 @@ export const bombPlantRowSchema = z.object({
   tick: z.number(),
   total_rounds_played: z.number().nullish(),
   user_steamid: z.string().nullish(),
-  last_place_name: z.string().nullish(),
+  user_last_place_name: z.string().nullish(),
 })
 
 export type BombPlantRow = z.infer<typeof bombPlantRowSchema>
