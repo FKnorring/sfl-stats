@@ -19,3 +19,4 @@ When a decision here is final, add a new ADR with the next sequential number (ch
 | 0011 | [Co-locate functions with the database and stream page sections](0011-region-colocation-and-streamed-sections.md)                       |
 | 0012 | [Cohesive Demo ingestion modules and final Matching outcomes](0012-cohesive-demo-ingestion-modules.md)                                  |
 | 0013 | [Atomic Demo ingestion and transient database retries](0013-atomic-demo-ingestion-and-transient-retries.md)                             |
+| 0014 | [Stable-side majorities resolve scores with extra roster matches](0014-stable-side-majority-for-demo-scores.md)                         |

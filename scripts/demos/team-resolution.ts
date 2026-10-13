@@ -47,6 +47,7 @@ function computeTeamScore(
   filePath: string,
   rounds: RoundEndRow[],
   steamidToTeam: Map<string, number>,
+  stableSides: Map<string, "A" | "B">,
   readTicks: ReadSideTicks
 ): Pick<ResolvedTeams, "teamAId" | "teamAScore" | "teamBId" | "teamBScore"> {
   const unresolved = {
@@ -56,8 +57,27 @@ function computeTeamScore(
     teamBScore: null,
   }
   const teamIds = [...new Set(steamidToTeam.values())]
-  if (teamIds.length === 0 || teamIds.length > 2) return unresolved
-  const [teamAId, teamBId] = teamIds
+  if (teamIds.length === 0) return unresolved
+  let teamAId: number | null = teamIds[0] ?? null
+  let teamBId: number | null = teamIds[1] ?? null
+  if (teamIds.length > 2) {
+    const leadingTeamForSide = (side: "A" | "B") => {
+      const votes = new Map<number, number>()
+      for (const [steamid64, playerSide] of stableSides) {
+        if (playerSide !== side) continue
+        const teamId = steamidToTeam.get(steamid64)
+        if (teamId != null) votes.set(teamId, (votes.get(teamId) ?? 0) + 1)
+      }
+      const ranked = [...votes].sort((a, b) => b[1] - a[1])
+      return ranked[0] && ranked[0][1] !== ranked[1]?.[1] ? ranked[0][0] : null
+    }
+    teamAId = leadingTeamForSide("A")
+    teamBId = leadingTeamForSide("B")
+    if (teamAId == null || teamBId == null || teamAId === teamBId) {
+      return unresolved
+    }
+  }
+  if (teamAId == null) return unresolved
   const decidedRounds = rounds.filter((round) => round.winner)
   if (decidedRounds.length === 0) return unresolved
   if (teamBId == null) {
@@ -91,7 +111,8 @@ function computeTeamScore(
     for (const { steamid64, side } of players) {
       const teamId = steamidToTeam.get(steamid64)
       if (teamId == null) continue
-      const counts = sideCounts.get(teamId)!
+      const counts = sideCounts.get(teamId)
+      if (!counts) continue
       counts[side] = (counts[side] ?? 0) + 1
     }
     const sideOf = (teamId: number): string | null => {
@@ -183,6 +204,7 @@ export async function resolveDemoTeams({
     filePath,
     roundEnds,
     matching.steamidToTeam,
+    stableSides,
     readTicks
   )
   let teamAId = score.teamAId
