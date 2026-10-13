@@ -70,6 +70,22 @@ const columns: ColumnDef<TeamMapStat>[] = [
         ? `A ${row.original.opponentPlantsA} / B ${row.original.opponentPlantsB}`
         : "—",
   },
+  {
+    accessorKey: "opponentPlantWinRateA",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="CT wins after plant" />
+    ),
+    meta: { className: "text-right" },
+    cell: ({ row }) => {
+      const { opponentPlantWinRateA, opponentPlantWinRateB } = row.original
+      if (opponentPlantWinRateA == null && opponentPlantWinRateB == null) {
+        return "—"
+      }
+      const format = (rate: number | null) =>
+        rate == null ? "—" : `${Math.round(rate * 100)}%`
+      return `A ${format(opponentPlantWinRateA)} / B ${format(opponentPlantWinRateB)}`
+    },
+  },
 ]
 
 export function TeamMapStats({ maps }: { maps: TeamMapStat[] }) {

@@ -1249,6 +1249,8 @@ export type TeamMapStat = {
   postPlantWinRateB: number | null
   opponentPlantsA: number
   opponentPlantsB: number
+  opponentPlantWinRateA: number | null
+  opponentPlantWinRateB: number | null
 }
 
 /**
@@ -1295,7 +1297,11 @@ export async function getTeamMapStats(
           SUM(CASE WHEN ${ownPlanter} AND mp.site = 'A' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS postPlantResolvedA,
           SUM(CASE WHEN ${ownPlanter} AND mp.site = 'B' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS postPlantResolvedB,
           SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'A' THEN 1 ELSE 0 END) AS opponentPlantsA,
-          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'B' THEN 1 ELSE 0 END) AS opponentPlantsB
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'B' THEN 1 ELSE 0 END) AS opponentPlantsB,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'A' AND mp.round_winner_side = 'CT' THEN 1 ELSE 0 END) AS opponentPlantWinsA,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'B' AND mp.round_winner_side = 'CT' THEN 1 ELSE 0 END) AS opponentPlantWinsB,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'A' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS opponentPlantResolvedA,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'B' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS opponentPlantResolvedB
         FROM team_matches tm
         JOIN match_bomb_plants mp ON mp.match_id = tm.id
         GROUP BY tm.map_name
@@ -1320,18 +1326,33 @@ export async function getTeamMapStats(
         COALESCE(ps.postPlantResolvedA, 0) AS postPlantResolvedA,
         COALESCE(ps.postPlantResolvedB, 0) AS postPlantResolvedB,
         COALESCE(ps.opponentPlantsA, 0) AS opponentPlantsA,
-        COALESCE(ps.opponentPlantsB, 0) AS opponentPlantsB
+        COALESCE(ps.opponentPlantsB, 0) AS opponentPlantsB,
+        COALESCE(ps.opponentPlantWinsA, 0) AS opponentPlantWinsA,
+        COALESCE(ps.opponentPlantWinsB, 0) AS opponentPlantWinsB,
+        COALESCE(ps.opponentPlantResolvedA, 0) AS opponentPlantResolvedA,
+        COALESCE(ps.opponentPlantResolvedB, 0) AS opponentPlantResolvedB
       FROM team_matches tm
       LEFT JOIN plant_stats ps ON ps.mapName = tm.map_name
       GROUP BY tm.map_name
       ORDER BY matchesPlayed DESC
     `
   )) as Array<
-    Omit<TeamMapStat, "winRate" | "postPlantWinRateA" | "postPlantWinRateB"> & {
+    Omit<
+      TeamMapStat,
+      | "winRate"
+      | "postPlantWinRateA"
+      | "postPlantWinRateB"
+      | "opponentPlantWinRateA"
+      | "opponentPlantWinRateB"
+    > & {
       postPlantWinsA: number
       postPlantWinsB: number
       postPlantResolvedA: number
       postPlantResolvedB: number
+      opponentPlantWinsA: number
+      opponentPlantWinsB: number
+      opponentPlantResolvedA: number
+      opponentPlantResolvedB: number
     }
   >
 
@@ -1341,6 +1362,10 @@ export async function getTeamMapStats(
       postPlantWinsB,
       postPlantResolvedA,
       postPlantResolvedB,
+      opponentPlantWinsA,
+      opponentPlantWinsB,
+      opponentPlantResolvedA,
+      opponentPlantResolvedB,
       ...stats
     } = r
     return {
@@ -1350,6 +1375,14 @@ export async function getTeamMapStats(
         postPlantResolvedA > 0 ? postPlantWinsA / postPlantResolvedA : null,
       postPlantWinRateB:
         postPlantResolvedB > 0 ? postPlantWinsB / postPlantResolvedB : null,
+      opponentPlantWinRateA:
+        opponentPlantResolvedA > 0
+          ? opponentPlantWinsA / opponentPlantResolvedA
+          : null,
+      opponentPlantWinRateB:
+        opponentPlantResolvedB > 0
+          ? opponentPlantWinsB / opponentPlantResolvedB
+          : null,
     }
   })
 }

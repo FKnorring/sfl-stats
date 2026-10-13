@@ -360,8 +360,8 @@ Parses `.dem` files, writes `matches` + `player_match_stats`, and attempts
 to match in-demo player names to roster entries (nickname similarity, see
 [`lib/matching.ts`](lib/matching.ts)).
 It also stores kill and bomb-plant events. Team map stats use these to show
-each team's A/B plants, post-plant win rates, and opponent plants made while
-the team was defending.
+each team's A/B plants, post-plant win rates, and CT win rates after opponent
+plants at each site.
 
 ```bash
 pnpm ingest:demos
