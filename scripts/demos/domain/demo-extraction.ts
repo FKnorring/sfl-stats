@@ -196,7 +196,7 @@ export function normalizeBombPlants(
 
   return plants.map((plant) => {
     const roundEnd = sortedRoundEnds.find((round) => round.tick >= plant.tick)
-    const placeName = plant.last_place_name ?? null
+    const placeName = plant.user_last_place_name ?? null
     return {
       round: plant.total_rounds_played ?? 0,
       tick: plant.tick,
