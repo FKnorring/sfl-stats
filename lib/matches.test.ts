@@ -14,8 +14,8 @@ import {
   enrichUpcomingMatches,
   getLiveDivisionResults,
   getLivePendingMatches,
-} from "./toornament-live"
-import type { ScheduledMatch } from "./toornament-schedule"
+} from "./toornament/live"
+import type { ScheduledMatch } from "./toornament/schedule"
 import { createElement } from "react"
 import { renderToStaticMarkup } from "react-dom/server"
 import { MatchesView } from "../app/matches/matches-view"

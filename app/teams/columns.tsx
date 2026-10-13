@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import Link from "next/link"
-import type { OfficialStanding } from "@/lib/toornament-standings"
+import type { OfficialStanding } from "@/lib/toornament/standings"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { TeamCompareCheckbox } from "@/components/team-compare-picker"
 import { isNetlightTeam } from "@/components/netlight-flames"

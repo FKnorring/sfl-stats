@@ -5,9 +5,9 @@ import { withCacheInvalidation } from "../cache/revalidate-cache"
 import {
   parseScheduleWidget,
   type ScheduledMatch,
-} from "@/lib/toornament-schedule"
+} from "@/lib/toornament/schedule"
 import { scoreSimilarity, MATCH_THRESHOLD_LOW } from "@/lib/matching"
-import { resolveOfficialTeam } from "@/lib/toornament-standings"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 
 const DEFAULT_TOURNAMENT_ID = "2560854090247290879"
 const DEFAULT_LOCALE = "en_US"

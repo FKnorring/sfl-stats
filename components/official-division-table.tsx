@@ -7,7 +7,7 @@ import {
   FollowIndicator,
   useFollowRowClass,
 } from "@/components/follow-indicator"
-import type { LiveStandingsResult } from "@/lib/toornament-live"
+import type { LiveStandingsResult } from "@/lib/toornament/live"
 
 type Row = LiveStandingsResult["rows"][number]
 

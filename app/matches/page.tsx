@@ -5,7 +5,7 @@ import {
   getMatchStreams,
   getMatchTeams,
 } from "@/lib/cache/cached-data"
-import { enrichUpcomingMatches } from "@/lib/toornament-live"
+import { enrichUpcomingMatches } from "@/lib/toornament/live"
 import { getLivePendingMatches } from "@/lib/cache/cached-toornament"
 import { MatchesView } from "./matches-view"
 

@@ -9,7 +9,7 @@ import {
   getMatchRatingSummaries,
 } from "@/lib/rating-db"
 import { RATING_VERSION } from "@/lib/player-rating"
-import { resolveOfficialTeam } from "@/lib/toornament-standings"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
 // in the CLI scripts (scrape-roster, ingest-demos) via
