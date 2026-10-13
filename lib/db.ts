@@ -1243,6 +1243,12 @@ export type TeamMapStat = {
   wins: number
   losses: number
   winRate: number | null
+  plantsA: number
+  plantsB: number
+  postPlantWinRateA: number | null
+  postPlantWinRateB: number | null
+  opponentPlantsA: number
+  opponentPlantsB: number
 }
 
 /**
@@ -1252,38 +1258,100 @@ export type TeamMapStat = {
  * unresolved ones (same "count everything, win/loss stays 0 if unknown"
  * convention as getTeamStandings' rosterSize/matchedPlayers split).
  */
-export async function getTeamMapStats(teamId: number): Promise<TeamMapStat[]> {
-  const rows = (await db.all(
+export async function getTeamMapStats(
+  teamId: number,
+  database: AppDb = db
+): Promise<TeamMapStat[]> {
+  const ownPlanter = sql`
+    EXISTS (
+      SELECT 1 FROM roster_entries own
+      WHERE own.team_id = ${teamId}
+        AND own.matched_steamid64 = mp.planter_steamid64
+    )
+  `
+  const onCt = sql`
+    EXISTS (
+      SELECT 1
+      FROM match_bomb_plant_ct_players ct
+      JOIN roster_entries defense ON defense.matched_steamid64 = ct.steamid64
+      WHERE ct.bomb_plant_id = mp.id AND defense.team_id = ${teamId}
+    )
+  `
+  const rows = (await database.all(
     sql`
-      SELECT
-        map_name AS mapName,
-        COUNT(*) AS matchesPlayed,
-        COALESCE(SUM(CASE
-          WHEN team_a_id = ${teamId} AND team_a_score > team_b_score THEN 1
-          WHEN team_b_id = ${teamId} AND team_b_score > team_a_score THEN 1
-          ELSE 0
-        END), 0) AS wins,
-        COALESCE(SUM(CASE
-          WHEN team_a_id = ${teamId} AND team_a_score < team_b_score THEN 1
-          WHEN team_b_id = ${teamId} AND team_b_score < team_a_score THEN 1
-          ELSE 0
-        END), 0) AS losses
-      FROM (
+      WITH team_matches AS (
         SELECT DISTINCT m.id, m.map_name, m.team_a_id, m.team_a_score, m.team_b_id, m.team_b_score
         FROM roster_entries re
         JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
         JOIN matches m ON m.id = pms.match_id
         WHERE re.team_id = ${teamId} AND m.map_name IS NOT NULL
+      ), plant_stats AS (
+        SELECT
+          tm.map_name AS mapName,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'A' THEN 1 ELSE 0 END) AS plantsA,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'B' THEN 1 ELSE 0 END) AS plantsB,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'A' AND mp.round_winner_side = 'T' THEN 1 ELSE 0 END) AS postPlantWinsA,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'B' AND mp.round_winner_side = 'T' THEN 1 ELSE 0 END) AS postPlantWinsB,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'A' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS postPlantResolvedA,
+          SUM(CASE WHEN ${ownPlanter} AND mp.site = 'B' AND mp.round_winner_side IN ('T', 'CT') THEN 1 ELSE 0 END) AS postPlantResolvedB,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'A' THEN 1 ELSE 0 END) AS opponentPlantsA,
+          SUM(CASE WHEN NOT ${ownPlanter} AND ${onCt} AND mp.site = 'B' THEN 1 ELSE 0 END) AS opponentPlantsB
+        FROM team_matches tm
+        JOIN match_bomb_plants mp ON mp.match_id = tm.id
+        GROUP BY tm.map_name
       )
-      GROUP BY map_name
+      SELECT
+        tm.map_name AS mapName,
+        COUNT(*) AS matchesPlayed,
+        COALESCE(SUM(CASE
+          WHEN tm.team_a_id = ${teamId} AND tm.team_a_score > tm.team_b_score THEN 1
+          WHEN tm.team_b_id = ${teamId} AND tm.team_b_score > tm.team_a_score THEN 1
+          ELSE 0
+        END), 0) AS wins,
+        COALESCE(SUM(CASE
+          WHEN tm.team_a_id = ${teamId} AND tm.team_a_score < tm.team_b_score THEN 1
+          WHEN tm.team_b_id = ${teamId} AND tm.team_b_score < tm.team_a_score THEN 1
+          ELSE 0
+        END), 0) AS losses,
+        COALESCE(ps.plantsA, 0) AS plantsA,
+        COALESCE(ps.plantsB, 0) AS plantsB,
+        COALESCE(ps.postPlantWinsA, 0) AS postPlantWinsA,
+        COALESCE(ps.postPlantWinsB, 0) AS postPlantWinsB,
+        COALESCE(ps.postPlantResolvedA, 0) AS postPlantResolvedA,
+        COALESCE(ps.postPlantResolvedB, 0) AS postPlantResolvedB,
+        COALESCE(ps.opponentPlantsA, 0) AS opponentPlantsA,
+        COALESCE(ps.opponentPlantsB, 0) AS opponentPlantsB
+      FROM team_matches tm
+      LEFT JOIN plant_stats ps ON ps.mapName = tm.map_name
+      GROUP BY tm.map_name
       ORDER BY matchesPlayed DESC
-      `
-  )) as Omit<TeamMapStat, "winRate">[]
+    `
+  )) as Array<
+    Omit<TeamMapStat, "winRate" | "postPlantWinRateA" | "postPlantWinRateB"> & {
+      postPlantWinsA: number
+      postPlantWinsB: number
+      postPlantResolvedA: number
+      postPlantResolvedB: number
+    }
+  >
 
-  return rows.map((r) => ({
-    ...r,
-    winRate: r.wins + r.losses > 0 ? r.wins / (r.wins + r.losses) : null,
-  }))
+  return rows.map((r) => {
+    const {
+      postPlantWinsA,
+      postPlantWinsB,
+      postPlantResolvedA,
+      postPlantResolvedB,
+      ...stats
+    } = r
+    return {
+      ...stats,
+      winRate: r.wins + r.losses > 0 ? r.wins / (r.wins + r.losses) : null,
+      postPlantWinRateA:
+        postPlantResolvedA > 0 ? postPlantWinsA / postPlantResolvedA : null,
+      postPlantWinRateB:
+        postPlantResolvedB > 0 ? postPlantWinsB / postPlantResolvedB : null,
+    }
+  })
 }
 
 export type TeamDemoMatchRow = {

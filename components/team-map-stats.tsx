@@ -31,6 +31,45 @@ const columns: ColumnDef<TeamMapStat>[] = [
         ? `${row.original.wins}-${row.original.losses} (${Math.round(row.original.winRate * 100)}%)`
         : "—",
   },
+  {
+    accessorKey: "plantsA",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="T plants" />
+    ),
+    meta: { className: "text-right" },
+    cell: ({ row }) => {
+      const { plantsA, plantsB } = row.original
+      const total = plantsA + plantsB
+      return total > 0
+        ? `A ${plantsA} / B ${plantsB} (${Math.round((plantsA / total) * 100)}% A)`
+        : "—"
+    },
+  },
+  {
+    accessorKey: "postPlantWinRateA",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Post-plant wins" />
+    ),
+    meta: { className: "text-right" },
+    cell: ({ row }) => {
+      const { postPlantWinRateA, postPlantWinRateB } = row.original
+      if (postPlantWinRateA == null && postPlantWinRateB == null) return "—"
+      const format = (rate: number | null) =>
+        rate == null ? "—" : `${Math.round(rate * 100)}%`
+      return `A ${format(postPlantWinRateA)} / B ${format(postPlantWinRateB)}`
+    },
+  },
+  {
+    accessorKey: "opponentPlantsA",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Plants against (CT)" />
+    ),
+    meta: { className: "text-right" },
+    cell: ({ row }) =>
+      row.original.opponentPlantsA + row.original.opponentPlantsB > 0
+        ? `A ${row.original.opponentPlantsA} / B ${row.original.opponentPlantsB}`
+        : "—",
+  },
 ]
 
 export function TeamMapStats({ maps }: { maps: TeamMapStat[] }) {
@@ -45,7 +84,7 @@ export function TeamMapStats({ maps }: { maps: TeamMapStat[] }) {
         <DataTable columns={columns} data={maps} />
       )}
       <p className="text-xs text-muted-foreground">
-        More scouting data — win rates, recent form — coming soon.
+        Bombsite stats are available for demos parsed with --reparse.
       </p>
     </div>
   )

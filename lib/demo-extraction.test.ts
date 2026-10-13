@@ -1,7 +1,10 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
 
-import { normalizeKillFacts } from "../scripts/demos/domain/demo-extraction"
+import {
+  normalizeBombPlants,
+  normalizeKillFacts,
+} from "../scripts/demos/domain/demo-extraction"
 
 test("normalizes parser kill rows into persistence facts", () => {
   assert.deepEqual(
@@ -63,6 +66,59 @@ test("normalizes parser kill rows into persistence facts", () => {
         victimSide: null,
         weapon: null,
         headshot: null,
+      },
+    ]
+  )
+})
+
+test("normalizes bomb plants with site, round winner, and CT players", () => {
+  assert.deepEqual(
+    normalizeBombPlants(
+      [
+        {
+          tick: 150,
+          total_rounds_played: 2,
+          user_steamid: "76561198000000001",
+          last_place_name: "BombsiteA",
+        },
+        {
+          tick: 250,
+          total_rounds_played: 3,
+          user_steamid: null,
+          last_place_name: "Unknown",
+        },
+      ],
+      [
+        { tick: 200, winner: "T" },
+        { tick: 300, winner: "CT" },
+      ],
+      [
+        { tick: 150, player_steamid: "76561198000000002", team_name: "CT" },
+        {
+          tick: 150,
+          player_steamid: "76561198000000003",
+          team_name: "TERRORIST",
+        },
+      ]
+    ),
+    [
+      {
+        round: 2,
+        tick: 150,
+        planterSteamid64: "76561198000000001",
+        site: "A",
+        placeName: "BombsiteA",
+        roundWinnerSide: "T",
+        ctSteamids64: ["76561198000000002"],
+      },
+      {
+        round: 3,
+        tick: 250,
+        planterSteamid64: null,
+        site: null,
+        placeName: "Unknown",
+        roundWinnerSide: "CT",
+        ctSteamids64: [],
       },
     ]
   )
