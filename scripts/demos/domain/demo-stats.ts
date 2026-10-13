@@ -188,3 +188,20 @@ export const killRowSchema = z.object({
 })
 
 export type KillRow = z.infer<typeof killRowSchema>
+
+export const bombPlantRowSchema = z.object({
+  tick: z.number(),
+  total_rounds_played: z.number().nullish(),
+  user_steamid: z.string().nullish(),
+  last_place_name: z.string().nullish(),
+})
+
+export type BombPlantRow = z.infer<typeof bombPlantRowSchema>
+
+export const bombPlantPlayerRowSchema = z.object({
+  tick: z.number(),
+  player_steamid: z.string().nullish(),
+  team_name: z.string().nullish(),
+})
+
+export type BombPlantPlayerRow = z.infer<typeof bombPlantPlayerRowSchema>

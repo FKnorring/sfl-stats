@@ -259,6 +259,50 @@ export const matchKills = sqliteTable(
   (t) => [index("idx_match_kills_match").on(t.matchId)]
 )
 
+export const matchBombPlants = sqliteTable(
+  "match_bomb_plants",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    matchId: integer("match_id")
+      .notNull()
+      .references(() => matches.id, { onDelete: "cascade" }),
+    round: integer("round").notNull(),
+    tick: integer("tick").notNull(),
+    planterSteamid64: text("planter_steamid64"),
+    site: text("site"),
+    placeName: text("place_name"),
+    roundWinnerSide: text("round_winner_side"),
+  },
+  (t) => [
+    index("idx_match_bomb_plants_match").on(t.matchId),
+    check(
+      "match_bomb_plants_site_check",
+      sql`${t.site} IS NULL OR ${t.site} IN ('A', 'B')`
+    ),
+    check(
+      "match_bomb_plants_winner_check",
+      sql`${t.roundWinnerSide} IS NULL OR ${t.roundWinnerSide} IN ('T', 'CT')`
+    ),
+  ]
+)
+
+export const matchBombPlantCtPlayers = sqliteTable(
+  "match_bomb_plant_ct_players",
+  {
+    bombPlantId: integer("bomb_plant_id")
+      .notNull()
+      .references(() => matchBombPlants.id, { onDelete: "cascade" }),
+    steamid64: text("steamid64").notNull(),
+  },
+  (t) => [
+    uniqueIndex("match_bomb_plant_ct_players_unique").on(
+      t.bombPlantId,
+      t.steamid64
+    ),
+    index("idx_match_bomb_plant_ct_players_steamid").on(t.steamid64),
+  ]
+)
+
 // Current Faceit identity + elo/skill snapshot per player.
 export const faceitPlayers = sqliteTable(
   "faceit_players",

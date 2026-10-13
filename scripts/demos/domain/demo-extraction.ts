@@ -16,10 +16,14 @@ import {
   STAT_FIELDS,
   deriveStats,
   isMatchComplete,
+  bombPlantPlayerRowSchema,
+  bombPlantRowSchema,
   killRowSchema,
   roundEndRowSchema,
   tickRowSchema,
   type DerivedPlayerStats,
+  type BombPlantPlayerRow,
+  type BombPlantRow,
   type KillRow,
   type RoundEndRow,
 } from "./demo-stats"
@@ -36,6 +40,7 @@ export type DemoFacts =
       totalRounds: number
       players: (DerivedPlayerStats | null)[]
       killFacts: DemoKillFact[]
+      bombPlants: DemoBombPlant[]
       ratingFacts: RatingExtraction
     }
 
@@ -52,6 +57,16 @@ export type DemoKillFact = {
   victimSide: "CT" | "T" | null
   weapon: string | null
   headshot: boolean | null
+}
+
+export type DemoBombPlant = {
+  round: number
+  tick: number
+  planterSteamid64: string | null
+  site: "A" | "B" | null
+  placeName: string | null
+  roundWinnerSide: "T" | "CT" | null
+  ctSteamids64: string[]
 }
 
 export function extractRatingFacts(filePath: string): RatingExtraction {
@@ -135,8 +150,72 @@ export function extractDemoFacts(filePath: string): DemoFacts {
     totalRounds,
     players: tickRows.map((row) => deriveStats(row, totalRounds)),
     killFacts: extractKillFacts(filePath),
+    bombPlants: extractBombPlants(filePath, roundEnds),
     ratingFacts: extractRatingFacts(filePath),
   }
+}
+
+export function extractBombPlants(
+  filePath: string,
+  roundEnds: RoundEndRow[]
+): DemoBombPlant[] {
+  const plants = z
+    .array(bombPlantRowSchema)
+    .parse(
+      parseEvent(filePath, "bomb_planted", [
+        "last_place_name",
+        "user_steamid",
+        "total_rounds_played",
+      ]) as unknown[]
+    )
+  if (plants.length === 0) return []
+
+  const ticks = [...new Set(plants.map((plant) => plant.tick))]
+  const players = z
+    .array(bombPlantPlayerRowSchema)
+    .parse(
+      parseTicks(filePath, ["player_steamid", "team_name"], ticks) as unknown[]
+    )
+  return normalizeBombPlants(plants, roundEnds, players)
+}
+
+export function normalizeBombPlants(
+  plants: BombPlantRow[],
+  roundEnds: RoundEndRow[],
+  players: BombPlantPlayerRow[]
+): DemoBombPlant[] {
+  const sortedRoundEnds = [...roundEnds].sort((a, b) => a.tick - b.tick)
+  const ctPlayersByTick = new Map<number, Set<string>>()
+  for (const player of players) {
+    if (!player.player_steamid || player.team_name !== "CT") continue
+    if (!ctPlayersByTick.has(player.tick)) {
+      ctPlayersByTick.set(player.tick, new Set())
+    }
+    ctPlayersByTick.get(player.tick)!.add(player.player_steamid)
+  }
+
+  return plants.map((plant) => {
+    const roundEnd = sortedRoundEnds.find((round) => round.tick >= plant.tick)
+    const placeName = plant.last_place_name ?? null
+    return {
+      round: plant.total_rounds_played ?? 0,
+      tick: plant.tick,
+      planterSteamid64: plant.user_steamid ?? null,
+      site:
+        placeName === "BombsiteA"
+          ? "A"
+          : placeName === "BombsiteB"
+            ? "B"
+            : null,
+      placeName,
+      roundWinnerSide: roundEnd?.winner?.startsWith("T")
+        ? "T"
+        : roundEnd?.winner?.startsWith("C")
+          ? "CT"
+          : null,
+      ctSteamids64: [...(ctPlayersByTick.get(plant.tick) ?? [])],
+    }
+  })
 }
 
 export function extractKillFacts(filePath: string): DemoKillFact[] {

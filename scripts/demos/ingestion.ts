@@ -5,6 +5,7 @@ import {
   extractDemoFacts,
   extractKillFacts,
   extractRoundEnds,
+  type DemoBombPlant,
   type DemoKillFact,
 } from "@/scripts/demos/domain/demo-extraction"
 import { persistRatingExtractionInTransaction } from "@/lib/rating-db"
@@ -84,6 +85,33 @@ async function insertKillFacts(
     })
   }
   return killSideRows
+}
+
+async function insertBombPlants(
+  db: AppDbQueries,
+  matchId: number,
+  plants: DemoBombPlant[]
+): Promise<void> {
+  for (const plant of plants) {
+    const rows = await db.all<{ id: number }>(sql`
+      INSERT INTO match_bomb_plants (
+        match_id, round, tick, planter_steamid64, site, place_name, round_winner_side
+      ) VALUES (
+        ${matchId}, ${plant.round}, ${plant.tick}, ${plant.planterSteamid64},
+        ${plant.site}, ${plant.placeName}, ${plant.roundWinnerSide}
+      )
+      RETURNING id
+    `)
+    const row = rows[0]
+    if (!row)
+      throw new Error(`Failed to persist bomb plant at tick ${plant.tick}`)
+    for (const steamid64 of plant.ctSteamids64) {
+      await db.run(sql`
+        INSERT INTO match_bomb_plant_ct_players (bomb_plant_id, steamid64)
+        VALUES (${row.id}, ${steamid64})
+      `)
+    }
+  }
 }
 
 async function getKillSideRows(
@@ -225,6 +253,9 @@ async function ingestDemo(
           sql`DELETE FROM match_kills WHERE match_id = ${currentMatchId}`
         )
         await tx.run(
+          sql`DELETE FROM match_bomb_plants WHERE match_id = ${currentMatchId}`
+        )
+        await tx.run(
           sql`DELETE FROM player_match_stats WHERE match_id = ${currentMatchId}`
         )
         await tx.run(sql`
@@ -285,6 +316,7 @@ async function ingestDemo(
         currentMatchId,
         facts.killFacts
       )
+      await insertBombPlants(tx, currentMatchId, facts.bombPlants)
       const resolved = await resolveDemoTeams({
         db: tx,
         filePath,

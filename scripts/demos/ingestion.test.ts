@@ -10,9 +10,14 @@ import { drizzle } from "drizzle-orm/libsql"
 import { migrate } from "drizzle-orm/libsql/migrator"
 import { eq, sql } from "drizzle-orm"
 import * as schema from "../../lib/db/schema"
+import { getTeamMapStats } from "../../lib/db"
 import type { AppDb } from "../../lib/db/client"
 import { deriveStats } from "./domain/demo-stats"
-import type { DemoFacts, DemoKillFact } from "./domain/demo-extraction"
+import type {
+  DemoBombPlant,
+  DemoFacts,
+  DemoKillFact,
+} from "./domain/demo-extraction"
 import type { MatchStatus } from "../../lib/matching"
 import type { KillSideRow } from "./domain/team-anchoring"
 import {
@@ -95,11 +100,24 @@ function facts(): Extract<DemoFacts, { status: "ready" }> {
       )
     ),
     killFacts: [kill()],
+    bombPlants: [bombPlant()],
     ratingFacts: {
       rounds: [],
       facts: [],
       unavailableReason: "Fixture has no rating snapshots",
     },
+  }
+}
+
+function bombPlant(): DemoBombPlant {
+  return {
+    round: 1,
+    tick: 150,
+    planterSteamid64: ids[0],
+    site: "A",
+    placeName: "BombsiteA",
+    roundWinnerSide: "T",
+    ctSteamids64: [ids[1]],
   }
 }
 
@@ -446,6 +464,13 @@ test("first ingestion preserves aggregate stats, kill facts and basename identit
   const storedKill = (await db.select().from(schema.matchKills))[0]
   assert.equal(storedKill.headshot, 1)
   assert.equal(storedKill.attackerX, 1)
+  const storedPlant = (await db.select().from(schema.matchBombPlants))[0]
+  assert.equal(storedPlant.site, "A")
+  assert.equal(storedPlant.roundWinnerSide, "T")
+  assert.equal(
+    (await db.select().from(schema.matchBombPlantCtPlayers))[0].steamid64,
+    ids[1]
+  )
   const rerun = await run(db, [name], {
     demo: () => {
       throw new Error("must not reparse")
@@ -461,6 +486,11 @@ test("first ingestion preserves aggregate stats, kill facts and basename identit
   assert.equal(rerun.reresolved, 0)
   assert.deepEqual(rerun.summary, emptyMatchingSummary())
   assert.equal((await db.select().from(schema.matchKills)).length, 1)
+  assert.equal((await db.select().from(schema.matchBombPlants)).length, 1)
+  assert.equal(
+    (await db.select().from(schema.matchBombPlantCtPlayers)).length,
+    1
+  )
   assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
 
   const reparsed = await run(
@@ -485,6 +515,39 @@ test("first ingestion preserves aggregate stats, kill facts and basename identit
   assert.equal(updatedMatch.serverName, "updated fixture")
   assert.equal((await db.select().from(schema.matchKills)).length, 1)
   assert.equal((await db.select().from(schema.playerMatchStats)).length, 2)
+})
+
+test("team map stats split own plants, post-plant wins, and plants against on CT", async (t) => {
+  const db = await setup(t)
+  await roster(db, 1, 1, "Alpha")
+  await roster(db, 2, 2, "Bravo")
+  await run(db)
+  const match = (await db.select().from(schema.matches))[0]
+  const [opponentPlant] = await db
+    .insert(schema.matchBombPlants)
+    .values({
+      matchId: match.id,
+      round: 2,
+      tick: 250,
+      planterSteamid64: ids[1],
+      site: "B",
+      placeName: "BombsiteB",
+      roundWinnerSide: "CT",
+    })
+    .returning()
+  await db.insert(schema.matchBombPlantCtPlayers).values({
+    bombPlantId: opponentPlant.id,
+    steamid64: ids[0],
+  })
+
+  const [map] = await getTeamMapStats(1, db)
+  assert.equal(map.mapName, "de_nuke")
+  assert.equal(map.plantsA, 1)
+  assert.equal(map.plantsB, 0)
+  assert.equal(map.postPlantWinRateA, 1)
+  assert.equal(map.postPlantWinRateB, null)
+  assert.equal(map.opponentPlantsA, 0)
+  assert.equal(map.opponentPlantsB, 1)
 })
 
 test("transient database failures retry atomically without double-counting Matching", async (t) => {
@@ -998,7 +1061,7 @@ test("CLI preserves defaults, validation, discovery, preflight and aggregate err
   })
   const db = drizzle(client, { schema })
   t.after(async () => {
-    client.close()
+    await client.close()
     await rm(folder, {
       recursive: true,
       force: true,
@@ -1038,7 +1101,7 @@ test("CLI preserves defaults, validation, discovery, preflight and aggregate err
     return { status: result.status, output: result.stdout + result.stderr }
   }
   await migrate(db, { migrationsFolder: "drizzle" })
-  client.close()
+  await client.close()
   await mkdir(path.join(folder, "data"))
   const empty = runCli([])
   assert.equal(empty.status, 0, empty.output)
@@ -1097,6 +1160,6 @@ test("CLI preserves defaults, validation, discovery, preflight and aggregate err
     )
     assert.equal(result.rows[0].n, 0)
   } finally {
-    verification.close()
+    await verification.close()
   }
 })
