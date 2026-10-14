@@ -27,6 +27,7 @@ export type PlayerCardData = {
     deaths: number
     assists: number
     rating: number | null
+    hltvRating: number | null
     ratingUnavailableReason: string | null
   }[]
 }
@@ -75,6 +76,7 @@ export async function GET(
       deaths: h.deaths,
       assists: h.assists,
       rating: h.rating,
+      hltvRating: h.hltvRating,
       ratingUnavailableReason: h.ratingUnavailableReason,
     })),
   }

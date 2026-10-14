@@ -7,7 +7,12 @@ import type { MapRadar } from "@/lib/maps/map-images"
 import type { DemoMatchPlayerRow } from "./columns"
 import { DemoMatchTable } from "./demo-match-table"
 import { PlayerHeatmaps } from "./player-heatmaps"
-import { RatingValue, RatingExplanation } from "@/components/player-rating"
+import {
+  HltvRatingValue,
+  HltvRatingExplanation,
+  RatingValue,
+  RatingExplanation,
+} from "@/components/player-rating"
 import { RATING_WEIGHTS, type PlayerRatingSummary } from "@/lib/player-rating"
 
 function TeamHeading({ name, score }: { name: string; score: number | null }) {
@@ -133,6 +138,11 @@ export function DemoMatchView({
               </p>
             )}
             <RatingExplanation />
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+              <h3 className="font-medium">HLTV 2.0 (unofficial)</h3>
+              <HltvRatingValue rating={current.hltvRating} />
+            </div>
+            <HltvRatingExplanation />
           </section>
         ) : null}
         <h2 className="text-sm font-medium">Player heatmap</h2>

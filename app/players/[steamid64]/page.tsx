@@ -24,7 +24,12 @@ import { isLocalEnv } from "@/lib/env"
 import { NetlightHeatmapGate } from "./netlight-heatmap-gate"
 import { PlayerMapHeatmap } from "./player-map-heatmap"
 import { getMapRadar } from "@/lib/maps/map-images"
-import { RatingValue, RatingExplanation } from "@/components/player-rating"
+import {
+  HltvRatingValue,
+  HltvRatingExplanation,
+  RatingValue,
+  RatingExplanation,
+} from "@/components/player-rating"
 
 export async function generateStaticParams() {
   const sample = await db
@@ -142,6 +147,13 @@ async function PlayerPageContent({ params }: { params: PlayerParams }) {
                 />
               </span>
               <RatingExplanation />
+            </div>
+            <div className="col-span-2 flex flex-col gap-0.5">
+              <span className="text-muted-foreground">HLTV 2.0</span>
+              <span className="font-medium">
+                <HltvRatingValue rating={player.hltvRating} />
+              </span>
+              <HltvRatingExplanation />
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-muted-foreground">Matches</span>

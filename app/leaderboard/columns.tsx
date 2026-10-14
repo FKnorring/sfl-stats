@@ -6,7 +6,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { FollowIndicator } from "@/components/follow-indicator"
-import { RatingValue } from "@/components/player-rating"
+import { HltvRatingValue, RatingValue } from "@/components/player-rating"
 
 // The leaderboard row shape as rendered by the table: the raw DB row plus
 // Faceit stats pre-joined into plain, serializable fields (the lookup Map
@@ -40,11 +40,13 @@ function statValueFor(stat: LeaderboardStat, row: LeaderboardTableRow): number {
       return row.mvps
     case "rating":
       return row.rating ?? 0
+    case "hltv_rating":
+      return row.hltvRating ?? 0
   }
 }
 
 function formatStat(stat: LeaderboardStat, value: number): string {
-  if (stat === "rating") return value.toFixed(2)
+  if (stat === "rating" || stat === "hltv_rating") return value.toFixed(2)
   if (stat === "hs_pct") return `${(value * 100).toFixed(1)}%`
   if (
     stat === "adr" ||
@@ -61,6 +63,7 @@ const rightAlign = { className: "text-right" }
 // Columns dropped by the compact variant (e.g. the home page preview).
 const COMPACT_HIDDEN = new Set([
   "teamName",
+  "hltvRating",
   "matchesPlayed",
   "assists",
   "hsPct",
@@ -77,7 +80,8 @@ function statValueColumn(
   return {
     id: "statValue",
     accessorFn: (row) =>
-      stat === "rating" && row.rating == null
+      (stat === "rating" && row.rating == null) ||
+      (stat === "hltv_rating" && row.hltvRating == null)
         ? undefined
         : statValueFor(stat, row),
     sortUndefined: "last",
@@ -86,7 +90,9 @@ function statValueColumn(
     ),
     meta: { className: "text-right font-medium" },
     cell: ({ row }) =>
-      stat === "rating" ? (
+      stat === "hltv_rating" ? (
+        <HltvRatingValue rating={row.original.hltvRating} />
+      ) : stat === "rating" ? (
         <RatingValue
           rating={row.original.rating}
           ratedGames={row.original.ratedGames}
@@ -212,6 +218,16 @@ export function buildLeaderboardColumns(
           teamName={row.original.teamName}
         />
       ),
+    },
+    {
+      id: "hltvRating",
+      accessorFn: (row) => row.hltvRating ?? undefined,
+      sortUndefined: "last",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="HLTV 2.0" />
+      ),
+      meta: rightAlign,
+      cell: ({ row }) => <HltvRatingValue rating={row.original.hltvRating} />,
     },
     {
       id: "kills",

@@ -9,6 +9,11 @@ import {
 } from "./db/schema"
 import type { RatingExtraction } from "./demo-rating"
 import {
+  calculateHltvRating,
+  HLTV_RATING_VERSION,
+  type HltvRatingSummary,
+} from "./hltv-rating"
+import {
   calculatePlayerRating,
   RATING_VERSION,
   type RatingInput,
@@ -43,6 +48,22 @@ export async function getMatchRatingSummaries(
   )
 }
 
+export async function getMatchHltvRatingSummaries(
+  database: AppDb,
+  matchId: number
+) {
+  const facts = await database
+    .select()
+    .from(playerMatchRoundStats)
+    .where(eq(playerMatchRoundStats.matchId, matchId))
+  return new Map(
+    [...groupRatingFacts(facts)].map(([id, rows]) => [
+      id,
+      calculateHltvRating(rows),
+    ])
+  )
+}
+
 type WritableTransaction = Parameters<Parameters<AppDb["transaction"]>[0]>[0]
 
 async function writeRating(
@@ -50,12 +71,15 @@ async function writeRating(
   matchId: number,
   steamid64: string,
   summary: PlayerRatingSummary | undefined,
+  hltv: HltvRatingSummary | undefined,
   reason: string
 ) {
   await tx.run(sql`
     UPDATE player_match_stats SET rating = ${summary?.rating ?? null},
       rating_version = ${summary ? RATING_VERSION : null},
       rating_rounds = ${summary?.rounds ?? null},
+      hltv_rating = ${hltv?.rating ?? null},
+      hltv_rating_version = ${hltv ? HLTV_RATING_VERSION : null},
       rating_unavailable_reason = ${summary ? null : reason}
     WHERE match_id = ${matchId} AND steamid64 = ${steamid64}
   `)
@@ -93,6 +117,9 @@ export async function persistRatingExtractionInTransaction(
   const grouped = groupRatingFacts(extraction.facts)
   const summaries = new Map(
     [...grouped].map(([id, rows]) => [id, calculatePlayerRating(rows)])
+  )
+  const hltvSummaries = new Map(
+    [...grouped].map(([id, rows]) => [id, calculateHltvRating(rows)])
   )
   const match = await tx
     .select({ id: matches.id })
@@ -162,6 +189,7 @@ export async function persistRatingExtractionInTransaction(
       matchId,
       row.steamid64,
       summaries.get(row.steamid64),
+      hltvSummaries.get(row.steamid64),
       extraction.unavailableReason ?? "No eligible participated rounds"
     )
   }
@@ -173,6 +201,7 @@ export async function recomputeMatchRatings(
   dryRun = false
 ) {
   const summaries = await getMatchRatingSummaries(database, matchId)
+  const hltvSummaries = await getMatchHltvRatingSummaries(database, matchId)
   const rows = await database
     .select({
       steamid64: playerMatchStats.steamid64,
@@ -188,6 +217,7 @@ export async function recomputeMatchRatings(
           matchId,
           row.steamid64,
           summaries.get(row.steamid64),
+          hltvSummaries.get(row.steamid64),
           row.reason ?? "No eligible participated rounds"
         )
       }
@@ -202,4 +232,8 @@ export const ratingAverageSql = sql`
 export const ratedGamesSql = sql`
   COUNT(DISTINCT CASE WHEN pms.rating IS NOT NULL AND pms.rating_version = ${RATING_VERSION}
     THEN pms.match_id END)
+`
+
+export const hltvRatingAverageSql = sql`
+  AVG(CASE WHEN pms.hltv_rating_version = ${HLTV_RATING_VERSION} THEN pms.hltv_rating END)
 `

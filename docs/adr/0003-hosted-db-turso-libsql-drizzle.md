@@ -11,6 +11,7 @@ Turso (hosted libSQL — a SQLite fork) was chosen over hosted Postgres (Supabas
 `better-sqlite3` is dropped entirely in favor of `@libsql/client`, used for both the local file and Turso. libSQL's client already talks to a local file (`file:data/sfl.db`) or a remote Turso database (`libsql://...`) through the same API — switching is just a different connection URL plus an auth token for the remote case. A hand-rolled adapter around `better-sqlite3` would duplicate what libSQL already provides, and a driver swap would still have been needed to reach Turso.
 
 Local vs. hosted is selected by one env var, `DATABASE_URL` (plus `DATABASE_AUTH_TOKEN` for Turso):
+
 - unset / `file:data/sfl.db` → local SQLite file (dev/test default, no token needed)
 - `libsql://<db>.turso.io` → hosted Turso
 

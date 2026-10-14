@@ -12,6 +12,7 @@ import {
   recomputeMatchRatings,
   getMatchRatingSummaries,
 } from "./rating-db"
+import { calculateHltvRating, HLTV_RATING_VERSION } from "./hltv-rating"
 import { RATING_VERSION } from "./player-rating"
 import type { RatingExtraction, PlayerRoundFact } from "./demo-rating"
 import { RatingValue, RatingExplanation } from "../components/player-rating"
@@ -115,6 +116,8 @@ test("migration keeps legacy rows unrated and enrichment is atomic/idempotent", 
     assert.equal(first[0].kills, 99)
     assert.equal(first[0].ratingVersion, RATING_VERSION)
     assert.equal(first[0].ratingRounds, 13)
+    assert.equal(first[0].hltvRatingVersion, HLTV_RATING_VERSION)
+    assert.ok(first[0].hltvRating! > first[1].hltvRating!)
     assert.equal(first[0].ratingUnavailableReason, null)
     assert.equal(
       (await database.select().from(schema.matches))[0].totalRounds,
@@ -143,9 +146,12 @@ test("migration keeps legacy rows unrated and enrichment is atomic/idempotent", 
       26
     )
     const summaries = await getMatchRatingSummaries(database, 1)
-    await database
-      .update(schema.playerMatchStats)
-      .set({ rating: 999, ratingVersion: "obsolete" })
+    await database.update(schema.playerMatchStats).set({
+      rating: 999,
+      ratingVersion: "obsolete",
+      hltvRating: 999,
+      hltvRatingVersion: "obsolete",
+    })
     await recomputeMatchRatings(database, 1, true)
     assert.equal(
       (await database.select().from(schema.playerMatchStats))[0].rating,
@@ -155,6 +161,15 @@ test("migration keeps legacy rows unrated and enrichment is atomic/idempotent", 
     assert.equal(
       (await database.select().from(schema.playerMatchStats))[0].rating,
       summaries.get(ids[0])!.rating
+    )
+    assert.equal(
+      (await database.select().from(schema.playerMatchStats))[0].hltvRating,
+      calculateHltvRating(
+        await database
+          .select()
+          .from(schema.playerMatchRoundStats)
+          .where(eq(schema.playerMatchRoundStats.steamid64, ids[0]))
+      ).rating
     )
     await persistRatingExtraction(database, 1, {
       rounds: [],
@@ -170,6 +185,7 @@ test("migration keeps legacy rows unrated and enrichment is atomic/idempotent", 
       unavailable.every(
         (s) =>
           s.rating === null &&
+          s.hltvRating === null &&
           s.ratingUnavailableReason === "Incomplete competitive game"
       )
     )

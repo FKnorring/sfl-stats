@@ -165,6 +165,8 @@ export const playerMatchStats = sqliteTable(
     rating: real("rating"),
     ratingVersion: text("rating_version"),
     ratingRounds: integer("rating_rounds"),
+    hltvRating: real("hltv_rating"),
+    hltvRatingVersion: text("hltv_rating_version"),
     ratingUnavailableReason: text("rating_unavailable_reason").default(
       "Not enriched"
     ),
