@@ -1,13 +1,17 @@
 "use client"
 
 import Link from "next/link"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 import { usePathname } from "next/navigation"
+import { Popover } from "@base-ui/react/popover"
+import { Switch } from "@base-ui/react/switch"
 import {
   CalendarDaysIcon,
   CircleHelpIcon,
   GitCompareIcon,
   HomeIcon,
+  Settings2Icon,
+  SparklesIcon,
   WrenchIcon,
   StarIcon,
   TrophyIcon,
@@ -18,6 +22,7 @@ import {
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -111,7 +116,79 @@ function Navigation({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter>
+        <SettingsPopover />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  )
+}
+
+function SettingsPopover() {
+  const [funMode, setFunMode] = useState(false)
+
+  function updateFunMode(checked: boolean) {
+    setFunMode(checked)
+    try {
+      localStorage.setItem("sfl-stats-fun-mode", String(checked))
+    } catch (error) {
+      console.error("[settings] Could not save fun mode:", error)
+    }
+  }
+
+  return (
+    <Popover.Root
+      onOpenChange={(open) => {
+        if (!open) return
+        try {
+          setFunMode(localStorage.getItem("sfl-stats-fun-mode") === "true")
+        } catch (error) {
+          console.error("[settings] Could not read fun mode:", error)
+        }
+      }}
+    >
+      <Popover.Trigger
+        aria-label="Settings"
+        title="Settings"
+        className="flex h-10 w-full items-center gap-2 overflow-hidden rounded-md px-3 text-left text-sm outline-hidden transition-colors group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+      >
+        <Settings2Icon className="size-4 shrink-0" />
+        <span className="truncate group-data-[collapsible=icon]:hidden">
+          Settings
+        </span>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner
+          side="top"
+          align="start"
+          sideOffset={8}
+          className="z-50"
+        >
+          <Popover.Popup className="w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none">
+            <Popover.Title className="mb-3 text-sm font-medium">
+              Settings
+            </Popover.Title>
+            <div className="flex items-center justify-between gap-4">
+              <label
+                htmlFor="fun-mode"
+                className="flex items-center gap-2 text-sm"
+              >
+                <SparklesIcon className="size-4" />
+                Fun mode
+              </label>
+              <Switch.Root
+                nativeButton
+                id="fun-mode"
+                checked={funMode}
+                onCheckedChange={updateFunMode}
+                className="flex h-5 w-9 shrink-0 items-center rounded-full bg-input p-0.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-checked:bg-primary"
+              >
+                <Switch.Thumb className="size-4 rounded-full bg-background transition-transform data-checked:translate-x-4" />
+              </Switch.Root>
+            </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
