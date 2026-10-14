@@ -419,7 +419,7 @@ clutches, flash assists, and utility damage.
 The rating combines combat (25%), damage (20%), KAST consistency (20%),
 survival (10%), impact (15%), and support (10%), relative to a frozen SFL09
 reference corpus. A reference-average performance is 1.00. Profile/roster
-averages are weighted by participated rounds; `rated/all` shows demo coverage.
+averages are the simple mean of per-demo ratings; `rated/all` shows demo coverage.
 Unreliable or incomplete recordings remain visible but unrated with an
 explanation. Faceit statistics and series results are not rated.
 

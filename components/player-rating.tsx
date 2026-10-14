@@ -80,11 +80,10 @@ export function RatingExplanation() {
     <details className="text-xs text-muted-foreground">
       <summary className="cursor-pointer">About SFL Rating v2</summary>
       <p className="mt-2 max-w-2xl">
-        {RATING_DESCRIPTION} Averages are weighted by participated rounds;
-        coverage shows rated demos / all demos. Unreliable or incomplete
-        recordings are unrated. Trades use a three-second teammate window.
-        Economy is weighted. This model has not been independently validated
-        against HLTV.
+        {RATING_DESCRIPTION} Averages are the mean of per-demo ratings; coverage
+        shows rated demos / all demos. Unreliable or incomplete recordings are
+        unrated. Trades use a three-second teammate window. Economy is weighted.
+        This model has not been independently validated against HLTV.
       </p>
     </details>
   )
