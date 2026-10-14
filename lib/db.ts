@@ -409,6 +409,7 @@ export type TeamRosterPlayerRow = {
   inGameName: string | null
   matchStatus: string
   matchesPlayed: number
+  shrimpKills: number
   kills: number
   deaths: number
   assists: number
@@ -437,6 +438,13 @@ export async function getTeamRoster(
         p.latest_ingame_name AS inGameName,
         re.match_status AS matchStatus,
         COUNT(DISTINCT pms.match_id) AS matchesPlayed,
+        (
+          SELECT COUNT(*)
+          FROM match_kills mk
+          WHERE mk.attacker_steamid64 = re.matched_steamid64
+            AND LOWER(mk.weapon) IN ('mp9', 'mp7', 'mac10')
+            ${scoped ? sql`AND mk.match_id IN (SELECT m.id FROM matches m WHERE ${teamDemoScope(teamId)})` : sql``}
+        ) AS shrimpKills,
         COALESCE(SUM(pms.kills), 0) AS kills,
         COALESCE(SUM(pms.deaths), 0) AS deaths,
         COALESCE(SUM(pms.assists), 0) AS assists,
@@ -572,6 +580,7 @@ export type PlayerMatchHistoryRow = {
   demoDate: string | null
   teamName: string | null
   opponentTeamName: string | null
+  shrimpKills: number | null
   kills: number
   deaths: number
   assists: number
@@ -628,6 +637,13 @@ export async function getPlayerMatchHistory(
           ORDER BY COUNT(*) DESC
           LIMIT 1
         ) AS opponentTeamName,
+        (
+          SELECT COUNT(*)
+          FROM match_kills mk
+          WHERE mk.match_id = pms.match_id
+            AND mk.attacker_steamid64 = pms.steamid64
+            AND LOWER(mk.weapon) IN ('mp9', 'mp7', 'mac10')
+        ) AS shrimpKills,
         pms.kills AS kills,
         pms.deaths AS deaths,
         pms.assists AS assists,

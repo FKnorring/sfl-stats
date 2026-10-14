@@ -104,3 +104,10 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
         : "—",
   },
 ]
+
+export const shrimpKillsColumn: ColumnDef<PlayerMatchHistoryRow> = {
+  accessorKey: "shrimpKills",
+  header: ({ column }) => <DataTableColumnHeader column={column} title="🦐" />,
+  meta: rightAlign,
+  cell: ({ row }) => row.original.shrimpKills ?? "—",
+}

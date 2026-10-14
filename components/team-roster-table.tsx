@@ -3,6 +3,7 @@
 import type { TeamRosterPlayerRow } from "@/lib/db"
 import { DataTable } from "@/components/data-table/data-table"
 import { useFollowRowClass } from "@/components/follow-indicator"
+import { useFunMode } from "@/lib/fun-mode"
 import {
   buildTeamRosterColumns,
   type TeamRosterTableRow,
@@ -40,10 +41,12 @@ export function TeamRosterTable({
   })
 
   const rowClass = useFollowRowClass()
+  const funMode = useFunMode()
   const columns = buildTeamRosterColumns({
     teamName,
     teamId,
     includeAccounts,
+    includeShrimpKills: funMode,
     linkNames: false,
   })
 

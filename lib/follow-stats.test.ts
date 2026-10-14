@@ -127,6 +127,7 @@ test("MVP ignores missing stats, handles zero deaths, and has deterministic tie 
     inGameName: null,
     matchStatus: "manual",
     matchesPlayed: 1,
+    shrimpKills: 0,
     kills: 10,
     deaths: 0,
     assists: 0,

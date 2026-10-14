@@ -209,6 +209,56 @@ test("read queries weight rounds, isolate versions, keep unrostered players and 
       ratingRounds: 26,
       ratingUnavailableReason: null,
     })
+    await database.insert(schema.matchKills).values([
+      {
+        matchId: 1,
+        round: 1,
+        tick: 10,
+        attackerSteamid64: ids[0],
+        victimSteamid64: ids[1],
+        weapon: "MP9",
+      },
+      {
+        matchId: 1,
+        round: 1,
+        tick: 20,
+        attackerSteamid64: ids[0],
+        victimSteamid64: ids[1],
+        weapon: "mp7",
+      },
+      {
+        matchId: 1,
+        round: 1,
+        tick: 30,
+        attackerSteamid64: ids[0],
+        victimSteamid64: ids[1],
+        weapon: "mac10",
+      },
+      {
+        matchId: 2,
+        round: 1,
+        tick: 10,
+        attackerSteamid64: ids[0],
+        victimSteamid64: ids[1],
+        weapon: "mp9",
+      },
+      {
+        matchId: 2,
+        round: 1,
+        tick: 20,
+        attackerSteamid64: ids[0],
+        victimSteamid64: ids[1],
+        weapon: "ak47",
+      },
+      {
+        matchId: 1,
+        round: 1,
+        tick: 40,
+        attackerSteamid64: ids[1],
+        victimSteamid64: ids[0],
+        weapon: "mp9",
+      },
+    ])
     const initial = (await getMatchRatingSummaries(database, 1)).get(
       ids[0]
     )!.rating
@@ -218,7 +268,10 @@ test("read queries weight rounds, isolate versions, keep unrostered players and 
     assert.equal(profile!.ratedGames, 2)
     const history = await getPlayerMatchHistory(ids[0], database)
     assert.equal(history[0].rating, 2)
+    assert.equal(history[0].shrimpKills, 1)
+    assert.equal(history[1].shrimpKills, 3)
     const roster = await getTeamRoster(1, false, database)
+    assert.ok(roster.every((player) => player.shrimpKills === 4))
     assert.ok(
       roster.every(
         (p) => Math.abs(p.rating! - expected) < 1e-12 && p.ratedGames === 2

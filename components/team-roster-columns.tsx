@@ -27,14 +27,23 @@ export function buildTeamRosterColumns({
   teamName,
   teamId,
   includeAccounts,
+  includeShrimpKills,
   linkNames = true,
 }: {
   teamName?: string
   teamId?: number
   includeAccounts: boolean
+  includeShrimpKills: boolean
   /** Turn off when the whole row already links to the player (avoids nested anchors). */
   linkNames?: boolean
 }): ColumnDef<TeamRosterTableRow>[] {
+  const shrimpKillsColumn: ColumnDef<TeamRosterTableRow> = {
+    accessorKey: "shrimpKills",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="🦐" />
+    ),
+    meta: rightAlign,
+  }
   const columns: ColumnDef<TeamRosterTableRow>[] = [
     {
       accessorKey: "inGameName",
@@ -107,6 +116,7 @@ export function buildTeamRosterColumns({
       ),
       meta: rightAlign,
     },
+    ...(includeShrimpKills ? [shrimpKillsColumn] : []),
     {
       accessorKey: "deaths",
       cell: ({ row }) =>

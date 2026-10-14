@@ -32,6 +32,7 @@ import {
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { getFunMode, setFunMode as saveFunMode } from "@/lib/fun-mode"
 
 const ITEMS = [
   { href: "/", label: "Home", icon: HomeIcon },
@@ -129,22 +130,14 @@ function SettingsPopover() {
 
   function updateFunMode(checked: boolean) {
     setFunMode(checked)
-    try {
-      localStorage.setItem("sfl-stats-fun-mode", String(checked))
-    } catch (error) {
-      console.error("[settings] Could not save fun mode:", error)
-    }
+    saveFunMode(checked)
   }
 
   return (
     <Popover.Root
       onOpenChange={(open) => {
         if (!open) return
-        try {
-          setFunMode(localStorage.getItem("sfl-stats-fun-mode") === "true")
-        } catch (error) {
-          console.error("[settings] Could not read fun mode:", error)
-        }
+        setFunMode(getFunMode())
       }}
     >
       <Popover.Trigger

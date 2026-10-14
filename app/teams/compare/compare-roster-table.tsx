@@ -2,6 +2,7 @@
 
 import { DataTable } from "@/components/data-table/data-table"
 import { useFollowRowClass } from "@/components/follow-indicator"
+import { useFunMode } from "@/lib/fun-mode"
 import {
   buildTeamRosterColumns,
   type TeamRosterTableRow,
@@ -18,7 +19,12 @@ export function CompareRosterTable({
   rows: TeamRosterTableRow[]
   teamId: number
 }) {
-  const columns = buildTeamRosterColumns({ includeAccounts: false, teamId })
+  const funMode = useFunMode()
+  const columns = buildTeamRosterColumns({
+    includeAccounts: false,
+    includeShrimpKills: funMode,
+    teamId,
+  })
   const rowClass = useFollowRowClass()
   return (
     <DataTable
