@@ -178,7 +178,7 @@ test("migration keeps legacy rows unrated and enrichment is atomic/idempotent", 
   }
 })
 
-test("read queries weight rounds, isolate versions, keep unrostered players and avoid rating fan-out", async () => {
+test("read queries average matches equally, isolate versions, keep unrostered players and avoid rating fan-out", async () => {
   const { client, database } = await setup()
   try {
     await persistRatingExtraction(database, 1, extraction())
@@ -262,7 +262,7 @@ test("read queries weight rounds, isolate versions, keep unrostered players and 
     const initial = (await getMatchRatingSummaries(database, 1)).get(
       ids[0]
     )!.rating
-    const expected = (initial * 13 + 2 * 26) / 39
+    const expected = (initial + 2) / 2
     const profile = await getPlayerBySteamId64(ids[0], database)
     assert.ok(Math.abs(profile!.rating! - expected) < 1e-12)
     assert.equal(profile!.ratedGames, 2)

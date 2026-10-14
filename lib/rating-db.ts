@@ -197,9 +197,7 @@ export async function recomputeMatchRatings(
 }
 
 export const ratingAverageSql = sql`
-  SUM(CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating * pms.rating_rounds END)
-  / NULLIF(SUM(CASE WHEN pms.rating IS NOT NULL AND pms.rating_version = ${RATING_VERSION}
-    THEN pms.rating_rounds END), 0)
+  AVG(CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating END)
 `
 export const ratedGamesSql = sql`
   COUNT(DISTINCT CASE WHEN pms.rating IS NOT NULL AND pms.rating_version = ${RATING_VERSION}

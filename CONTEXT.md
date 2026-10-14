@@ -29,8 +29,8 @@ A versioned, provisional custom performance score for one verified Player in
 one eligible Demo. Derived from retained competitive player-round facts,
 with combat, damage, KAST, survival, impact, and support normalized against
 a frozen SFL reference corpus. Not an official HLTV rating. Unreliable or
-incomplete Demos are unrated; profile/roster averages are participated-round
-weighted and show rated-Demo coverage.
+incomplete Demos are unrated; profile/roster averages are simple means of
+per-Demo ratings and show rated-Demo coverage.
 _Avoid_: HLTV rating, Elo (SFL Rating measures performance, not competitive rank).
 
 **Participated Round**:
