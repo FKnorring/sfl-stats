@@ -109,7 +109,7 @@ export function extractRatingFacts(filePath: string): RatingExtraction {
           "team_num",
           "is_alive",
           "health",
-          "round_start_equip_value",
+          "current_equip_value",
         ],
         ticks
       )
