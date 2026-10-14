@@ -79,7 +79,7 @@ function fixture() {
           team_num: index < 2 ? 2 : 3,
           is_alive: true,
           health: 100,
-          round_start_equip_value: 3000,
+          current_equip_value: 3000,
         }))
       )
     }
