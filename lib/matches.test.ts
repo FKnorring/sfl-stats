@@ -427,6 +427,7 @@ test("history and detail share eligible teams, side alignment, and sourced resul
           unassignedPlayers: players.map((player) => ({
             ...player,
             avatarUrl: null,
+            shrimpKills: 0,
           })),
           kills: [],
           hiddenSteamids: [],

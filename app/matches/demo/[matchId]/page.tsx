@@ -87,6 +87,11 @@ async function DemoMatchPageContent({ params }: { params: MatchParams }) {
   const playersWithAvatars = players.map((p) => ({
     ...p,
     avatarUrl: steamSummaries.get(p.steamid64)?.avatarUrl ?? null,
+    shrimpKills: rawKills.filter(
+      (kill) =>
+        kill.attackerSteamid64 === p.steamid64 &&
+        ["mp9", "mp7", "mac10"].includes(kill.weapon?.toLowerCase() ?? "")
+    ).length,
   }))
 
   // `side` is just the in-game CT/T slot (CS2's team_num) — only useful

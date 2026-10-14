@@ -7,6 +7,7 @@ import { RatingValue } from "@/components/player-rating"
 
 export type DemoMatchPlayerRow = DemoMatchPlayerStatsRow & {
   avatarUrl: string | null
+  shrimpKills: number
 }
 
 // Fixed width so both team tables (stacked, table-fixed) share identical
@@ -133,3 +134,11 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
     cell: ({ row }) => row.original.mvps ?? "—",
   },
 ]
+
+export const shrimpKillsColumn: ColumnDef<DemoMatchPlayerRow> = {
+  accessorKey: "shrimpKills",
+  header: ({ column }) => (
+    <DataTableColumnHeader column={column} title="🦐" className={numHeader} />
+  ),
+  meta: rightAlign,
+}
