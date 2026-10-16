@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 import { getCurrentTeamCatalog } from "@/lib/db"
 import {
   getTeamByName,
@@ -58,7 +59,17 @@ async function TeamPageContent({ params }: { params: TeamParams }) {
 
   const season = (await getCurrentSeason()) ?? undefined
   const meta = await getTeamByName(teamName, season)
-  if (!meta) notFound()
+  if (!meta) {
+    // Toornament names ("NODAF") often differ from the roster name ("NODAF AB").
+    const resolved = resolveOfficialTeam(
+      teamName,
+      await getCurrentTeamCatalog()
+    )
+    if (resolved && resolved.teamName !== teamName) {
+      redirect(`/teams/team/${encodeURIComponent(resolved.teamName)}`)
+    }
+    notFound()
+  }
 
   const [
     roster,

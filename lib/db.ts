@@ -1231,9 +1231,11 @@ export async function getFutureOpponents(
         round_label AS roundLabel,
         team_a_id AS teamAId,
         team_b_id AS teamBId,
-        team_a_name_raw AS teamAName,
-        team_b_name_raw AS teamBName
+        COALESCE(ta.name, team_a_name_raw) AS teamAName,
+        COALESCE(tb.name, team_b_name_raw) AS teamBName
       FROM toornament_matches
+      LEFT JOIN teams ta ON ta.id = team_a_id
+      LEFT JOIN teams tb ON tb.id = team_b_id
       WHERE status = 'pending' AND (team_a_id = ${teamId} OR team_b_id = ${teamId})
       ORDER BY scheduled_at ASC
       `
@@ -1664,13 +1666,15 @@ export async function getMatchById(
         scheduled_at AS scheduledAt,
         round_label AS roundLabel,
         status,
-        team_a_name_raw AS teamAName,
-        team_b_name_raw AS teamBName,
+        COALESCE(ta.name, team_a_name_raw) AS teamAName,
+        COALESCE(tb.name, team_b_name_raw) AS teamBName,
         team_a_id AS teamAId,
         team_b_id AS teamBId,
         team_a_score AS teamAScore,
         team_b_score AS teamBScore
       FROM toornament_matches
+      LEFT JOIN teams ta ON ta.id = team_a_id
+      LEFT JOIN teams tb ON tb.id = team_b_id
       WHERE toornament_match_id = ${matchId}
       `
   )) as MatchDetail[]
