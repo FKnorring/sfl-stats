@@ -144,8 +144,8 @@ async function TeamCompareResults({
       getFaceitPlayerStats(),
       teamAId != null ? getTeamMeta(teamAId) : null,
       teamBId != null ? getTeamMeta(teamBId) : null,
-      teamAId != null ? getTeamRoster(teamAId) : [],
-      teamBId != null ? getTeamRoster(teamBId) : [],
+      teamAId != null ? getTeamRoster(teamAId, true) : [],
+      teamBId != null ? getTeamRoster(teamBId, true) : [],
     ])
 
   const teamOptions: TeamOption[] = teams.map((t) => ({

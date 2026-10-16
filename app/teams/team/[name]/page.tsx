@@ -68,11 +68,11 @@ async function TeamPageContent({ params }: { params: TeamParams }) {
     demoMatches,
     recentResults,
   ] = await Promise.all([
-    getTeamRoster(meta.teamId),
+    getTeamRoster(meta.teamId, true),
     getFaceitPlayerStats(),
     getFutureOpponents(meta.teamId),
     getTeamMapStats(meta.teamId),
-    getTeamDemoMatches(meta.teamId),
+    getTeamDemoMatches(meta.teamId, true),
     getRecentResults(meta.teamId),
   ])
 

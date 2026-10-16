@@ -1309,6 +1309,7 @@ export async function getTeamMapStats(
         JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
         JOIN matches m ON m.id = pms.match_id
         WHERE re.team_id = ${teamId} AND m.map_name IS NOT NULL AND m.is_scrim = 0
+          AND ${teamDemoScope(teamId)}
       ), plant_stats AS (
         SELECT
           tm.map_name AS mapName,
