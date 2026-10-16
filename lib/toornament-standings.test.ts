@@ -237,3 +237,27 @@ test("malformed schedule events are unavailable, while a genuinely empty widget 
   )
   assert.deepEqual(await getLivePendingMatches(), [])
 })
+
+test("official team matching resolves Toornament names to the roster names their links need", () => {
+  const roster = [
+    "NODAF AB",
+    "CGI Sverige AB 1",
+    "CGI Sverige AB 2",
+    "Aderian Aktiv IT AB",
+    "Bizzdo AB",
+    "Dizparc Infrastruktur Jönköping AB",
+    "Eltel Networks AB",
+    "Boulder AB Mozarteum",
+    "Nordlo Elevate AB",
+  ].map((teamName, i) => ({ ...team, teamId: i + 1, teamName }))
+  assert.equal(resolveOfficialTeam("NODAF", roster)?.teamName, "NODAF AB")
+  assert.equal(resolveOfficialTeam("Bizzdo", roster)?.teamName, "Bizzdo AB")
+  assert.equal(
+    resolveOfficialTeam("Dizparc Jönköping", roster)?.teamName,
+    "Dizparc Infrastruktur Jönköping AB"
+  )
+  assert.equal(
+    resolveOfficialTeam("Mozarteum Boulder AB", roster)?.teamName,
+    "Boulder AB Mozarteum"
+  )
+})

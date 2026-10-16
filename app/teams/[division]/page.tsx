@@ -10,6 +10,7 @@ import {
 } from "@/lib/cache/cached-data"
 import { getFaceitTeamStats } from "@/lib/cache/cached-data"
 import { getLiveDivisionStandings } from "@/lib/cache/cached-toornament"
+import { resolveOfficialTeam } from "@/lib/toornament/standings"
 import { DivisionTabs, TabsContent } from "@/components/division-tabs"
 import {
   TeamCompareProvider,
@@ -71,7 +72,9 @@ async function DivisionStandings({ params }: { params: DivisionParams }) {
     getFaceitTeamStats(),
   ])
   if (!divisions.includes(activeDivision)) {
-    const team = await getTeamByName(activeDivision)
+    const team =
+      (await getTeamByName(activeDivision)) ??
+      resolveOfficialTeam(activeDivision, catalog)
     if (team) redirect(`/teams/team/${encodeURIComponent(team.teamName)}`)
     notFound()
   }
