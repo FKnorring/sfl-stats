@@ -2,7 +2,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import type { PlayerMatchHistoryRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { FollowIndicator } from "@/components/follow-indicator"
-import { RatingValue } from "@/components/player-rating"
+import { HltvRatingValue, RatingValue } from "@/components/player-rating"
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—"
@@ -64,6 +64,16 @@ export const matchHistoryColumns: ColumnDef<PlayerMatchHistoryRow>[] = [
         teamName={row.original.teamName}
       />
     ),
+  },
+  {
+    id: "hltvRating",
+    accessorFn: (row) => row.hltvRating ?? undefined,
+    sortUndefined: "last",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="HLTV 2.0" />
+    ),
+    meta: rightAlign,
+    cell: ({ row }) => <HltvRatingValue rating={row.original.hltvRating} />,
   },
   {
     accessorKey: "kills",

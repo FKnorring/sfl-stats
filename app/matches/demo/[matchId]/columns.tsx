@@ -3,7 +3,7 @@ import Link from "next/link"
 import type { DemoMatchPlayerStatsRow } from "@/lib/db"
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header"
 import { FollowIndicator } from "@/components/follow-indicator"
-import { RatingValue } from "@/components/player-rating"
+import { HltvRatingValue, RatingValue } from "@/components/player-rating"
 
 export type DemoMatchPlayerRow = DemoMatchPlayerStatsRow & {
   avatarUrl: string | null
@@ -71,6 +71,20 @@ export const demoMatchPlayerColumns: ColumnDef<DemoMatchPlayerRow>[] = [
         teamName={row.original.rosterTeamName}
       />
     ),
+  },
+  {
+    id: "hltvRating",
+    sortUndefined: "last",
+    accessorFn: (row) => row.hltvRating ?? undefined,
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title="HLTV"
+        className={numHeader}
+      />
+    ),
+    meta: rightAlign,
+    cell: ({ row }) => <HltvRatingValue rating={row.original.hltvRating} />,
   },
   {
     accessorKey: "kills",

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { ProfileLinks } from "@/components/profile-links"
 import { isNetlightTeam } from "@/components/netlight-flames"
 import { FollowIndicator } from "@/components/follow-indicator"
-import { RatingValue } from "@/components/player-rating"
+import { HltvRatingValue, RatingValue } from "@/components/player-rating"
 
 // Roster row as rendered by the table: the raw DB row plus Faceit elo
 // pre-joined into a plain, serializable field.
@@ -106,6 +106,16 @@ export function buildTeamRosterColumns({
           teamName={teamName}
         />
       ),
+    },
+    {
+      id: "hltvRating",
+      accessorFn: (row) => row.hltvRating ?? undefined,
+      sortUndefined: "last",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="HLTV 2.0" />
+      ),
+      meta: rightAlign,
+      cell: ({ row }) => <HltvRatingValue rating={row.original.hltvRating} />,
     },
     {
       accessorKey: "kills",

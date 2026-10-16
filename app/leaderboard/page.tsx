@@ -8,7 +8,10 @@ import {
 import { getFaceitPlayerStats } from "@/lib/cache/cached-data"
 import { getPlayerSummaries } from "@/lib/steam-client"
 import { LeaderboardView } from "./leaderboard-view"
-import { RatingExplanation } from "@/components/player-rating"
+import {
+  HltvRatingExplanation,
+  RatingExplanation,
+} from "@/components/player-rating"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -86,6 +89,7 @@ async function LeaderboardResults() {
     <>
       <LeaderboardView rows={rows} teams={teams} />
       <RatingExplanation />
+      <HltvRatingExplanation />
     </>
   )
 }

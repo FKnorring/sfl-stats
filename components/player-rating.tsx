@@ -1,4 +1,5 @@
 import { RATING_DESCRIPTION } from "@/lib/player-rating"
+import { HLTV_RATING_DESCRIPTION } from "@/lib/hltv-rating"
 
 // Judged on the displayed (2-decimal) value so the color matches what is shown.
 export function ratingTone(rating: number) {
@@ -72,6 +73,49 @@ export function RatingValue({
         </span>
       ) : null}
     </span>
+  )
+}
+
+// HLTV 2.0 is an unofficial approximation: tone only, no gold or emoji treatment.
+export function HltvRatingValue({
+  rating,
+  reason,
+}: {
+  rating: number | null | undefined
+  reason?: string | null
+}) {
+  if (rating == null) {
+    const explanation = reason ?? "No eligible current-version ratings"
+    return (
+      <span
+        title={explanation}
+        aria-label={`Unrated: ${explanation}`}
+        tabIndex={0}
+      >
+        —
+      </span>
+    )
+  }
+  return (
+    <span
+      className={`tabular-nums ${ratingTone(rating)}`}
+      title={HLTV_RATING_DESCRIPTION}
+    >
+      {rating.toFixed(2)}
+    </span>
+  )
+}
+
+export function HltvRatingExplanation() {
+  return (
+    <details className="text-xs text-muted-foreground">
+      <summary className="cursor-pointer">About HLTV 2.0 (unofficial)</summary>
+      <p className="mt-2 max-w-2xl">
+        {HLTV_RATING_DESCRIPTION} Rating = 0.0073 KAST + 0.3591 KPR - 0.5329 DPR
+        + 0.2372 Impact + 0.0032 ADR + 0.1587, where Impact = 2.13 KPR + 0.42
+        APR - 0.41. Uses raw kills (no equipment weighting).
+      </p>
+    </details>
   )
 }
 

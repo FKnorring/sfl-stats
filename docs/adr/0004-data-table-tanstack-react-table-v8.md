@@ -12,7 +12,7 @@ v9 is still in beta at the time of writing and changes its API around opt-in "fe
 
 ## Column sort is client-side and independent of server-side data selection
 
-The leaderboard and team-standings pages already pick *which* rows to fetch via server-side Drizzle SQL, driven by Select-based URL-param filters (season/division/team/stat — see `components/leaderboard-filters.tsx`). `DataTable`'s column-click sorting does not touch that: it's a plain client-side re-sort of whatever page of rows was already fetched, using `getSortedRowModel`. Clicking a column header never changes the URL or triggers a refetch.
+The leaderboard and team-standings pages already pick _which_ rows to fetch via server-side Drizzle SQL, driven by Select-based URL-param filters (season/division/team/stat — see `components/leaderboard-filters.tsx`). `DataTable`'s column-click sorting does not touch that: it's a plain client-side re-sort of whatever page of rows was already fetched, using `getSortedRowModel`. Clicking a column header never changes the URL or triggers a refetch.
 
 We considered unifying the two — e.g. having a column click update the `stat` URL param and resort via SQL — and rejected it: there's no pagination today, result sets are small enough that fetching everything and sorting client-side is simpler, and unifying would mean `DataTable`'s generic API would need to know about page-specific URL/query params, defeating the point of a reusable component. Future tables should follow the same split: server-side logic decides what to fetch, `DataTable` only sorts/searches what it's given.
 

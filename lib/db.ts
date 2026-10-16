@@ -5,10 +5,12 @@ import { teamDemoScope } from "@/lib/follow/follow-stats"
 import { matchDateTime, type DemoMatchRow, type MatchTeam } from "@/lib/matches"
 import {
   ratingAverageSql,
+  hltvRatingAverageSql,
   ratedGamesSql,
   getMatchRatingSummaries,
 } from "@/lib/rating-db"
 import { RATING_VERSION } from "@/lib/player-rating"
+import { HLTV_RATING_VERSION } from "@/lib/hltv-rating"
 import { resolveOfficialTeam } from "@/lib/toornament/standings"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
@@ -34,11 +36,15 @@ export type LeaderboardStat =
   | "mvps"
   | "assists"
   | "rating"
+  | "hltv_rating"
 
 // kills/deaths/assists sort by their per-match average (matching how they're
 // displayed), not by career total, so clicking the "Avg K"/"Avg D"/"Avg A"
 // column headers sorts by what the column actually shows.
-const STAT_COLUMNS: Record<Exclude<LeaderboardStat, "rating">, string> = {
+const STAT_COLUMNS: Record<
+  Exclude<LeaderboardStat, "rating" | "hltv_rating">,
+  string
+> = {
   matches: "COUNT(DISTINCT pms.match_id)",
   kills: "SUM(pms.kills) * 1.0 / COUNT(DISTINCT pms.match_id)",
   deaths: "SUM(pms.deaths) * 1.0 / COUNT(DISTINCT pms.match_id)",
@@ -52,6 +58,7 @@ export type SortDirection = "asc" | "desc"
 
 export type LeaderboardRow = {
   rating: number | null
+  hltvRating: number | null
   ratedGames: number
   teamId: number | null
   steamid64: string
@@ -123,10 +130,13 @@ export async function getLeaderboard(
   filters: LeaderboardFilters,
   database: AppDb = db
 ): Promise<LeaderboardRow[]> {
+  const nullsLast = filters.stat === "rating" || filters.stat === "hltv_rating"
   const statExpr =
     filters.stat === "rating"
       ? ratingAverageSql
-      : sql.raw(STAT_COLUMNS[filters.stat])
+      : filters.stat === "hltv_rating"
+        ? hltvRatingAverageSql
+        : sql.raw(STAT_COLUMNS[filters.stat])
   const direction = filters.direction === "asc" ? sql`ASC` : sql`DESC`
 
   // Unmatched players (no roster_entries row, so t.season is NULL via the
@@ -164,6 +174,7 @@ export async function getLeaderboard(
         AVG(pms.hs_pct) AS hsPct,
         SUM(pms.mvps) AS mvps,
         ${ratingAverageSql} AS rating,
+        ${hltvRatingAverageSql} AS hltvRating,
         ${ratedGamesSql} AS ratedGames
       FROM player_match_stats pms
       JOIN players p ON p.steamid64 = pms.steamid64
@@ -172,9 +183,9 @@ export async function getLeaderboard(
       LEFT JOIN teams t ON t.id = re.team_id
       ${where}
       GROUP BY p.steamid64, t.id
-      ORDER BY ${filters.stat === "rating" ? sql`${statExpr} IS NULL ASC,` : sql``}
+      ORDER BY ${nullsLast ? sql`${statExpr} IS NULL ASC,` : sql``}
         ${statExpr} ${direction}
-        ${filters.stat === "rating" ? sql`, p.steamid64, t.id` : sql``}
+        ${nullsLast ? sql`, p.steamid64, t.id` : sql``}
       ${filters.limit === undefined ? sql`` : sql`LIMIT ${filters.limit}`}
       `
   )) as LeaderboardRow[]
@@ -402,6 +413,7 @@ export async function getTeamByName(
 
 export type TeamRosterPlayerRow = {
   rating: number | null
+  hltvRating: number | null
   ratedGames: number
   rosterEntryId: number
   steamid64: string | null
@@ -452,6 +464,7 @@ export async function getTeamRoster(
         AVG(pms.hs_pct) AS hsPct,
         COALESCE(SUM(pms.mvps), 0) AS mvps,
         ${ratingAverageSql} AS rating,
+        ${hltvRatingAverageSql} AS hltvRating,
         ${ratedGamesSql} AS ratedGames
       FROM roster_entries re
       LEFT JOIN players p ON p.steamid64 = re.matched_steamid64
@@ -466,6 +479,7 @@ export async function getTeamRoster(
 
 export type PlayerSummaryRow = {
   rating: number | null
+  hltvRating: number | null
   ratedGames: number
   steamid64: string
   inGameName: string
@@ -511,6 +525,7 @@ export async function getPlayerBySteamId64(
         COALESCE(SUM(pms.kills), 0) * 1.0
           / MAX(COALESCE(SUM(pms.deaths), 0), 1) AS kd,
         ${ratingAverageSql} AS rating,
+        ${hltvRatingAverageSql} AS hltvRating,
         ${ratedGamesSql} AS ratedGames
       FROM players p
       LEFT JOIN player_match_stats pms ON pms.steamid64 = p.steamid64
@@ -571,6 +586,7 @@ export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
 
 export type PlayerMatchHistoryRow = {
   rating: number | null
+  hltvRating: number | null
   ratingRounds: number | null
   ratingUnavailableReason: string | null
   teamId: number | null
@@ -651,6 +667,7 @@ export async function getPlayerMatchHistory(
         pms.hs_pct AS hsPct,
         pms.mvps AS mvps,
         CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating END AS rating,
+        CASE WHEN pms.hltv_rating_version = ${HLTV_RATING_VERSION} THEN pms.hltv_rating END AS hltvRating,
         CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating_rounds END AS ratingRounds,
         CASE WHEN pms.rating_version IS NOT NULL AND pms.rating_version != ${RATING_VERSION}
             THEN 'Rating version requires recomputation'
@@ -1023,6 +1040,7 @@ export async function getDemoMatchById(
 
 export type DemoMatchPlayerStatsRow = {
   rating: number | null
+  hltvRating: number | null
   ratingRounds: number | null
   ratingUnavailableReason: string | null
   rosterTeamId: number | null
@@ -1089,6 +1107,7 @@ export async function getDemoMatchPlayerStats(
         pms.hs_pct AS hsPct,
         pms.mvps AS mvps,
         CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating END AS rating,
+        CASE WHEN pms.hltv_rating_version = ${HLTV_RATING_VERSION} THEN pms.hltv_rating END AS hltvRating,
         CASE WHEN pms.rating_version = ${RATING_VERSION} THEN pms.rating_rounds END AS ratingRounds,
         CASE WHEN pms.rating_version IS NOT NULL AND pms.rating_version != ${RATING_VERSION}
             THEN 'Rating version requires recomputation'

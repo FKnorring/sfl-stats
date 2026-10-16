@@ -413,6 +413,10 @@ Demo scoreboards, player profiles/history, leaderboards, shared team rosters,
 and recent-game hover cards show **SFL Rating v1**, a custom provisional model,
 **not an official HLTV rating**. Select SFL Rating in the leaderboard filter
 to rank by it; existing defaults and ADR-based team MVP selection are unchanged.
+
+An **HLTV 2.0 (unofficial approximation)** column is shown beside it, from the
+community formula (KAST, KPR, DPR, APR, ADR; see ADR 0015). After migrating,
+run `npm run rate:demos` to backfill it for already-rated demos.
 Demo detail includes the selected player's component breakdown, KAST, openings,
 clutches, flash assists, and utility damage.
 

@@ -33,6 +33,11 @@ incomplete Demos are unrated; profile/roster averages are simple means of
 per-Demo ratings and show rated-Demo coverage.
 _Avoid_: HLTV rating, Elo (SFL Rating measures performance, not competitive rank).
 
+**HLTV 2.0 (approximation)**:
+The community-reverse-engineered HLTV 2.0 formula computed from the same
+player-round facts as SFL Rating, stored beside it and averaged the same way.
+Always labelled unofficial; not HLTV's own number.
+
 **Participated Round**:
 A validated competitive round in which an identified human Player is alive
 on T/CT at freeze end. This is the SFL Rating denominator, distinct from

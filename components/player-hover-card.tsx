@@ -11,7 +11,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ProfileLinks } from "@/components/profile-links"
-import { RatingValue } from "@/components/player-rating"
+import { HltvRatingValue, RatingValue } from "@/components/player-rating"
 
 // Module-level so re-hovering (or the same player in several tables) doesn't
 // refetch within a page session.
@@ -118,6 +118,8 @@ function CardBody({ data }: { data: PlayerCardData }) {
                       reason={g.ratingUnavailableReason}
                       teamName={data.teamName}
                     />
+                    {" · HLTV "}
+                    <HltvRatingValue rating={g.hltvRating} />
                   </span>
                 </Link>
               </li>
