@@ -138,6 +138,7 @@ export async function getLeaderboard(
   const conditions = [
     sql`(t.season IS NULL OR ${SEASON_CUTOFF_SQL})`,
     sql`m.total_rounds >= 10`,
+    sql`m.is_scrim = 0`,
     sql`NOT (pms.kills = 0 AND pms.deaths = 0 AND pms.damage_total = 0)`,
   ]
   if (filters.season) conditions.push(sql`t.season = ${filters.season}`)
@@ -237,6 +238,7 @@ export async function getTeamStandings(
       FROM teams t
       LEFT JOIN roster_entries re ON re.team_id = t.id
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
+        AND ${visibleMatch(sql`pms.match_id`)}
       LEFT JOIN (
         SELECT
           teamId,
@@ -320,7 +322,7 @@ export async function getMatchesNeedingReview(): Promise<MatchNeedingReview[]> {
         m.team_resolution_conflict AS teamResolutionConflict,
         m.server_name AS serverName
       FROM matches m
-      WHERE m.team_resolution_conflict IS NOT NULL
+      WHERE m.team_resolution_conflict IS NOT NULL AND m.is_scrim = 0
       ORDER BY m.demo_date DESC
       `
   )) as MatchNeedingReview[]
@@ -443,6 +445,7 @@ export async function getTeamRoster(
           FROM match_kills mk
           WHERE mk.attacker_steamid64 = re.matched_steamid64
             AND LOWER(mk.weapon) IN ('mp9', 'mp7', 'mac10')
+            AND ${visibleMatch(sql`mk.match_id`)}
             ${scoped ? sql`AND mk.match_id IN (SELECT m.id FROM matches m WHERE ${teamDemoScope(teamId)})` : sql``}
         ) AS shrimpKills,
         COALESCE(SUM(pms.kills), 0) AS kills,
@@ -456,6 +459,7 @@ export async function getTeamRoster(
       FROM roster_entries re
       LEFT JOIN players p ON p.steamid64 = re.matched_steamid64
       LEFT JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
+        AND ${visibleMatch(sql`pms.match_id`)}
         ${scoped ? sql`AND pms.match_id IN (SELECT m.id FROM matches m WHERE ${teamDemoScope(teamId)})` : sql``}
       WHERE re.team_id = ${teamId}
       GROUP BY re.id
@@ -514,6 +518,7 @@ export async function getPlayerBySteamId64(
         ${ratedGamesSql} AS ratedGames
       FROM players p
       LEFT JOIN player_match_stats pms ON pms.steamid64 = p.steamid64
+        AND ${visibleMatch(sql`pms.match_id`)}
       WHERE p.steamid64 = ${steamid64}
       GROUP BY p.steamid64
       `
@@ -552,6 +557,7 @@ export async function getLeagueAverageStats(): Promise<LeagueAverageStats> {
           AVG(pms.adr) AS adr,
           AVG(pms.hs_pct) AS hsPct
         FROM player_match_stats pms
+        WHERE ${visibleMatch(sql`pms.match_id`)}
         GROUP BY pms.steamid64
         HAVING COUNT(DISTINCT pms.match_id) > 0
       )
@@ -657,7 +663,7 @@ export async function getPlayerMatchHistory(
             ELSE pms.rating_unavailable_reason END AS ratingUnavailableReason
       FROM player_match_stats pms
       JOIN matches m ON m.id = pms.match_id
-      WHERE pms.steamid64 = ${steamid64}
+      WHERE pms.steamid64 = ${steamid64} AND m.is_scrim = 0
       ORDER BY m.demo_date DESC
       `
   )) as PlayerMatchHistoryRow[]
@@ -764,7 +770,7 @@ export async function getDemoMatches(
       FROM matches m
       LEFT JOIN teams ta ON ta.id = m.team_a_id
       LEFT JOIN teams tb ON tb.id = m.team_b_id
-      ${idList === undefined ? sql`` : sql`WHERE m.id IN (${idList})`}
+      WHERE m.is_scrim = 0${idList === undefined ? sql`` : sql` AND m.id IN (${idList})`}
     `),
     database.all<RosterTeam>(sql`
       WITH latest_roster AS (
@@ -1158,7 +1164,7 @@ export async function getPlayerKillMatchIds(
   const rows = await db.all<{ matchId: number }>(sql`
     SELECT DISTINCT mk.match_id AS matchId
     FROM match_kills mk JOIN matches m ON m.id = mk.match_id
-    WHERE m.map_name IS NOT NULL
+    WHERE m.map_name IS NOT NULL AND m.is_scrim = 0
       AND (mk.attacker_steamid64 = ${steamid64} OR mk.victim_steamid64 = ${steamid64})
     ORDER BY mk.match_id
   `)
@@ -1192,7 +1198,7 @@ async function queryPlayerKills(
         mk.headshot
       FROM match_kills mk
       JOIN matches m ON m.id = mk.match_id
-      WHERE m.map_name IS NOT NULL
+      WHERE m.map_name IS NOT NULL AND m.is_scrim = 0
         AND (mk.attacker_steamid64 = ${steamid64}
           OR mk.victim_steamid64 = ${steamid64})
         ${matchId === undefined ? sql`` : sql`AND mk.match_id = ${matchId}`}
@@ -1302,7 +1308,7 @@ export async function getTeamMapStats(
         FROM roster_entries re
         JOIN player_match_stats pms ON pms.steamid64 = re.matched_steamid64
         JOIN matches m ON m.id = pms.match_id
-        WHERE re.team_id = ${teamId} AND m.map_name IS NOT NULL
+        WHERE re.team_id = ${teamId} AND m.map_name IS NOT NULL AND m.is_scrim = 0
       ), plant_stats AS (
         SELECT
           tm.map_name AS mapName,
@@ -1473,7 +1479,7 @@ export async function getTeamDemoMatches(
           ELSE NULL
         END AS opponentScore
       FROM matches m
-      WHERE ${
+      WHERE m.is_scrim = 0 AND ${
         scoped
           ? teamDemoScope(teamId)
           : sql`m.id IN (
@@ -1627,6 +1633,11 @@ export async function getRecentResults(
       result: teamScore > opponentScore ? "win" : "loss",
     }
   })
+}
+
+/** Restricts a match-id column to demos that aren't hidden scrims. */
+function visibleMatch(column: ReturnType<typeof sql>) {
+  return sql`${column} NOT IN (SELECT id FROM matches WHERE is_scrim = 1)`
 }
 
 export type MatchDetail = {

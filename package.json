@@ -17,6 +17,7 @@
     "scrape:roster": "node --env-file-if-exists=.env --import tsx scripts/scraping/scrape-roster.ts",
     "scrape:schedule": "node --env-file-if-exists=.env --import tsx scripts/scraping/scrape-schedule.ts",
     "ingest:demos": "node --env-file-if-exists=.env --import tsx scripts/demos/ingest-demos.ts",
+    "classify:scrims": "node --env-file-if-exists=.env --import tsx scripts/demos/classify-scrims.ts",
     "download:demos": "node --env-file=.env ./node_modules/tsx/dist/cli.mjs scripts/demos/download-demos.ts",
     "rate:demos": "node --env-file-if-exists=.env --import tsx scripts/demos/rate-demos.ts",
     "faceit:sync": "node --env-file-if-exists=.env --import tsx scripts/faceit/faceit-sync.ts",
