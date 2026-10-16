@@ -54,7 +54,7 @@ async function upsertTeamsAndRoster(db: AppDb, teams: ScrapedTeam[]) {
         const existing = (await tx.all(
           sql`
             SELECT id FROM roster_entries
-            WHERE team_id = ${row.id} AND nickname = ${player.nickname}
+            WHERE team_id = ${row.id} AND nickname = ${player.nickname} COLLATE NOCASE
               AND IFNULL(real_name, '') = IFNULL(${player.realName}, '')
           `
         )) as { id: number }[]
