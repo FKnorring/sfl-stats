@@ -6,6 +6,7 @@ import { openWritableDb } from "@/lib/db/client"
 import { withCacheInvalidation } from "../cache/revalidate-cache"
 import { applyOverrides, type PlayerOverrides } from "./player-matching"
 import { runDemoIngestion } from "./ingestion"
+import { classifyScrims } from "./classify-scrims"
 
 const DEFAULT_DIR = path.join(process.cwd(), "demos")
 const OVERRIDES_PATH = path.join(process.cwd(), "data", "player-overrides.json")
@@ -83,6 +84,9 @@ async function main() {
         toornamentWindowHours,
         reparse,
       })
+
+    const scrims = await classifyScrims(db)
+    console.log(`[ingest-demos] scrim flags changed: ${scrims.changed.length}`)
 
     console.log(
       `[ingest-demos] done: ${ingested} parsed, ${skipped} already ingested, ${reresolved} re-resolved`

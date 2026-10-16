@@ -1,0 +1,1 @@
+ALTER TABLE `matches` ADD `is_scrim` integer DEFAULT false NOT NULL;

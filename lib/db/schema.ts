@@ -122,6 +122,9 @@ export const matches = sqliteTable(
     // that same side — player-matched evidence always wins and is kept, this
     // just records that the two disagreed so a human can look. NULL normally.
     teamResolutionConflict: text("team_resolution_conflict"),
+    // Set by scripts/demos/classify-scrims.ts: no completed Toornament match
+    // near this demo, so it's a scrim and hidden from the public app.
+    isScrim: integer("is_scrim", { mode: "boolean" }).notNull().default(false),
     parsedAt: text("parsed_at").notNull(),
   },
   (t) => [
