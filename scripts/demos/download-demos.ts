@@ -5,10 +5,10 @@ import path from "node:path"
 
 import { createClient } from "@libsql/client"
 
-const ROOT_FOLDER =
-  "/sites/Publiclir/Delade dokument/Svenska Företagsligan/SFL S09 - ALL/SFL09_DEMOS"
+const SITE = "/personal/christoffer_djsesport_se"
+const ROOT_FOLDER = `${SITE}/Documents/SFL_09_DEMOS`
 const SHAREPOINT_URL =
-  "https://djsesport.sharepoint.com/:f:/s/Publiclir/IgDdUc4fjbExRYkPZKruj0O4Aau0nwBLFEtiyf6ScQ4GVDg?e=9UMucy"
+  "https://djsesport-my.sharepoint.com/:f:/g/personal/christoffer_djsesport_se/IgDWGrOdjvQcQbx15P-AO1b5AUVmXiSN6mzeYGslXmQu9d4?e=tBwSWR"
 
 type DemoFile = {
   name: string
@@ -158,7 +158,7 @@ function getDemosExpression(): string {
     const root = ${JSON.stringify(ROOT_FOLDER)};
     const query = async (folder, kind) => {
       const path = folder.replaceAll("'", "''");
-      const url = "/sites/Publiclir/_api/web/GetFolderByServerRelativeUrl('" +
+      const url = ${JSON.stringify(SITE)} + "/_api/web/GetFolderByServerRelativeUrl('" +
         path + "')/" + kind + "?$top=5000&$select=Name,ServerRelativeUrl,Length";
       const response = await fetch(url, {
         headers: { Accept: "application/json;odata=nometadata" }
@@ -295,7 +295,7 @@ async function main() {
     const expression = (demo: DemoFile) =>
       `(() => {
         const path = ${JSON.stringify(demo.path)}.replaceAll("'", "''");
-        const url = "/sites/Publiclir/_api/web/GetFileByServerRelativeUrl('" +
+        const url = ${JSON.stringify(SITE)} + "/_api/web/GetFileByServerRelativeUrl('" +
           path + "')/$value";
         const link = document.createElement("a");
         link.href = url;

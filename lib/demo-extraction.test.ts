@@ -4,6 +4,7 @@ import { z } from "zod"
 
 import { bombPlantRowSchema } from "../scripts/demos/domain/demo-stats"
 import {
+  countPlayedRounds,
   normalizeBombPlants,
   normalizeKillFacts,
 } from "../scripts/demos/domain/demo-extraction"
@@ -124,5 +125,23 @@ test("normalizes bomb plants with site, round winner, and CT players", () => {
         ctSteamids64: [],
       },
     ]
+  )
+})
+
+test("counts only rounds with a winner, ignoring the tick-0 round_end", () => {
+  assert.equal(
+    countPlayedRounds([
+      { tick: 0, winner: null },
+      { tick: 100, winner: "T" },
+      { tick: 200, winner: "CT" },
+    ]),
+    2
+  )
+  assert.equal(
+    countPlayedRounds([
+      { tick: 100, winner: "T" },
+      { tick: 200, winner: "CT" },
+    ]),
+    2
   )
 })

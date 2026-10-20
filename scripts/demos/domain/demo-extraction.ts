@@ -129,6 +129,12 @@ export function extractRoundEnds(filePath: string): RoundEndRow[] {
     .parse(parseEvent(filePath, "round_end") as unknown[])
 }
 
+/** CS2 can emit a winnerless round_end at tick 0 (match start); only rounds
+ * with a winner were actually played. */
+export function countPlayedRounds(roundEnds: RoundEndRow[]): number {
+  return roundEnds.filter((round) => round.winner).length
+}
+
 export function extractDemoFacts(filePath: string): DemoFacts {
   const header = parseHeader(filePath) as DemoHeader
   const roundEnds = extractRoundEnds(filePath)
@@ -137,7 +143,7 @@ export function extractDemoFacts(filePath: string): DemoFacts {
     return { status: "incomplete", header, roundEnds }
   }
 
-  const totalRounds = roundEnds.length
+  const totalRounds = countPlayedRounds(roundEnds)
   const gameEndTick = Math.max(...roundEnds.map((round) => round.tick))
   const tickRows = z
     .array(tickRowSchema)
