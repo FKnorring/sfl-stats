@@ -217,6 +217,7 @@ async function main() {
     throw new Error("--dir requires a value.")
   }
   const dryRun = process.argv.includes("--dry-run")
+  const all = process.argv.includes("--all")
 
   const db = createClient({
     url: process.env.DATABASE_URL ?? "file:data/sfl.db",
@@ -280,10 +281,12 @@ async function main() {
     )
     const rows = await db.execute("SELECT file_name FROM matches")
     const ingested = new Set(rows.rows.map((row) => String(row.file_name)))
-    const pending = demos.filter((demo) => !ingested.has(demo.name))
+    const pending = all
+      ? demos
+      : demos.filter((demo) => !ingested.has(demo.name))
 
     console.log(
-      `[download-demos] ${demos.length} SharePoint demos; ${pending.length} not ingested.`
+      `[download-demos] ${demos.length} SharePoint demos; ${pending.length} ${all ? "to fetch (--all)" : "not ingested"}.`
     )
     if (dryRun) {
       for (const demo of pending) console.log(`  ${demo.name}`)

@@ -40,7 +40,8 @@ faceit-sync.ts    →  faceit_match_stats, for players already matched to a stea
   default; pass `-- --dir <folder>` to choose another folder. Requires
   Microsoft Edge (or another Chromium browser via `EDGE_PATH`) and access to
   the shared folder. Use
-  `pnpm download:demos -- --dry-run` to list missing files without downloading.
+  `pnpm download:demos -- --dry-run` to list missing files without downloading,
+  or `-- --all` to also fetch demos already ingested (e.g. to re-rate them).
 
 ## Prerequisites
 
