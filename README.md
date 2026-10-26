@@ -71,7 +71,7 @@ By default everything (app + scripts) talks to the local file at
 `data/sfl.db`. To use a hosted [Turso](https://turso.tech/) database
 instead, set in `.env`:
 
-```bash
+```bash 
 DATABASE_URL=libsql://<db-name>-<org>.turso.io
 DATABASE_AUTH_TOKEN=<token from `turso db tokens create <db-name>`>
 ```
