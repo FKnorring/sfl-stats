@@ -22,6 +22,19 @@ export type CompletedToornamentMatch = {
 }
 
 function sameTeams(demo: ScrimDemo, result: CompletedToornamentMatch) {
+  // Both sides resolved on both: ids are authoritative. Fuzzy names would let
+  // e.g. "MatHem i Sverige AB" pass as "CGI Sverige AB" and hide a scrim.
+  if (
+    demo.teamAId !== null &&
+    demo.teamBId !== null &&
+    result.teamAId !== null &&
+    result.teamBId !== null
+  ) {
+    return (
+      (demo.teamAId === result.teamAId && demo.teamBId === result.teamBId) ||
+      (demo.teamAId === result.teamBId && demo.teamBId === result.teamAId)
+    )
+  }
   const demoIds = [demo.teamAId, demo.teamBId].filter((id) => id !== null)
   if (
     demoIds.length > 0 &&
