@@ -60,6 +60,26 @@ test("other teams' matches do not count", () => {
   assert.equal(isScrim(demo(), [other]), true)
 })
 
+test("resolved ids are authoritative: similar names do not make a scrim official", () => {
+  // Demo is Mathem (8) vs Fortnox (3); the only result is CGI (4) vs Fortnox
+  // (3). "CGI Sverige AB" is fuzzy-close to "MatHem i Sverige AB".
+  const result = {
+    ...official(iso(0)),
+    teamAId: 4,
+    teamBId: 3,
+    teamAName: "CGI Sverige AB",
+    teamBName: "Fortnox AB",
+  }
+  const d = demo({
+    teamAId: 8,
+    teamBId: 3,
+    teamAName: "MatHem i Sverige AB",
+    teamBName: "Fortnox AB",
+  })
+  assert.equal(isScrim(d, [result]), true)
+  assert.equal(isScrim(d, [{ ...result, teamAId: 8 }]), false)
+})
+
 test("unparseable date: hidden only when no team resolved", () => {
   assert.equal(isScrim(demo({ demoDate: null }), []), false)
   assert.equal(
