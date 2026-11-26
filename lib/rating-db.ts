@@ -203,3 +203,16 @@ export const ratedGamesSql = sql`
   COUNT(DISTINCT CASE WHEN pms.rating IS NOT NULL AND pms.rating_version = ${RATING_VERSION}
     THEN pms.match_id END)
 `
+
+/** Whether a match still needs rating from its demo: no player has a rating,
+ * and every unrated player is either unprocessed or was only unrated because
+ * the demo file was missing. Legitimately unrated matches (e.g. incomplete
+ * games) are final and not retried. */
+export function needsRating(
+  rows: { rating: number | null; reason: string | null }[]
+): boolean {
+  if (rows.some((row) => row.rating !== null)) return false
+  return rows.every(
+    (row) => row.reason === null || row.reason === "Original demo unavailable"
+  )
+}

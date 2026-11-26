@@ -372,3 +372,15 @@ test("rating markup distinguishes zero, unavailable, coverage and model explanat
     /not an official HLTV rating/
   )
 })
+
+test("needsRating retries unprocessed or file-missing matches only", async () => {
+  const { needsRating } = await import("./rating-db")
+  const row = (rating: number | null, reason: string | null) => ({
+    rating,
+    reason,
+  })
+  assert.equal(needsRating([row(null, null)]), true)
+  assert.equal(needsRating([row(null, "Original demo unavailable")]), true)
+  assert.equal(needsRating([row(1.1, null), row(null, "x")]), false)
+  assert.equal(needsRating([row(null, "Incomplete competitive game")]), false)
+})

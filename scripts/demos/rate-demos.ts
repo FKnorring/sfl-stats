@@ -9,6 +9,7 @@ import {
   persistRatingExtraction,
   recomputeMatchRatings,
   groupRatingFacts,
+  needsRating,
 } from "@/lib/rating-db"
 import { withCacheInvalidation } from "../cache/revalidate-cache"
 
@@ -19,6 +20,9 @@ async function main() {
       "match-id": { type: "string" },
       "dry-run": { type: "boolean", default: false },
       recompute: { type: "boolean", default: false },
+      // Rate only matches with no usable rating yet and a local demo file;
+      // never writes for missing files, so existing ratings are untouched.
+      "only-new": { type: "boolean", default: false },
     },
   })
   const matchId =
@@ -56,6 +60,30 @@ async function main() {
           paths.set(name, full)
         }
       }
+      let pending: Set<number> | undefined
+      if (values["only-new"]) {
+        if (values.recompute)
+          throw new Error("--only-new cannot be combined with --recompute")
+        const byMatch = new Map<
+          number,
+          { rating: number | null; reason: string | null }[]
+        >()
+        for (const row of await database
+          .select({
+            matchId: playerMatchStats.matchId,
+            rating: playerMatchStats.rating,
+            reason: playerMatchStats.ratingUnavailableReason,
+          })
+          .from(playerMatchStats)) {
+          const rows = byMatch.get(row.matchId) ?? []
+          rows.push(row)
+          byMatch.set(row.matchId, rows)
+        }
+        pending = new Set(
+          [...byMatch].filter(([, rows]) => needsRating(rows)).map(([id]) => id)
+        )
+      }
+      let skipped = 0
       let failed = 0
       const failures: unknown[] = []
       let rated = 0
@@ -76,6 +104,10 @@ async function main() {
             continue
           }
           const file = paths.get(match.fileName.normalize("NFC"))
+          if (pending && (!pending.has(match.id) || !file)) {
+            skipped++
+            continue
+          }
           const extraction = file
             ? extractRatingFacts(file)
             : {
@@ -139,7 +171,8 @@ async function main() {
       }
       console.log(
         `[rate-demos] ${values["dry-run"] ? "dry run: projected" : "persisted"} ${rated} player ratings; ` +
-          `${inventory.length} demos, ${missing} missing files, ${failed} failures`
+          `${inventory.length} demos, ${missing} missing files, ${failed} failures` +
+          (pending ? `, ${skipped} skipped (--only-new)` : "")
       )
       if (!values["dry-run"])
         console.log("[rate-demos] unrated:", Object.fromEntries(reasons))
