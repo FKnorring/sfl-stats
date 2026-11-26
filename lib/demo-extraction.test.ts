@@ -2,7 +2,11 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 import { z } from "zod"
 
-import { bombPlantRowSchema } from "../scripts/demos/domain/demo-stats"
+import {
+  bombPlantRowSchema,
+  dedupePlayerStats,
+  type DerivedPlayerStats,
+} from "../scripts/demos/domain/demo-stats"
 import {
   countPlayedRounds,
   normalizeBombPlants,
@@ -144,4 +148,36 @@ test("counts only rounds with a winner, ignoring the tick-0 round_end", () => {
     ]),
     2
   )
+})
+
+test("dedupes a steamid listed twice, keeping the most active row", () => {
+  const row = (over: Partial<DerivedPlayerStats>): DerivedPlayerStats => ({
+    steamid64: "1",
+    inGameName: "a",
+    teamName: null,
+    kills: 0,
+    deaths: 0,
+    assists: 0,
+    headshotKills: 0,
+    damageTotal: 0,
+    utilityDamageTotal: null,
+    enemiesFlashedTotal: null,
+    mvps: null,
+    aceRounds: null,
+    rounds3k: null,
+    rounds4k: null,
+    equipmentValueTotal: null,
+    adr: null,
+    hsPct: null,
+    ...over,
+  })
+  const out = dedupePlayerStats([
+    row({ teamName: "0" }),
+    null,
+    row({ steamid64: "2" }),
+    row({ teamName: "3", kills: 5 }),
+  ])
+  assert.equal(out.length, 3)
+  assert.equal(out[0]?.kills, 5)
+  assert.equal(out[1], null)
 })

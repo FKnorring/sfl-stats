@@ -205,3 +205,29 @@ export const bombPlantPlayerRowSchema = z.object({
 })
 
 export type BombPlantPlayerRow = z.infer<typeof bombPlantPlayerRowSchema>
+
+/** The final-tick scoreboard can list one steamid twice (e.g. a spectator or
+ * reconnect ghost with team 0/null and zeroed stats). Keep the most active
+ * row per steamid so player_match_stats' (match_id, steamid64) key holds.
+ * Null rows (bots) pass through untouched. */
+export function dedupePlayerStats(
+  players: (DerivedPlayerStats | null)[]
+): (DerivedPlayerStats | null)[] {
+  const activity = (p: DerivedPlayerStats) =>
+    p.kills + p.deaths + p.assists + p.damageTotal
+  const best = new Map<string, DerivedPlayerStats>()
+  for (const p of players) {
+    if (!p) continue
+    const prev = best.get(p.steamid64)
+    if (!prev || activity(p) > activity(prev)) best.set(p.steamid64, p)
+  }
+  const seen = new Set<string>()
+  return players
+    .filter((p) => {
+      if (!p) return true
+      if (seen.has(p.steamid64)) return false
+      seen.add(p.steamid64)
+      return true
+    })
+    .map((p) => (p ? best.get(p.steamid64)! : p))
+}
