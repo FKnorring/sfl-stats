@@ -14,6 +14,7 @@ import {
 } from "../../../lib/demo-rating"
 import {
   STAT_FIELDS,
+  dedupePlayerStats,
   deriveStats,
   isMatchComplete,
   bombPlantPlayerRowSchema,
@@ -154,7 +155,9 @@ export function extractDemoFacts(filePath: string): DemoFacts {
     header,
     roundEnds,
     totalRounds,
-    players: tickRows.map((row) => deriveStats(row, totalRounds)),
+    players: dedupePlayerStats(
+      tickRows.map((row) => deriveStats(row, totalRounds))
+    ),
     killFacts: extractKillFacts(filePath),
     bombPlants: extractBombPlants(filePath, roundEnds),
     ratingFacts: extractRatingFacts(filePath),

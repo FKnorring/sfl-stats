@@ -308,6 +308,7 @@ async function main() {
         link.remove();
       })()`
 
+    const failed: string[] = []
     for (const demo of pending) {
       const destination = path.join(dir, demo.name)
       if (fs.existsSync(destination)) {
@@ -323,8 +324,16 @@ async function main() {
 
       cdp.downloads.delete(demo.name)
       console.log(`[download-demos] downloading: ${demo.name}`)
-      await evaluate<undefined>(cdp.send, sessionId, expression(demo))
-      await waitForDownload(cdp.downloads, demo.name)
+      try {
+        await evaluate<undefined>(cdp.send, sessionId, expression(demo))
+        await waitForDownload(cdp.downloads, demo.name)
+      } catch (error) {
+        console.error(
+          `[download-demos] FAILED: ${error instanceof Error ? error.message : String(error)}`
+        )
+        failed.push(demo.name)
+        continue
+      }
 
       const downloaded = path.join(staging, demo.name)
       const size = fs.statSync(downloaded).size
@@ -335,6 +344,12 @@ async function main() {
       }
       fs.renameSync(downloaded, destination)
       console.log(`[download-demos] saved: ${demo.name}`)
+    }
+    if (failed.length > 0) {
+      console.error(
+        `[download-demos] ${failed.length} failed:\n${failed.join("\n")}`
+      )
+      process.exitCode = 1
     }
   } finally {
     if (cdp) await cdp.send("Browser.close").catch(() => {})
