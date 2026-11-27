@@ -8,6 +8,7 @@ import { Switch } from "@base-ui/react/switch"
 import {
   CalendarDaysIcon,
   CircleHelpIcon,
+  GitBranchIcon,
   GitCompareIcon,
   HomeIcon,
   Settings2Icon,
@@ -39,6 +40,7 @@ const ITEMS = [
   { href: "/leaderboard", label: "Leaderboard", icon: TrophyIcon },
   { href: "/teams", label: "Teams", icon: UsersIcon },
   { href: "/matches", label: "Matches", icon: CalendarDaysIcon },
+  { href: "/bracket", label: "Playoffs", icon: GitBranchIcon },
   { href: "/followed", label: "Followed", icon: StarIcon },
   { href: "/teams/compare", label: "Compare", icon: GitCompareIcon },
   { href: "/about", label: "About", icon: CircleHelpIcon },

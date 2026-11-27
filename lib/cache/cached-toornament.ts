@@ -81,3 +81,16 @@ export async function getLiveDivisionStandings(
     rankingRows
   )
 }
+
+async function playoffBracket(scope: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("toornament", scope))
+  return source.getLivePlayoffBracket()
+}
+
+/** Null while no playoff stage is published; throws if Toornament is down. */
+export async function getLivePlayoffBracket() {
+  await connection()
+  return playoffBracket(cacheScope())
+}
