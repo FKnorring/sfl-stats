@@ -188,11 +188,15 @@ function LineupCard({
                   const src = getMapIconUrl(m.mapName)
                   const name = formatMapName(m.mapName)
                   const label = lineup.mapsHidden
-                    ? `${name}: in the map pool (full pool shown, map preference hidden)`
+                    ? `${name}: in the map pool (map preference hidden)`
                     : `${name}: #${i + 1} most played map for ${lineup.teamName}, in ${m.count} demo${m.count === 1 ? "" : "s"} (non-scrim; top 4 shown)`
                   return (
                     <li key={m.mapName} title={label}>
-                      {src ? (
+                      {lineup.mapsHidden ? (
+                        <span className="rounded bg-muted px-1 text-[10px]">
+                          {name}
+                        </span>
+                      ) : src ? (
                         // eslint-disable-next-line @next/next/no-img-element -- small static map icons
                         <img
                           src={src}
