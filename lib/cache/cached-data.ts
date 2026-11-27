@@ -213,6 +213,16 @@ export function getTeamRoster(teamId: number, scoped = false) {
   return teamRoster(cacheScope(), teamId, scoped)
 }
 
+async function teamLineup(scope: string, teamId: number, teamName: string) {
+  "use cache: remote"
+  cacheLife("current")
+  cacheTag(scopedCacheTag("db", scope))
+  return queries.getTeamLineup(teamId, teamName)
+}
+export function getTeamLineup(teamId: number, teamName: string) {
+  return teamLineup(cacheScope(), teamId, teamName)
+}
+
 async function teamHistory(scope: string, teamId: number, scoped: boolean) {
   "use cache: remote"
   cacheLife("current")

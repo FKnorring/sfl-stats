@@ -9,6 +9,13 @@ import {
   getMatchRatingSummaries,
 } from "@/lib/rating-db"
 import { RATING_VERSION } from "@/lib/player-rating"
+import { MAP_POOL } from "@/lib/maps/map-images"
+import {
+  HIDE_MAP_PREFERENCES,
+  LINEUP_OVERRIDES,
+  pickMostPlayedLineup,
+  resolveNicknames,
+} from "@/lib/lineup"
 import { resolveOfficialTeam } from "@/lib/toornament/standings"
 
 // Read-only Drizzle instance used by the app. All writes happen exclusively
@@ -466,6 +473,110 @@ export async function getTeamRoster(
       ORDER BY kills DESC
       `
   )) as TeamRosterPlayerRow[]
+}
+
+export type TeamLineup = {
+  teamId: number
+  teamName: string
+  basis: "manual" | "most-played" | "most-appearances"
+  /** Demos the lineup appeared in together (most-played only). */
+  demoCount: number
+  /** The team's four most played maps (non-scrim demos). */
+  topMaps: { mapName: string; count: number }[]
+  /** True when topMaps is the whole pool, hiding the real preference. */
+  mapsHidden: boolean
+  players: {
+    nickname: string
+    inGameName: string | null
+    steamid64: string | null
+    matchesPlayed: number
+    rating: number | null
+    ratedGames: number
+  }[]
+}
+
+/**
+ * Likely lineup for the match preview: a hand-picked override if one exists,
+ * else the exact player set that shared the most visible demos, else the five
+ * most-appearing matched players.
+ */
+export async function getTeamLineup(
+  teamId: number,
+  teamName: string
+): Promise<TeamLineup> {
+  const roster = await getTeamRoster(teamId)
+  const pick = (rows: TeamRosterPlayerRow[]) =>
+    rows.map((p) => ({
+      nickname: p.nickname,
+      inGameName: p.inGameName,
+      steamid64: p.steamid64,
+      matchesPlayed: p.matchesPlayed,
+      rating: p.rating,
+      ratedGames: p.ratedGames,
+    }))
+  const mapRows = (await db.all(sql`
+    SELECT m.map_name AS mapName, COUNT(*) AS count
+    FROM matches m
+    WHERE m.is_scrim = 0 AND m.map_name IS NOT NULL AND ${teamDemoScope(teamId)}
+    GROUP BY m.map_name
+    ORDER BY count DESC, m.map_name
+    LIMIT 4
+  `)) as { mapName: string; count: number }[]
+  const mapsHidden = HIDE_MAP_PREFERENCES.includes(teamName)
+  const base = {
+    teamId,
+    teamName,
+    mapsHidden,
+    topMaps: mapsHidden
+      ? MAP_POOL.map((mapName) => ({ mapName, count: 0 }))
+      : mapRows,
+  }
+
+  const override = LINEUP_OVERRIDES[teamName]
+  if (override) {
+    const players = resolveNicknames(override, roster)
+    if (players.length)
+      return { ...base, basis: "manual", demoCount: 0, players: pick(players) }
+  }
+
+  const rows = (await db.all(sql`
+    SELECT pms.match_id AS matchId, pms.steamid64 AS steamid64
+    FROM player_match_stats pms
+    JOIN matches m ON m.id = pms.match_id
+    JOIN roster_entries re
+      ON re.matched_steamid64 = pms.steamid64 AND re.team_id = ${teamId}
+    WHERE m.is_scrim = 0 AND ${teamDemoScope(teamId)}
+  `)) as { matchId: number; steamid64: string }[]
+  const byMatch = new Map<number, string[]>()
+  for (const row of rows)
+    byMatch.set(row.matchId, [
+      ...(byMatch.get(row.matchId) ?? []),
+      row.steamid64,
+    ])
+  const best = pickMostPlayedLineup(
+    [...byMatch].map(([matchId, steamids]) => ({ matchId, steamids }))
+  )
+  if (best) {
+    const players = roster
+      .filter((p) => p.steamid64 && best.steamids.includes(p.steamid64))
+      .sort((a, b) => b.matchesPlayed - a.matchesPlayed)
+    return {
+      ...base,
+      basis: "most-played",
+      demoCount: best.count,
+      players: pick(players),
+    }
+  }
+  const top = roster
+    .filter((p) => p.steamid64 && p.matchesPlayed > 0)
+    .sort((a, b) => b.matchesPlayed - a.matchesPlayed)
+    .slice(0, 5)
+  return {
+    ...base,
+    basis: "most-appearances",
+    demoCount: 0,
+    players: pick(top),
+  }
 }
 
 export type PlayerSummaryRow = {

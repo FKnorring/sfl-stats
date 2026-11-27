@@ -1,6 +1,11 @@
 import assert from "node:assert/strict"
 import { test } from "node:test"
-import { currentRoundIndex, parseBracketWidget } from "./toornament/bracket"
+import {
+  currentRoundIndex,
+  parseBracketWidget,
+  previewMatches,
+  applyAdvancers,
+} from "./toornament/bracket"
 
 function card(
   id: string,
@@ -50,4 +55,33 @@ test("parseBracketWidget reads rounds, results, links and status", () => {
 
 test("parseBracketWidget returns null for unrecognized markup", () => {
   assert.equal(parseBracketWidget("<html></html>"), null)
+})
+
+test("previewMatches lists candidates for a slot waiting on one match", () => {
+  const bracket = parseBracketWidget(html)
+  assert.ok(bracket)
+  // Both fixture rounds are in scope; WB 2.1 waits on the undecided WB 1.2.
+  const preview = previewMatches(bracket).find((p) => p.match.id === "3")
+  assert.ok(preview)
+  const [a, b] = preview.sides
+  assert.deepEqual(a, { kind: "team", name: "Alpha", logoPath: "/media/31" })
+  assert.equal(b.kind, "candidates")
+  assert.deepEqual(b.kind === "candidates" && b.names, ["Gamma", "Delta"])
+})
+
+test("applyAdvancers marks the winner and fills the next slot", () => {
+  const bracket = parseBracketWidget(html)
+  assert.ok(bracket)
+  const applied = applyAdvancers(bracket, ["Gamma"])
+  const [, m2, m3] = applied.matches
+  assert.equal(m2.status, "completed")
+  assert.equal(m2.teamA.result, "win")
+  assert.equal(m3.teamB.name, "Gamma")
+  assert.equal(m3.status, "pending")
+  // Input is not mutated, and unrelated names change nothing.
+  assert.equal(bracket.matches[1].status, "pending")
+  assert.equal(applyAdvancers(bracket, ["Nobody"]).matches[1].status, "pending")
+  const preview = previewMatches(applied).find((p) => p.match.id === "3")
+  const side = preview?.sides[1]
+  assert.ok(side?.kind === "team" && side.assumed)
 })

@@ -6,6 +6,8 @@ export type BracketSlot = {
   logoPath: string | null
   score: number | null
   result: "win" | "loss" | null
+  /** Filled in locally ahead of Toornament, see `applyAdvancers`. */
+  assumed?: boolean
 }
 
 export type BracketMatchStatus = "completed" | "pending" | "waiting"
@@ -188,4 +190,109 @@ export function currentRoundIndex(bracket: BracketData): number | null {
     .filter((m) => m.status !== "completed")
     .map((m) => m.round)
   return open.length ? Math.min(...open) : null
+}
+
+export type PreviewSide =
+  | {
+      kind: "team"
+      name: string
+      logoPath: string | null
+      /** Advanced locally before Toornament recorded the result. */
+      assumed?: boolean
+    }
+  | { kind: "candidates"; names: string[]; logoPaths: (string | null)[] }
+  | { kind: "unknown" }
+
+export type MatchPreview = {
+  match: BracketMatch
+  sides: [PreviewSide, PreviewSide]
+}
+
+/**
+ * Upcoming semifinal/final matches worth previewing. A slot that is still
+ * waiting on exactly one undecided feeder match lists that match's two teams
+ * as candidates; any other empty slot stays unknown. Matches with no known
+ * team on either side are skipped.
+ */
+export function previewMatches(bracket: BracketData): MatchPreview[] {
+  const firstRound = Math.max(0, bracket.rounds.length - 2)
+  return bracket.matches
+    .filter((m) => m.status !== "completed" && m.round >= firstRound)
+    .sort((a, b) => a.round - b.round || a.y - b.y)
+    .flatMap((match) => {
+      const open = bracket.matches.filter(
+        (m) => m.nextMatchId === match.id && m.status !== "completed"
+      )
+      const emptySlots = [match.teamA, match.teamB].filter((s) => !s.name)
+      const side = (slot: BracketSlot): PreviewSide => {
+        if (slot.name)
+          return {
+            kind: "team",
+            name: slot.name,
+            logoPath: slot.logoPath,
+            ...(slot.assumed ? { assumed: true } : {}),
+          }
+        const feeder = emptySlots.length === 1 && open.length === 1 && open[0]
+        const all = feeder
+          ? [feeder.teamA, feeder.teamB].filter((s) => s.name)
+          : []
+        const teams = all
+        return teams.length
+          ? {
+              kind: "candidates",
+              names: teams.map((s) => s.name as string),
+              logoPaths: teams.map((s) => s.logoPath),
+            }
+          : { kind: "unknown" }
+      }
+      const sides: [PreviewSide, PreviewSide] = [
+        side(match.teamA),
+        side(match.teamB),
+      ]
+      return sides.every((s) => s.kind === "unknown") ? [] : [{ match, sides }]
+    })
+}
+
+/**
+ * Applies results Toornament hasn't recorded yet: in each undecided match with
+ * a known team from `advancers`, that team is marked the winner and moved into
+ * the next match's empty slot. Scores stay blank. Returns a new bracket.
+ */
+export function applyAdvancers(
+  bracket: BracketData,
+  advancers: string[]
+): BracketData {
+  const matches = bracket.matches.map((m) => ({
+    ...m,
+    teamA: { ...m.teamA },
+    teamB: { ...m.teamB },
+  }))
+  const byId = new Map(matches.map((m) => [m.id, m]))
+  // Only matches pending on Toornament, so a team moved into the next round
+  // is not also treated as winning that round.
+  const undecided = new Set(
+    bracket.matches.filter((m) => m.status === "pending").map((m) => m.id)
+  )
+  for (const match of matches) {
+    if (!undecided.has(match.id)) continue
+    const winners = [match.teamA, match.teamB].filter(
+      (s) => s.name && advancers.includes(s.name)
+    )
+    if (winners.length !== 1) continue
+    const winner = winners[0]
+    const loser = winner === match.teamA ? match.teamB : match.teamA
+    winner.result = "win"
+    loser.result = "loss"
+    match.status = "completed"
+    const next = match.nextMatchId ? byId.get(match.nextMatchId) : undefined
+    const slot = next && [next.teamA, next.teamB].find((s) => !s.name)
+    if (next && slot) {
+      slot.name = winner.name
+      slot.logoPath = winner.logoPath
+      slot.assumed = true
+      if (next.teamA.name && next.teamB.name && next.status === "waiting")
+        next.status = "pending"
+    }
+  }
+  return { ...bracket, matches }
 }

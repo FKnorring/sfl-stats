@@ -11,6 +11,14 @@ const MAP_IMAGES: Record<string, string> = {
   de_nuke: "/maps/de_nuke.webp",
 }
 
+// Official CS2 map icons (public/map-icons/), keyed like MAP_IMAGES.
+export const MAP_POOL = Object.keys(MAP_IMAGES)
+
+export function getMapIconUrl(mapName: string | null): string | null {
+  if (!mapName || !/^de_[a-z0-9]+$/.test(mapName)) return null
+  return `/map-icons/${mapName}.png`
+}
+
 export function getMapImageUrl(mapName: string | null): string | null {
   if (!mapName) return null
   return MAP_IMAGES[mapName] ?? null
