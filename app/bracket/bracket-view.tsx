@@ -350,7 +350,7 @@ function MatchPreviewSection({
 }) {
   return (
     <section className="flex flex-col gap-4">
-      <h2 className="text-xs font-semibold tracking-[0.2em] text-amber-600 uppercase dark:text-amber-400">
+      <h2 className="text-xs font-medium text-muted-foreground uppercase">
         Match preview
       </h2>
       <div className="grid items-stretch gap-4 lg:grid-cols-2">
@@ -359,16 +359,13 @@ function MatchPreviewSection({
           .map(({ match, sides }) => (
             <div
               key={match.id}
-              className="@container flex min-w-0 flex-col gap-4 rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent p-4 shadow-sm sm:p-6"
+              className="@container flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4"
             >
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-                <span className="text-lg font-bold tracking-tight">
-                  {rounds[match.round]}{" "}
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {match.label}
-                  </span>
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b pb-3">
+                <span className="text-sm font-semibold">
+                  {rounds[match.round]} · {match.label}
                 </span>
-                <span className="rounded-full bg-amber-500 px-3 py-1 font-mono text-xs font-semibold text-black">
+                <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
                   {formatWhen(
                     match.scheduledAt,
                     confirmedTime(rounds[match.round])
@@ -383,8 +380,8 @@ function MatchPreviewSection({
                   avatarUrls={avatarUrls}
                   faceit={faceit}
                 />
-                <span className="mx-auto flex size-12 items-center justify-center self-center rounded-full border-2 border-amber-500/50 bg-background text-sm font-black tracking-wider text-amber-600 italic shadow-md dark:text-amber-400">
-                  VS
+                <span className="mx-auto flex size-8 items-center justify-center self-center rounded-full border bg-muted text-[10px] font-medium text-muted-foreground uppercase">
+                  vs
                 </span>
                 <PreviewSideView
                   side={sides[1]}
@@ -442,63 +439,50 @@ export function BracketView({
 
   return (
     <div className="flex min-w-0 flex-col gap-6 p-6">
-      <header className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/15 via-muted/40 to-transparent p-6 sm:p-8">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-10 size-64 rounded-full bg-amber-400/20 blur-3xl"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-2 -bottom-6 text-[9rem] leading-none opacity-15 select-none"
-        >
-          🏆
-        </div>
-        <div className="relative flex flex-col gap-2">
-          <span className="text-xs font-semibold tracking-[0.3em] text-amber-600 uppercase dark:text-amber-400">
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b pb-4">
+        <div>
+          <p className="text-xs text-muted-foreground uppercase">
             {season} · Counter-Strike 2
-          </span>
-          <h1 className="text-3xl font-black tracking-tight sm:text-5xl">
-            Playoffs
-          </h1>
-          {champion ? (
-            <p className="text-lg font-semibold">
-              🏆 Champion:{" "}
-              <span className="text-amber-600 dark:text-amber-400">
-                {champion.name}
-              </span>
-            </p>
-          ) : current !== null ? (
-            <p className="flex items-center gap-2 text-sm font-medium">
-              <span className="relative flex size-2">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-amber-500 opacity-75" />
-                <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
-              </span>
-              Now: {bracket.rounds[current]}
-            </p>
-          ) : null}
+          </p>
+          <h1 className="text-2xl font-semibold tracking-tight">Playoffs</h1>
         </div>
-      </header>
+        {champion ? (
+          <p className="rounded-md border px-3 py-1.5 text-sm">
+            <span className="text-muted-foreground">Champion</span>{" "}
+            <span className="font-medium">{champion.name}</span>
+          </p>
+        ) : current !== null ? (
+          <p className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
+            <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+            <span className="text-muted-foreground">Now</span>
+            <span className="font-medium">{bracket.rounds[current]}</span>
+          </p>
+        ) : null}
+      </div>
 
       {upcoming.length ? (
         <section className="flex flex-col gap-2">
           <h2 className="text-xs font-medium text-muted-foreground uppercase">
             Up next
           </h2>
-          <ul className="flex flex-col gap-1 text-sm">
+          <ul className="flex flex-col divide-y rounded-lg border text-sm">
             {upcoming.map((m) => (
-              <li key={m.id} className="flex flex-wrap items-baseline gap-x-3">
+              <li
+                key={m.id}
+                className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 px-3 py-2"
+              >
                 <span className="w-44 shrink-0 font-mono text-xs text-muted-foreground">
                   {formatWhen(
                     m.scheduledAt,
                     confirmedTime(bracket.rounds[m.round])
                   )}
                 </span>
-                <span>
+                <span className="font-medium">
                   {m.teamA.name}{" "}
-                  <span className="text-muted-foreground">vs</span>{" "}
+                  <span className="font-normal text-muted-foreground">vs</span>{" "}
                   {m.teamB.name}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="ml-auto text-xs text-muted-foreground">
                   {bracket.rounds[m.round]}
                 </span>
               </li>
