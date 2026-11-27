@@ -10,8 +10,10 @@ export const LINEUP_OVERRIDES: Record<string, string[]> = {
   "CGI Sverige AB 1": ["Mattrovic", "ezki", "xelos", "forsan", "wallak"],
 }
 
-/** Teams that show the whole map pool instead of their top maps (no scouting). */
-export const HIDE_MAP_PREFERENCES: string[] = ["Netlight AB Duende"]
+/** Teams that show a fixed map pool instead of their top maps (no scouting). */
+export const HIDDEN_MAP_POOLS: Record<string, string[]> = {
+  "Netlight AB Duende": ["de_train", "de_vertigo", "de_dust2", "de_anubis"],
+}
 
 /**
  * Teams that have won a match Toornament hasn't recorded yet. The bracket page

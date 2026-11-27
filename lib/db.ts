@@ -9,9 +9,8 @@ import {
   getMatchRatingSummaries,
 } from "@/lib/rating-db"
 import { RATING_VERSION } from "@/lib/player-rating"
-import { MAP_POOL } from "@/lib/maps/map-images"
 import {
-  HIDE_MAP_PREFERENCES,
+  HIDDEN_MAP_POOLS,
   LINEUP_OVERRIDES,
   pickMostPlayedLineup,
   resolveNicknames,
@@ -522,13 +521,14 @@ export async function getTeamLineup(
     ORDER BY count DESC, m.map_name
     LIMIT 4
   `)) as { mapName: string; count: number }[]
-  const mapsHidden = HIDE_MAP_PREFERENCES.includes(teamName)
+  const hiddenMapPool = HIDDEN_MAP_POOLS[teamName]
+  const mapsHidden = hiddenMapPool !== undefined
   const base = {
     teamId,
     teamName,
     mapsHidden,
     topMaps: mapsHidden
-      ? MAP_POOL.map((mapName) => ({ mapName, count: 0 }))
+      ? hiddenMapPool.map((mapName) => ({ mapName, count: 0 }))
       : mapRows,
   }
 
