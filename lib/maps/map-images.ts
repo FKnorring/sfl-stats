@@ -16,7 +16,9 @@ export const MAP_POOL = Object.keys(MAP_IMAGES)
 
 export function getMapIconUrl(mapName: string | null): string | null {
   if (!mapName || !/^de_[a-z0-9]+$/.test(mapName)) return null
-  return `/map-icons/${mapName}.png`
+  const extension =
+    mapName === "de_train" || mapName === "de_vertigo" ? "svg" : "png"
+  return `/map-icons/${mapName}.${extension}`
 }
 
 export function getMapImageUrl(mapName: string | null): string | null {

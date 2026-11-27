@@ -183,7 +183,10 @@ function LineupCard({
               <span className="text-[10px] text-muted-foreground uppercase">
                 {lineup.mapsHidden ? "Map pool" : "Top maps"}
               </span>
-              <ul className="flex gap-1" aria-label="Most played maps">
+              <ul
+                className="flex gap-1"
+                aria-label={lineup.mapsHidden ? "Map pool" : "Most played maps"}
+              >
                 {lineup.topMaps.map((m, i) => {
                   const src = getMapIconUrl(m.mapName)
                   const name = formatMapName(m.mapName)
@@ -192,11 +195,7 @@ function LineupCard({
                     : `${name}: #${i + 1} most played map for ${lineup.teamName}, in ${m.count} demo${m.count === 1 ? "" : "s"} (non-scrim; top 4 shown)`
                   return (
                     <li key={m.mapName} title={label}>
-                      {lineup.mapsHidden ? (
-                        <span className="rounded bg-muted px-1 text-[10px]">
-                          {name}
-                        </span>
-                      ) : src ? (
+                      {src ? (
                         // eslint-disable-next-line @next/next/no-img-element -- small static map icons
                         <img
                           src={src}
