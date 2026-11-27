@@ -117,6 +117,12 @@
 }
 
 @layer base {
+
+  /* Everything is rem-based, so this scales the whole UI to match 90% zoom. */
+  html {
+    font-size: 90%;
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -124,114 +130,140 @@
   .follow-color-0 {
     --follow-color: #2563eb;
   }
+
   .follow-color-1 {
     --follow-color: #d97706;
   }
+
   .follow-color-2 {
     --follow-color: #059669;
   }
+
   .follow-color-3 {
     --follow-color: #db2777;
   }
+
   .follow-color-4 {
     --follow-color: #7c3aed;
   }
+
   .follow-color-5 {
     --follow-color: #0891b2;
   }
+
   .dark .follow-color-0 {
     --follow-color: #60a5fa;
   }
+
   .dark .follow-color-1 {
     --follow-color: #fbbf24;
   }
+
   .dark .follow-color-2 {
     --follow-color: #34d399;
   }
+
   .dark .follow-color-3 {
     --follow-color: #f472b6;
   }
+
   .dark .follow-color-4 {
     --follow-color: #a78bfa;
   }
+
   .dark .follow-color-5 {
     --follow-color: #22d3ee;
   }
+
   .follow-row {
     background: color-mix(in oklab, var(--follow-color) 10%, transparent);
     box-shadow: inset 3px 0 0 var(--follow-color);
   }
+
   .follow-row:hover {
     background: color-mix(in oklab, var(--follow-color) 18%, var(--muted));
   }
+
   .follow-row.bg-muted {
     background: color-mix(in oklab, var(--follow-color) 24%, var(--muted));
     outline: 1px solid var(--foreground);
     outline-offset: -1px;
   }
+
   .follow-marker {
     border-color: var(--follow-color);
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
   html {
     @apply font-sans;
   }
 }
+
 /* Netlight (Boids / Duende) player pizzazz */
 @keyframes fire-text {
   0% {
     background-position: 0% 50%;
   }
+
   100% {
     background-position: 200% 50%;
   }
 }
+
 @keyframes fire-glow {
+
   0%,
   100% {
     box-shadow:
       0 0 8px 0 rgb(249 115 22 / 0.18),
       inset 0 0 12px 0 rgb(239 68 68 / 0.06);
   }
+
   50% {
     box-shadow:
       0 0 16px 1px rgb(249 115 22 / 0.3),
       inset 0 0 16px 0 rgb(239 68 68 / 0.1);
   }
 }
+
 @keyframes ember-rise {
   0% {
     transform: translateY(0) scale(1);
     opacity: 0;
   }
+
   15% {
     opacity: 0.7;
   }
+
   100% {
     transform: translateY(-60px) scale(0.3);
     opacity: 0;
   }
 }
+
 .netlight-card {
   animation: fire-glow 2.2s ease-in-out infinite;
   border-color: rgb(249 115 22 / 0.45) !important;
 }
+
 .netlight-name {
   display: inline-block;
-  background: linear-gradient(
-    90deg,
-    #ef4444,
-    #f97316,
-    #facc15,
-    #f97316,
-    #ef4444
-  );
+  background: linear-gradient(90deg,
+      #ef4444,
+      #f97316,
+      #facc15,
+      #f97316,
+      #ef4444);
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -239,16 +271,15 @@
   animation: fire-text 5s linear infinite;
   filter: drop-shadow(0 0 3px rgb(249 115 22 / 0.3));
 }
+
 .rating-gold {
   font-weight: 600;
-  background: linear-gradient(
-    110deg,
-    #b45309 0%,
-    #d97706 35%,
-    #fbbf24 50%,
-    #d97706 65%,
-    #b45309 100%
-  );
+  background: linear-gradient(110deg,
+      #b45309 0%,
+      #d97706 35%,
+      #fbbf24 50%,
+      #d97706 65%,
+      #b45309 100%);
   background-size: 250% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -256,23 +287,25 @@
   animation: gold-shine 7s ease-in-out infinite;
   filter: drop-shadow(0 0 2px rgb(251 191 36 / 0.25));
 }
+
 @keyframes gold-shine {
   from {
     background-position: 150% 0;
   }
+
   to {
     background-position: -100% 0;
   }
 }
+
 .netlight-row {
-  background: linear-gradient(
-    90deg,
-    rgb(249 115 22 / 0.07),
-    rgb(239 68 68 / 0.02) 60%,
-    transparent
-  );
+  background: linear-gradient(90deg,
+      rgb(249 115 22 / 0.07),
+      rgb(239 68 68 / 0.02) 60%,
+      transparent);
   box-shadow: inset 2px 0 0 0 rgb(249 115 22 / 0.6);
 }
+
 .netlight-ember {
   position: absolute;
   bottom: 0;
@@ -284,7 +317,9 @@
   animation: ember-rise 2.4s ease-out infinite;
   pointer-events: none;
 }
+
 @media (prefers-reduced-motion: reduce) {
+
   .netlight-card,
   .netlight-name,
   .netlight-row,
