@@ -9,7 +9,11 @@ import {
 } from "@/lib/matches"
 import { extractRootComponentJson } from "@/lib/roster/root-component-json"
 import { pageJsonSchema } from "@/lib/roster/roster-types"
-import { extractCs2DivisionStages } from "@/lib/roster/roster-extract"
+import {
+  extractCs2DivisionStages,
+  extractCs2PlayoffStages,
+} from "@/lib/roster/roster-extract"
+import { parseBracketWidget, type BracketData } from "@/lib/toornament/bracket"
 import {
   parseStandingsWidget,
   resolveOfficialTeam,
@@ -116,15 +120,42 @@ export type LiveStandingsResult = {
 }
 
 export async function getDivisionStages() {
+  return extractCs2DivisionStages(await fetchLeaguePageContent())
+}
+
+async function fetchLeaguePageContent() {
   const page = await fetch("https://publiclir.se/svenska-foeretagsligan/", {
     cache: "no-store",
     signal: AbortSignal.timeout(10000),
   })
   if (!page.ok) throw new Error(`League page: HTTP ${page.status}`)
-  const content = pageJsonSchema.parse(
-    extractRootComponentJson(await page.text())
-  )
-  return extractCs2DivisionStages(content.pageContent.fields.contentArea)
+  return pageJsonSchema.parse(extractRootComponentJson(await page.text()))
+    .pageContent.fields.contentArea
+}
+
+export type PlayoffBracket = {
+  season: string
+  sourceUrl: string
+  bracket: BracketData
+}
+
+/**
+ * The current season's CS2 playoff bracket: discovers the "Slutspel" stage on
+ * publiclir.se, then parses the Toornament bracket widget. Null when no
+ * playoff stage is published yet; throws if either source is unreachable.
+ */
+export async function getLivePlayoffBracket(): Promise<PlayoffBracket | null> {
+  const [stage] = extractCs2PlayoffStages(await fetchLeaguePageContent())
+  if (!stage) return null
+  const sourceUrl = `https://widget.toornament.com${stage.path}`
+  const res = await fetch(sourceUrl, {
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) throw new Error(`Bracket widget: HTTP ${res.status}`)
+  const bracket = parseBracketWidget(await res.text())
+  if (!bracket) throw new Error("Unrecognized bracket markup")
+  return { season: stage.season, sourceUrl, bracket }
 }
 
 async function divisionStage(

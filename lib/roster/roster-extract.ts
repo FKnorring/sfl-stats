@@ -143,3 +143,33 @@ export function extractCs2DivisionStages(contentArea: Block[]) {
   })
   return stages
 }
+
+/**
+ * Playoff ("Slutspel") bracket embeds inside each season's Counter-Strike 2
+ * tab, in page order (newest season first).
+ */
+export function extractCs2PlayoffStages(contentArea: Block[]) {
+  const stages: { season: string; path: string }[] = []
+  visitCs2Tabs(contentArea, (blocks, season) => {
+    let inPlayoffs = false
+    for (const block of blocks) {
+      if (block.system.contentType === "headlineBlock") {
+        inPlayoffs = /^slutspel/i.test(
+          (fieldString(block, "headline") ?? "").trim()
+        )
+      }
+      const path = fieldString(block, "embedPath")
+      if (
+        inPlayoffs &&
+        block.system.contentType === "toornamentEmbedBlock" &&
+        path &&
+        /^\/tournaments\/\d+\/stages\/\d+\/(?:\?_locale=[a-z]{2}_[A-Z]{2})?$/.test(
+          path
+        )
+      ) {
+        stages.push({ season, path })
+      }
+    }
+  })
+  return stages
+}
